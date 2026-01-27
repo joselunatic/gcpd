@@ -1,0 +1,28 @@
+{
+  "id": "case_arkham_blackout",
+  "title": "Apagon en Arkham",
+  "status": "resolved",
+  "summary": "Escenario archivado con desvio de energia de contingencia.",
+  "unlockConditions": [],
+  "commands": {
+    "brief": [
+      "CASE ID: GCPD-ARK-07",
+      "INCIDENTE: El Asilo Arkham sufrio un EMP coordinado, obligando a Batman a activar failsafes manuales.",
+      "OBJETIVO: Redirigir energia por la red de alcantarillas y mantener las celdas cerradas (mision cumplida, para referencia)."
+    ],
+    "intel": [
+      "Resuelto hace 2 anios. La mayoria de datos fueron censurados por el propio Batman.",
+      "Util como precedente cuando el DM quiera justificar planos antiguos o supervivientes."
+    ],
+    "puzzle": {
+      "type": "tic-tac-toe",
+      "config": {
+        "mode": "archive"
+      }
+    }
+  },
+  "dm": {
+    "notes": "Usar para dar contexto historico a los jugadores. No se requiere interaccion en vivo.",
+    "spoilers": []
+  }
+}

@@ -1,3 +1,5 @@
+const SOUND_ENABLED = false;
+
 let buttonSound = new Audio("/assets/sounds/button.mp3");
 let clickSound = new Audio("/assets/sounds/click.mp3");
 
@@ -9,13 +11,16 @@ let keys = [
 ];
 
 function button() {
+  if (!SOUND_ENABLED) return;
   buttonSound.play();
 }
 function click() {
+  if (!SOUND_ENABLED) return;
   clickSound.play();
 }
 
 function typeSound() {
+  if (!SOUND_ENABLED) return;
   let i = Math.floor(Math.random() * keys.length);
   keys[i].currentTime = 0;
   keys[i].play();

@@ -1,0 +1,59 @@
+{
+  "cases": [
+    {
+      "id": "case_lockdown_protocol",
+      "title": "Protocolo de Bloqueo",
+      "status": "active",
+      "summary": "Caso de prueba para verificar el Batcomputer reconstruido.",
+      "tags": [
+        "demo",
+        "system"
+      ],
+      "file": "/data/cases/case_lockdown_protocol.json",
+      "commands": {
+        "parentId": "case_lockdown_protocol"
+      }
+    },
+    {
+      "id": "case_omak_drift",
+      "title": "Deriva OMAK",
+      "status": "active",
+      "summary": "Satelites Wayne detectan microdrones OMAK fuera de control sobre los Narrows.",
+      "tags": [
+        "investigation",
+        "technology"
+      ],
+      "file": "/data/cases/case_omak_drift.json",
+      "commands": {
+        "parentId": "case_lockdown_protocol"
+      }
+    },
+    {
+      "id": "case_court_echo",
+      "title": "Eco de la Corte",
+      "status": "locked",
+      "summary": "Rumores de actividad Talon cerca de refugios abandonados.",
+      "tags": [
+        "myth",
+        "surveillance"
+      ],
+      "file": "/data/cases/case_court_echo.json",
+      "commands": {
+        "parentId": "case_lockdown_protocol"
+      }
+    },
+    {
+      "id": "case_arkham_blackout",
+      "title": "Apagon en Arkham",
+      "status": "resolved",
+      "summary": "Escenario archivado con desvio de energia de contingencia.",
+      "tags": [
+        "archive"
+      ],
+      "file": "/data/cases/case_arkham_blackout.json",
+      "commands": {
+        "parentId": "case_lockdown_protocol"
+      }
+    }
+  ]
+}

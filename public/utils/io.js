@@ -1,12 +1,62 @@
 import { typeSound } from "/utils/sounds.js";
 import pause from "/utils/pause.js";
 import say from "/utils/speak.js";
+import {
+  setSelectables,
+  hasPendingSelection,
+  activateSelection,
+  getSelectedElement,
+} from "/utils/selection.js";
 
 // Command history
 let prev = getHistory();
 let historyIndex = -1;
 let tmp = "";
 let interval;
+const FAST_MODE_STORAGE_KEY = "ttyFastMode";
+const FAST_MODE_MULTIPLIER = 0.15;
+const MIN_TICK_MS = 4;
+let fastMode = false;
+let activeInput = null;
+
+try {
+  fastMode = localStorage.getItem(FAST_MODE_STORAGE_KEY) === "true";
+} catch (e) {}
+
+function setFastMode(enabled) {
+  fastMode = Boolean(enabled);
+  try {
+    localStorage.setItem(FAST_MODE_STORAGE_KEY, String(fastMode));
+  } catch (e) {}
+}
+
+function getFastMode() {
+  return fastMode;
+}
+
+function toggleFastMode() {
+  setFastMode(!fastMode);
+}
+
+window.addEventListener("keydown", (event) => {
+  if (event.altKey && event.shiftKey && event.code === "KeyF") {
+    event.preventDefault();
+    toggleFastMode();
+  }
+});
+
+function applySpeedDelay(value) {
+  if (!value) return 0;
+  if (!fastMode) return value;
+  return Math.round(value * FAST_MODE_MULTIPLIER);
+}
+
+function applySpeedTick(value) {
+  if (!value) return 0;
+  if (!fastMode) return value;
+  const adjusted = Math.round(value * FAST_MODE_MULTIPLIER);
+  return Math.max(MIN_TICK_MS, adjusted);
+}
 
 function countWords(str) {
   const arr = str.split(" ");
@@ -51,6 +101,61 @@ function addToHistory(cmd) {
   try {
     localStorage.setItem("commandHistory", JSON.stringify(prev));
   } catch (e) {}
+}
+
+function setActiveInput({ element, onKeyDown, resolve, pw }) {
+  activeInput = { element, onKeyDown, resolve, pw };
+}
+
+function clearActiveInput() {
+  if (activeInput?.element && activeInput?.onKeyDown) {
+    activeInput.element.removeEventListener("keydown", activeInput.onKeyDown);
+  }
+  activeInput = null;
+}
+
+function isInputActive() {
+  return Boolean(
+    activeInput?.element &&
+      activeInput.element.getAttribute("contenteditable") === "true"
+  );
+}
+
+function focusInput() {
+  if (activeInput?.element) {
+    activeInput.element.focus();
+  }
+}
+
+function navigateHistory(direction) {
+  if (!activeInput?.element) return false;
+  const element = activeInput.element;
+  if (direction === "up") {
+    if (historyIndex === -1) tmp = element.textContent;
+    historyIndex = Math.min(prev.length - 1, historyIndex + 1);
+    element.textContent = prev[historyIndex] || "";
+  } else if (direction === "down") {
+    historyIndex = Math.max(-1, historyIndex - 1);
+    element.textContent = prev[historyIndex] || tmp;
+  }
+  moveCaretToEnd(element);
+  return true;
+}
+
+function submitInput(value) {
+  if (!activeInput?.element) return false;
+  const element = activeInput.element;
+  const text = value != null ? String(value) : element.textContent || "";
+  element.textContent = text;
+  element.setAttribute("contenteditable", false);
+  addToHistory(text);
+  if (activeInput.pw) {
+    element.setAttribute("data-pw", Array(text.length).fill("*").join(""));
+  }
+  const resolve = activeInput.resolve;
+  clearActiveInput();
+  resolve(cleanInput(text));
+  return true;
 }
 
 /**
@@ -121,8 +226,9 @@ async function type(
       container.appendChild(typer);
     }
 
-    if (initialWait) {
-      await pause(initialWait / 1000);
+    const adjustedInitialWait = applySpeedDelay(initialWait);
+    if (adjustedInitialWait) {
+      await pause(adjustedInitialWait / 1000);
     }
 
     let queue = text;
@@ -140,6 +246,7 @@ async function type(
     }
 
     // Use an interval to repeatedly pop a character from the queue and type it on screen
+    const adjustedWait = applySpeedTick(wait);
     interval = setInterval(async () => {
       if (queue.length) {
         let char = queue.shift();
@@ -163,20 +270,143 @@ async function type(
 
           if (element.nodeName === "BR") {
             scroll(container);
+          } else if (!processChars) {
+            scroll(container);
           }
         }
         prev = element;
       } else {
         // When the queue is empty, clean up the interval
         clearInterval(interval);
-        await pause(finalWait / 1000);
+        const adjustedFinalWait = applySpeedDelay(finalWait);
+        if (adjustedFinalWait) {
+          await pause(adjustedFinalWait / 1000);
+        }
         if (stopBlinking) {
           typer.classList.remove("active");
         }
         resolve();
       }
-    }, wait);
+    }, adjustedWait);
   });
+}
+
+function createLineNode(text = "", { selectable = false, action = "", value = "" } = {}) {
+  const line = document.createElement("div");
+  line.classList.add("terminal-line");
+  line.textContent = text;
+  if (selectable) {
+    line.classList.add("touch-selectable");
+    line.dataset.selectable = "true";
+    if (action) line.dataset.action = action;
+    if (value) line.dataset.value = value;
+  }
+  return line;
+}
+
+function createCommandChip(
+  label,
+  { action = "command", value = "", labelHtml = "", hotkey = "" } = {}
+) {
+  const chip = document.createElement("span");
+  chip.classList.add("command-chip", "touch-selectable");
+  chip.dataset.selectable = "true";
+  chip.dataset.action = action;
+  chip.dataset.value = value || label.toLowerCase();
+  if (hotkey) {
+    chip.dataset.hotkey = String(hotkey).toUpperCase();
+  }
+  if (labelHtml) {
+    chip.innerHTML = `[${labelHtml}]`;
+  } else {
+    chip.textContent = `[${label}]`;
+  }
+  return chip;
+}
+
+async function renderSelectableLines(
+  {
+    lines = [],
+    items = [],
+    footerLines = [],
+    chips = [],
+    context = {},
+    defaultIndex = 0,
+  } = {},
+  options = {}
+) {
+  const queue = [];
+  lines.forEach((line) => queue.push(createLineNode(line)));
+
+  const selectableElements = [];
+  items.forEach((item, index) => {
+    const itemLines = Array.isArray(item.lines) ? item.lines : [item.lines];
+    const value = item.value != null ? String(item.value) : String(index + 1);
+    itemLines.forEach((line, lineIndex) => {
+      if (lineIndex === 0) {
+        const node = createLineNode(line, {
+          selectable: true,
+          action: item.action || "",
+          value,
+        });
+        selectableElements.push(node);
+        queue.push(node);
+      } else {
+        queue.push(createLineNode(line));
+      }
+    });
+  });
+
+  if (chips.length) {
+    const chipLine = document.createElement("div");
+    chipLine.classList.add("terminal-line", "terminal-line--chips");
+    chips.forEach((chip, index) => {
+      if (index > 0) {
+        chipLine.appendChild(document.createTextNode(" "));
+      }
+      const chipEl = createCommandChip(chip.label, {
+        action: chip.action,
+        value: chip.value,
+        labelHtml: chip.labelHtml,
+        hotkey: chip.hotkey,
+      });
+      selectableElements.push(chipEl);
+      chipLine.appendChild(chipEl);
+    });
+    queue.push(chipLine);
+  }
+
+  footerLines.forEach((line) => queue.push(createLineNode(line)));
+
+  await type(queue, {
+    processChars: false,
+    stopBlinking: true,
+    ...options,
+  });
+
+  if (selectableElements.length) {
+    setSelectables(selectableElements, { context, defaultIndex });
+  } else {
+    setSelectables([], { context, defaultIndex });
+  }
+}
+
+async function renderCommandChips(chips = [], options = {}) {
+  if (!chips.length) return;
+  return renderSelectableLines({ chips }, options);
+}
+
+function formatSemanticLines(lines, semantic) {
+  if (!semantic) return lines;
+  const tag = `[${semantic.toUpperCase()}] `;
+  return lines.map((line) => `${tag}${line}`);
+}
+
+async function print(lines, { semantic = "", ...options } = {}) {
+  const list = Array.isArray(lines) ? lines : [String(lines || "")];
+  const decorated = formatSemanticLines(list, semantic);
+  const typerClass = semantic ? `typer--${semantic.toLowerCase()}` : "";
+  return type(decorated, { ...options, typerClass });
 }
 
 function isPrintable(keycode) {
@@ -204,7 +434,7 @@ function moveCaretToEnd(el) {
 }
 
 /** Shows an input field, returns a resolved promise with the typed text on <enter> */
-async function input(pw) {
+async function input(pw = false, options = {}) {
   //console.log("Input begin");
   return new Promise((resolve) => {
     // This handles all user input
@@ -222,26 +452,38 @@ async function input(pw) {
       typeSound();
       // ENTER
       if (event.keyCode === 13) {
+        const rawText = event.target.textContent || "";
+        if (!rawText.trim()) {
+          if (hasPendingSelection()) {
+            event.preventDefault();
+            activateSelection();
+            return;
+          }
+          const selected = getSelectedElement();
+          if (selected) {
+            const action = selected.dataset.action || "";
+            const value = selected.dataset.value || "";
+            event.preventDefault();
+            if (action === "command") {
+              parse(value);
+              return;
+            }
+            if (action === "input") {
+              submitInput(value);
+              return;
+            }
+          }
+        }
         event.preventDefault();
-        event.target.setAttribute("contenteditable", false);
-        let result = cleanInput(event.target.textContent);
-
-        // history
-        addToHistory(result);
-        resolve(result);
+        submitInput(event.target.textContent);
       }
       // UP
       else if (event.keyCode === 38) {
-        if (historyIndex === -1) tmp = event.target.textContent;
-        historyIndex = Math.min(prev.length - 1, historyIndex + 1);
-        let text = prev[historyIndex];
-        event.target.textContent = text;
+        navigateHistory("up");
       }
       // DOWN
       else if (event.keyCode === 40) {
-        historyIndex = Math.max(-1, historyIndex - 1);
-        let text = prev[historyIndex] || tmp;
-        event.target.textContent = text;
+        navigateHistory("down");
       }
       // BACKSPACE
       else if (event.keyCode === 8) {
@@ -292,7 +534,22 @@ async function input(pw) {
     input.setAttribute("contenteditable", true);
     input.addEventListener("keydown", onKeyDown);
     terminal.appendChild(input);
-    input.focus();
+    setActiveInput({ element: input, onKeyDown, resolve, pw });
+    if (options?.hint) {
+      const hint = document.createElement("div");
+      hint.classList.add("input-hint");
+      hint.textContent = options.hint;
+      terminal.insertBefore(hint, input);
+    }
+    input.addEventListener("focus", () => {
+      document.body.classList.add("keyboard-open");
+      scroll(terminal);
+      input.scrollIntoView({ block: "end" });
+    });
+    input.addEventListener("blur", () => {
+      document.body.classList.remove("keyboard-open");
+    });
+    setTimeout(() => input.focus(), 0);
   });
 }
 
@@ -412,9 +669,9 @@ function scroll(el = document.querySelector(".terminal")) {
 }
 
 /** Types the given text and asks input */
-async function prompt(text, pw = false, speak = false) {
+async function prompt(text, pw = false, speak = false, options = {}) {
   await type(text, { speak: speak });
-  return input(pw);
+  return input(pw, options);
 }
 
 /** Sets a global event listeners and returns when a key is hit */
@@ -445,4 +702,21 @@ function addStylesheet(file) {
   head.appendChild(link);
 }
 
-export { prompt, input, cleanInput, type, parse, scroll, waitForKey };
+export {
+  prompt,
+  input,
+  cleanInput,
+  type,
+  print,
+  parse,
+  scroll,
+  waitForKey,
+  renderSelectableLines,
+  renderCommandChips,
+  submitInput,
+  focusInput,
+  isInputActive,
+  navigateHistory,
+  setFastMode,
+  getFastMode,
+};

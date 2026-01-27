@@ -7,19 +7,55 @@ const Base = ({on, setOn, setReset }) => {
 
     const navigate = useNavigate();
 
+    const RIGHT_SWITCH = {
+        EXAMINE: 0,
+        DEPOSIT: 1,
+        RESET: 2,
+        RUN: 3,
+        SINGLE_STEP: 4,
+        POWER: 5,
+    };
+    const LEFT_SWITCH = {
+        THEME: 0,
+        NAV: 6,
+    };
+
+    const resetTerminalToBoot = () => {
+        localStorage.removeItem("screenStatus");
+        localStorage.removeItem("terminalState");
+        sessionStorage.removeItem("screenStatus");
+        sessionStorage.removeItem("terminalState");
+        sessionStorage.removeItem("terminalSnapshot");
+        setOn('off');
+        setTimeout(function(){
+            setOn('on');
+            const randomNumber = Math.floor(Math.random() * 1000);
+            setReset(randomNumber.toString());
+        }, 300);
+    };
+
+    const refocusTerminalInput = () => {
+        if (document.body.classList.contains('touch-mode')) return;
+        const modal = document.getElementById("myModal");
+        if (modal && modal.style.display === "block") return;
+        const input = document.querySelector("#input[contenteditable='true']");
+        if (input) input.focus();
+    };
+
     const handleSwitch = (event) => {
         console.log(event);
-        // Switch 'RUN, STOP'. Turn monitor on and off
+        // Switch 'PWR ON/OFF'. Turn monitor on and off
         if (event.target.classList.contains('right-part')) {
             console.log('Right button block: ', event.target.id);
-            if (event.target.id === '3') {
+            // Power is the bottom switch (PWR ON/OFF) per visual order.
+            if (event.target.id === String(RIGHT_SWITCH.POWER)) {
                 const powerStatus = event.target.checked ? 'on' : 'off';
                 const indicatorLeftDown = document.getElementsByClassName('indicator middle left-part')[3];
                 indicatorLeftDown.classList.remove('passive');
                 setOn(powerStatus);
             }
             // Switch 'RESET, EXT. CLR'. Reset the login status of the terminal that is stored in local storage. Begin from scratch
-            if (event.target.id === '2') {
+            if (event.target.id === String(RIGHT_SWITCH.RESET)) {
                 localStorage.removeItem("screenStatus");
                 setOn('off');
                 setTimeout(function(){
@@ -35,12 +71,15 @@ const Base = ({on, setOn, setReset }) => {
                     modal.style.display = "block";
                 }, 3000);   
             }
-            if (event.target.id === '0') {
+            if (event.target.id === String(RIGHT_SWITCH.EXAMINE)) {
                 setTimeout(function(){
                     event.target.checked = !event.target.checked;
                 }, 300);
             }
-            if (event.target.id === '5') {
+            // This behavior belongs to the RUN/STOP switch per visual order.
+            if (event.target.id === String(RIGHT_SWITCH.RUN)) {
+                // Full reset to boot state (dialer/login) on any toggle.
+                resetTerminalToBoot();
                 const switchMid01 = document.getElementsByClassName('mid-part 2')[0];
                 const switchMid02 = document.getElementsByClassName('mid-part 5')[0];
                 console.log(switchMid01);
@@ -53,7 +92,17 @@ const Base = ({on, setOn, setReset }) => {
         }
         if (event.target.classList.contains('left-part')) {
             console.log('Left button block: ', event.target.id);
-            if (event.target.id === '6') {
+            if (event.target.id === String(LEFT_SWITCH.THEME)) {
+                // Leftmost switch (with its LED) toggles terminal color.
+                const terminalContainer = document.getElementById('terminal-container');
+                if (terminalContainer) {
+                    terminalContainer.classList.toggle(
+                        'terminal-theme--green',
+                        event.target.checked
+                    );
+                }
+            }
+            if (event.target.id === String(LEFT_SWITCH.NAV)) {
                 const switchLeft01 = document.getElementsByClassName('left-part 0')[0];
                 console.log(switchLeft01);
                 
@@ -159,6 +208,7 @@ const Base = ({on, setOn, setReset }) => {
                 indicatorMid3.classList.remove('passive');
             }
         }
+        refocusTerminalInput();
     }
 
     const textsBlock3 = (texts) => {
@@ -207,9 +257,9 @@ const Base = ({on, setOn, setReset }) => {
       }); 
 
     const sixButtonBlock = Array.from({length: 6}, (_, index) => {
-        let defaultChecked = [3].includes(index, 0);
+        let defaultChecked = [RIGHT_SWITCH.POWER].includes(index, 0);
         const passiveDown = [0, 1, 4, 5].includes(index, 0);
-        defaultChecked = (index === 3) ? (on ==='on' ? true : false ) : defaultChecked; 
+        defaultChecked = (index === RIGHT_SWITCH.POWER) ? (on ==='on' ? true : false ) : defaultChecked; 
         return (
             <label key={index}  className='checkboxControl right-part'>
                 <input type='checkbox' defaultChecked={defaultChecked} onClick={handleSwitch} id={index} className='checkbox right-part'/>
@@ -233,6 +283,15 @@ const Base = ({on, setOn, setReset }) => {
             if (event.target == modal) {
                 modal.style.display = "none";
             }
+        }
+        // Sync terminal theme with the leftmost switch default state.
+        const terminalContainer = document.getElementById('terminal-container');
+        const leftThemeSwitch = document.getElementsByClassName('left-part 0')[0];
+        if (terminalContainer && leftThemeSwitch) {
+            terminalContainer.classList.toggle(
+                'terminal-theme--green',
+                leftThemeSwitch.checked
+            );
         }
       }, []);
 
@@ -298,15 +357,15 @@ const Base = ({on, setOn, setReset }) => {
                         </div>
                         <div className="innerline-empty"></div>
                         <div className='text-container'>
-                            ADRESS-DATA
+                            ADDRESS-DATA
                         </div>
                     </div>
                 </div>
                 <div className='upper-section-3'>
                     <div className='upper-section-block-3'>
                         <div className='title-container'>
-                            <div className='imsai-title'>IMSAI 8080</div>
-                            <p>-------------------------- MICROCOMPUTER SYSTEM</p>
+                            <div className='imsai-title'>WAYNE INDUSTRIES</div>
+                            <p>---------------------- AUXILIARY NODE INTERFACE</p>
                         </div>
                     </div>
                     <div className='upper-section-block-3'>
@@ -319,11 +378,11 @@ const Base = ({on, setOn, setReset }) => {
                     </div>
                     <div className='upper-section-block-3'>
                         <div className='text-container-ext'>
-                        {textsBlock3(['EXAMINE', 'DEPOSIT', 'RESET', 'RUN', 'SINGLE SLEEP', 'PWR ON'])}
+                        {textsBlock3(['EXAMINE', 'DEPOSIT', 'RESET', 'RUN', 'SINGLE STEP', 'PWR ON'])}
                         </div>
                         <div className="innerline-3"></div>
                         <div className='text-container-ext'>
-                            {eightTextsBlock(['EXAMINE NEXT ', 'DEPOSIT NEXT', 'EXT. CLR', 'STOP', 'SINGLE STEP', 'PWR OFF'])}
+                            {eightTextsBlock(['EXAMINE NEXT', 'DEPOSIT NEXT', 'EXT. CLR', 'STOP', 'SINGLE STEP', 'PWR OFF'])}
                         </div>
                         <div className='text-container'>
                             
@@ -351,7 +410,7 @@ const Base = ({on, setOn, setReset }) => {
         </div>
         <div className='disquette-base'>
             <div className='title-container-disc'>
-                <div className='imsai-title-disc'>IMSAI</div>
+                <div className='imsai-title-disc'>BROTHER EYE MK.0</div>
             </div>
             <div className="disquette">
                 <div className="disqueteline"></div>

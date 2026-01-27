@@ -1,0 +1,125 @@
+{
+  "pois": [
+    {
+      "id": "poi_crime_alley",
+      "name": "Callejón del Crimen",
+      "district": "East End",
+      "status": "active",
+      "summary": "Escena donde aparece el cuerpo de Bruce Wayne disfrazado como Batman.",
+      "details": "El cuerpo de Batman aparece expuesto de forma simbólica. La escena contiene elementos diseñados para imitar el estilo de Enigma. Investigación posterior revela a Deathstroke como autor material del asesinato.",
+      "parentId": "",
+      "nodeType": "leaf",
+      "category": "map"
+    },
+    {
+      "id": "poi_gotham_airport",
+      "name": "Aeropuerto Internacional de Gotham",
+      "district": "Gotham Outskirts",
+      "status": "active",
+      "summary": "Clímax del caso Batman: intento de huida y tiroteo.",
+      "details": "Deathstroke intenta abandonar el país utilizando pasaportes ucranianos facilitados por la banda de Odesa. Se produce un tiroteo con fuerzas del orden; Deathstroke es detenido y un civil muere en el fuego cruzado.",
+      "parentId": "",
+      "nodeType": "leaf",
+      "category": "map"
+    },
+    {
+      "id": "poi_gotham_hospital",
+      "name": "Hospital General de Gotham",
+      "district": "Downtown",
+      "status": "active",
+      "summary": "Centro hospitalario donde se recuperaban los Somerset.",
+      "details": "Tras el secuestro del hijo de la familia Somerset, los padres y el menor ingresan aquí. El Joker accede oculto en una ambulancia y libera toxina de la risa en la habitación, dejando a los padres mentalmente destruidos y al niño profundamente trastornado.",
+      "parentId": "",
+      "nodeType": "branch",
+      "category": "map"
+    },
+    {
+      "id": "poi_somerset_room",
+      "name": "Habitación de los Somerset",
+      "district": "Downtown",
+      "status": "active",
+      "summary": "Habitación hospitalaria atacada por el Joker.",
+      "details": "Lugar exacto del ataque con toxina de la risa. El acceso se produjo mediante una ambulancia infiltrada. Punto crítico del caso conocido como 'El niño'.",
+      "parentId": "poi_gotham_hospital",
+      "nodeType": "leaf",
+      "category": "map"
+    },
+    {
+      "id": "poi_arkham_asylum",
+      "name": "Arkham Asylum",
+      "district": "North Gotham",
+      "status": "active",
+      "summary": "Institución psiquiátrica de alta seguridad.",
+      "details": "Enigma se encontraba internado aquí durante el asesinato de Batman y el secuestro de Alfred. Fue entrevistado posteriormente y dedujo los hechos, intentando atribuirse la autoría.",
+      "parentId": "",
+      "nodeType": "leaf",
+      "category": "map"
+    },
+    {
+      "id": "poi_glass_dome",
+      "name": "Cúpula de Cristal",
+      "district": "Financial District",
+      "status": "active",
+      "summary": "Lugar de reunión de las principales bandas criminales de Gotham.",
+      "details": "Reunión convocada por el Pingüino. Aparece un Batman falso (esbirro) simulando un secuestro, seguido por la irrupción del Batman real y la intervención de Nightwing. El evento termina en caos y sin resolución clara.",
+      "parentId": "",
+      "nodeType": "leaf",
+      "category": "map"
+    },
+    {
+      "id": "poi_gcpd_hq",
+      "name": "Comisaría Central del GCPD",
+      "district": "Downtown",
+      "status": "active",
+      "summary": "Sede central del Departamento de Policía de Gotham.",
+      "details": "Base operativa de la Unidad de Crímenes Mayores y del CSI. Desde aquí se coordinan las investigaciones clave, incluyendo los casos de Bart y Batman.",
+      "parentId": "",
+      "nodeType": "branch",
+      "category": "map"
+    },
+    {
+      "id": "poi_gcpd_evidence",
+      "name": "Depósito de Evidencias del GCPD",
+      "district": "Downtown",
+      "status": "active",
+      "summary": "Almacén de pruebas y armas incautadas.",
+      "details": "Desde aquí se sustrae el arma utilizada para asesinar a Bart y montar la escena como un suicidio, evidenciando corrupción interna en el GCPD.",
+      "parentId": "poi_gcpd_hq",
+      "nodeType": "leaf",
+      "category": "map"
+    },
+    {
+      "id": "poi_somerset_residence",
+      "name": "Residencia Somerset",
+      "district": "Bristol Township",
+      "status": "active",
+      "summary": "Residencia privada de la familia Somerset.",
+      "details": "Hogar de una familia adinerada de Gotham. Punto de referencia del caso del secuestro del menor, aunque el rapto no se produce aquí.",
+      "parentId": "",
+      "nodeType": "leaf",
+      "category": "map"
+    },
+    {
+      "id": "poi_wayne_manor",
+      "name": "Wayne Manor",
+      "district": "Gotham Countryside",
+      "status": "active",
+      "summary": "Antigua residencia de Bruce Wayne.",
+      "details": "El lugar considerado más seguro de Gotham. Referenciado en los mensajes enigmáticos. El secuestro de Alfred Pennyworth está relacionado con este entorno, aunque el autor y el punto exacto siguen siendo desconocidos.",
+      "parentId": "",
+      "nodeType": "leaf",
+      "category": "map"
+    },
+    {
+      "id": "poi_bart_crime_scene",
+      "name": "Escena del crimen de Bart",
+      "district": "unknown",
+      "status": "active",
+      "summary": "Lugar donde aparece muerto el agente Bart.",
+      "details": "Escena sin contaminar donde se descubren las notas de Bart sobre las bandas criminales y una bala incrustada en la pared. El homicidio fue maquillado como suicidio usando un arma sustraída del depósito de evidencias.",
+      "parentId": "",
+      "nodeType": "leaf",
+      "category": "map"
+    }
+  ]
+}

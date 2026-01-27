@@ -1,0 +1,68 @@
+{
+  "cases": [
+    {
+      "id": "case_batman_murder",
+      "title": "Asesinato de Batman (Bruce Wayne)",
+      "summary": "Bruce Wayne aparece muerto en el Callejón del Crimen, disfrazado como Batman. La escena apunta a Enigma, pero la investigación lleva a Deathstroke y a una red de pasaportes falsos.",
+      "brief": [
+        "Julio 2025: cuerpo de Bruce Wayne (como Batman) hallado en Crime Alley; simbología falsa tipo Enigma.",
+        "Investigación: Deathstroke es el autor material; intentaba huir vía aeropuerto con pasaportes ucranianos (banda de Odesa).",
+        "Clímax: tiroteo en el aeropuerto; Deathstroke detenido; muere un civil en el fuego cruzado.",
+        "Consecuencia: el equipo es apartado oficialmente del caso por el escándalo del civil fallecido."
+      ],
+      "parentId": "",
+      "nodeType": "branch"
+    },
+    {
+      "id": "case_alfred_kidnapping",
+      "title": "Secuestro de Alfred Pennyworth",
+      "summary": "Alfred desaparece en el contexto del asesinato de Batman. Se hallan mensajes enigmáticos que sugieren un secuestro, pero Enigma estaba en Arkham y desconoce los hechos; el autor real es desconocido.",
+      "brief": [
+        "Alfred es secuestrado; paradero y autoría desconocidos.",
+        "Aparecen mensajes que imitan el estilo de Enigma; Enigma estaba internado en Arkham y solo lo deduce a posteriori.",
+        "El secuestro queda abierto como subtrama clave y posible palanca para reabrir el Caso Batman."
+      ],
+      "parentId": "case_batman_murder",
+      "nodeType": "leaf"
+    },
+    {
+      "id": "case_bart_coverup",
+      "title": "Caso Bart: homicidio maquillado como suicidio",
+      "summary": "El agente Bart aparece muerto. La escena revela manipulación de evidencias y corrupción interna: el arma del homicidio fue sacada del depósito para simular un suicidio.",
+      "brief": [
+        "La escena estaba sin contaminar: se recuperan notas de Bart con mapa de bandas criminales y relaciones.",
+        "Se encuentra una bala incrustada; balística apunta al arma de un policía detenido.",
+        "El arma fue sustraída del depósito de evidencias y colocada para construir la narrativa de suicidio.",
+        "Conclusión: Bart fue asesinado y se intentó encubrir desde dentro del GCPD."
+      ],
+      "parentId": "",
+      "nodeType": "leaf"
+    },
+    {
+      "id": "case_glass_dome_summit",
+      "title": "Incidente de la Cúpula de Cristal",
+      "summary": "Reunión de bandas convocada por el Pingüino que termina en caos con la aparición de un Batman falso, la irrupción del Batman real y la intervención de Nightwing.",
+      "brief": [
+        "El Pingüino convoca a las principales bandas en la Cúpula de Cristal para reafirmar su papel de mediador.",
+        "Aparece un Batman falso (esbirro) simulando un secuestro del Pingüino.",
+        "Irrumpe el Batman real y es interceptado por Nightwing; la situación se descontrola.",
+        "El Pingüino queda medio noqueado y Batman se lleva a un miembro del equipo volando; el asunto queda sin cierre claro."
+      ],
+      "parentId": "",
+      "nodeType": "leaf"
+    },
+    {
+      "id": "case_somerset_child",
+      "title": "Caso Somerset: secuestro del menor y ataque en hospital",
+      "summary": "Tras la muerte de Batman, el Joker secuestra al hijo de los Somerset para 'crear un nuevo Batman'. El rescate evita una explosión, pero el Joker remata el horror atacando el hospital con toxina de la risa.",
+      "brief": [
+        "El Joker secuestra al hijo de la familia adinerada Somerset para provocar un trauma fundacional.",
+        "Coloca un cinturón de dinamita al padre para forzar su muerte; el equipo desactiva el cinturón y evita la explosión.",
+        "Mientras se recuperan en el Hospital General de Gotham, el Joker entra oculto en una ambulancia y libera toxina de la risa en la habitación.",
+        "Resultado: los padres sobreviven pero quedan mentalmente destruidos; el niño queda profundamente trastornado."
+      ],
+      "parentId": "",
+      "nodeType": "leaf"
+    }
+  ]
+}

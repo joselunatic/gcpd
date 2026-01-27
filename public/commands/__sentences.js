@@ -35,7 +35,7 @@ const sentences = [
   {
     id: 4,
     wordlist: "people make mistakes",
-    answer: ["YES THEY DO. TYPE 'GAMES' TO SELECT A GAME TO PLAY."],
+    answer: ["CLARO QUE SI. ESCRIBE 'MAP' PARA REPASAR LAS CALLES DE GOTHAM."],
   },
   {
     id: 5,

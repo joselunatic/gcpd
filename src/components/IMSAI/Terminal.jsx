@@ -54,6 +54,22 @@ const Terminal = ({ reset, on }) => {
         }
     }, [reset]);
 
+    useEffect(() => {
+        const container = document.getElementById('terminal-container');
+        if (!container) return;
+        const refocus = () => {
+            if (document.body.classList.contains('touch-mode')) return;
+            const input = document.querySelector("#input[contenteditable='true']");
+            if (input) input.focus();
+        };
+        container.addEventListener('mouseup', refocus);
+        container.addEventListener('click', refocus);
+        return () => {
+            container.removeEventListener('mouseup', refocus);
+            container.removeEventListener('click', refocus);
+        };
+    }, []);
+
     return (
         <div id="terminal-container" >
             <div className='terminal' id='terminal' >

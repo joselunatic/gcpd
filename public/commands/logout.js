@@ -1,6 +1,10 @@
-import { login } from "/utils/screens.js";
+import clear from "/commands/clear.js";
+import { dialer } from "/utils/screens.js";
 
 const output = [" ", "Logging out...", " "];
 
 export { output };
-export default () => login();
+export default () => {
+  clear();
+  return dialer();
+};

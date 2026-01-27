@@ -1,0 +1,28 @@
+{
+  "id": "case_omak_drift",
+  "title": "Deriva OMAK",
+  "status": "active",
+  "summary": "Satelites Wayne detectan microdrones OMAK fuera de control sobre los Narrows.",
+  "unlockConditions": ["flag:oracle_online"],
+  "commands": {
+    "brief": [
+      "CASE ID: GCPD-OMAK-02",
+      "INCIDENTE: Firmware OMAC legado (Mark 0) emitiendo actualizaciones no autorizadas.",
+      "OBJETIVO: Localizar el cluster en deriva y poner en cuarentena antes de que reinicie el protocolo Brother Eye."
+    ],
+    "intel": [
+      "Satelite OMEGA-1 detecto 43 dispositivos dentro de un radio de 2km en los Narrows.",
+      "El origen de la senal coincide con las ultimas coordenadas conocidas del laboratorio de Hank Henshaw." 
+    ],
+    "puzzle": {
+      "type": "hangman",
+      "config": {
+        "word": "NARROWS"
+      }
+    }
+  },
+  "dm": {
+    "notes": "Si los jugadores investigan en persona, deja pistas sobre prototipos de Brother Eye.",
+    "spoilers": ["Los microdrones pertenecen a una contingencia Wayne creada tras Infinite Crisis."]
+  }
+}

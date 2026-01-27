@@ -1,24 +1,35 @@
 import { useEffect } from 'react'
+import { Routes, Route } from 'react-router-dom'
 
 import './App.css'
+import './css/UpdateBanner.styles.css'
 import IMSAI from './components/IMSAI'
-import Header from './components/Header'
-import Footer from './components/Footer'
+import UpdateBanner from './components/UpdateBanner'
+import DmPanel from './components/DmPanel'
+
+const TerminalShell = () => {
+  useEffect(()=>{
+    console.log('Render terminal shell');
+  }, [])
+
+  return (
+    <div className="pc-container">
+        <UpdateBanner />
+        <IMSAI />
+    </div>
+  )
+}
 
 const App = () => {  
-
   useEffect(()=>{
     console.log('Render APP');
   }, [])
 
   return (
-    <>
-      <Header />
-      <div className="pc-container">
-          <IMSAI />
-      </div>
-      <Footer />
-    </>
+    <Routes>
+      <Route path="/dm" element={<DmPanel />} />
+      <Route path="/*" element={<TerminalShell />} />
+    </Routes>
   )
 }
 

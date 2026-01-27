@@ -5,6 +5,7 @@
   right: 0;
   height: var(--base-unit);
   opacity: 0.1;
+  pointer-events: none;
   background: var(--scanline-background);
   animation: scanline 1.25s linear infinite;
 }

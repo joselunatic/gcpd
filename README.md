@@ -49,7 +49,9 @@ https://youtu.be/q14OTYVKMWc
 4. Main screen: when the user anser 'N' (don't want to play a game) he reaches the main screen. Here he can interact with WOPR in different ways. WOPR explains him that he can ask for help to get a list of available commands. There are three different modes the user can interact with WOPR:
     4.1 Typing in a one letter word. The terminal looks through the dynamic javascript modules. If there is a module with the name of the commands, the module gets loaded dynamically. Each module must return and export either an OUTPUT value (shown as text on the terminal screen) or a default function which is executed (for more sophisticated and interactive commands) or both. As the command js modules are dynamically loaded, further commands could be added in the future. The web app is quite dynamic. The functions are mostly executed in async mode with the following command waiting until the promise of the previous command is resolved. The currently available commands are: 
         'CLEAR': deletes the text on the terminal screen
-        'GAMES': shows the list of available games itself in order select one and play it
+        'MAP': opens the Gotham district/POI overlay
+        'MODULES': displays Knightfall case files
+        'VILLAINS': opens the Rogue's Gallery profiles
         'HELLO': WOPR says hello
         'HELP': showhs the available list of commands
         'LOGOUT': logs the user out and returns to the login screen
@@ -117,6 +119,10 @@ Steps to get a development env running
 
 - Type 'npm run build' to get the package under the 'dist' folder that can be hosted as a static website.
 
+## Database Schema
+
+The SQLite schema is documented in `schema.sql` (source of truth for `server/batconsole.db`).
+
 ## Built With
 
 While developing this web app I did a lot of research and the following publications helped me a lot. Thanks to all of them.
@@ -153,9 +159,6 @@ https://github.com/BlckChainDev/WarGames
 https://github.com/Gravy59/WOPR-Console
 * Switch design
 https://codepen.io/pluton/pen/DWwBpr
-
-
-
 
 
 

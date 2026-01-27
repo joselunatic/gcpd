@@ -3,3 +3,22 @@
   height: 100vh;
   margin-top: 50px;
 }
+
+@media (display-mode: standalone) and (min-width: 1024px) {
+  .pc-container {
+    margin-top: 20px;
+  }
+}
+
+@media (max-width: 639px) and (orientation: portrait) {
+  .pc-container {
+    height: 100svh;
+    margin-top: 0;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .pc-container {
+    margin-top: 20px;
+  }
+}

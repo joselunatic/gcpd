@@ -1,0 +1,31 @@
+{
+  "id": "case_court_echo",
+  "title": "Eco de la Corte",
+  "status": "locked",
+  "summary": "Rumores de actividad Talon cerca de refugios abandonados.",
+  "unlockConditions": ["flag:talon_signal", "case:case_omak_drift"],
+  "commands": {
+    "brief": [
+      "CASE ID: GCPD-TALON-13",
+      "INCIDENTE: Multiples reportes de 'bufos' en Bowery; los failsafes de seguridad Wayne se activaron en silencio.",
+      "OBJETIVO: Rastrear la firma de eco, localizar caches de agentes durmientes."
+    ],
+    "intel": [
+      "Fragmentos del cifrado de la Corte recuperados del archivo del Batcomputer (Earth-0).",
+      "Agujas en cada pajar: vigila los edificios 13, 27, 52." 
+    ],
+    "puzzle": {
+      "type": "sudoku",
+      "config": {
+        "seed": 21975
+      }
+    }
+  },
+  "dm": {
+    "notes": "Solo desbloquear cuando los jugadores confien en el Batcomputer. Puedes sembrar un encuentro Talon aqui.",
+    "spoilers": [
+      "Eco de la Corte conduce a un laberinto subterraneo construido por Alan Wayne.",
+      "La condicion de desbloqueo 'flag:talon_signal' debe activarla el DM cuando este listo."
+    ]
+  }
+}

@@ -119,6 +119,20 @@
   position: relative;
 }
 
+@media (max-width: 639px) {
+  .cpu {
+    display: none;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .cpu {
+    transform: scale(0.78);
+    transform-origin: top center;
+    margin-top: 10px;
+  }
+}
+
 .text-item-3 {
   position: absolute;
   bottom: 0;
@@ -172,7 +186,7 @@
 
 .imsai-title {
   color: #a2b6cc;
-  font-size: 35px;
+  font-size: 30px;
 }
 
 .lower-base {
@@ -228,23 +242,13 @@
 }
 
 .checkboxControl > .blue-button {
-  background: -webkit-linear-gradient(
-    top,
-    #191360 0%,
-    #2924b3 11%,
-    #2924b3 14%,
-    #2e29c7 58%,
-    #2d28c7 96%,
-    #322de1 100%
-  );
   background: linear-gradient(
     to bottom,
-    #191360 0%,
-    #2924b3 11%,
-    #2924b3 14%,
-    #2e29c7 58%,
-    #2d28c7 96%,
-    #322de1 100%
+    #0d0b0a 0%,
+    #1b1816 20%,
+    #2a221c 50%,
+    #3b2f23 80%,
+    #4c3b27 100%
   );
   height: 100%;
   border-radius: 5px;
@@ -255,23 +259,13 @@
 }
 
 .checkboxControl > .red-button {
-  background: -webkit-linear-gradient(
-    top,
-    #651312 0%,
-    #b82324 11%,
-    #b82324 14%,
-    #cb2928 58%,
-    #cc2928 96%,
-    #e62d2d 100%
-  );
   background: linear-gradient(
     to bottom,
-    #651312 0%,
-    #b82324 11%,
-    #b82324 14%,
-    #cb2928 58%,
-    #cc2928 96%,
-    #e62d2d 100%
+    #352913 0%,
+    #5a451f 30%,
+    #7d5f28 60%,
+    #a6772f 90%,
+    #c68534 100%
   );
   height: 100%;
   border-radius: 5px;
@@ -306,44 +300,24 @@
 } */
 
 .checkboxControl :checked ~ .blue-button {
-  background: -webkit-linear-gradient(
-    bottom,
-    #191360 0%,
-    #2924b3 11%,
-    #2924b3 14%,
-    #2e29c7 58%,
-    #2d28c7 96%,
-    #322de1 100%
-  );
   background: linear-gradient(
     to top,
-    #191360 0%,
-    #2924b3 11%,
-    #2924b3 14%,
-    #2e29c7 58%,
-    #2d28c7 96%,
-    #322de1 100%
+    #0d0b0a 0%,
+    #1b1816 20%,
+    #2a221c 50%,
+    #3b2f23 80%,
+    #4c3b27 100%
   );
 }
 
 .checkboxControl :checked ~ .red-button {
-  background: -webkit-linear-gradient(
-    bottom,
-    #651312 0%,
-    #b82324 11%,
-    #b82324 14%,
-    #cb2928 58%,
-    #cc2928 96%,
-    #e62d2d 100%
-  );
   background: linear-gradient(
     to top,
-    #651312 0%,
-    #b82324 11%,
-    #b82324 14%,
-    #cb2928 58%,
-    #cc2928 96%,
-    #e62d2d 100%
+    #352913 0%,
+    #5a451f 30%,
+    #7d5f28 60%,
+    #a6772f 90%,
+    #c68534 100%
   );
 }
 

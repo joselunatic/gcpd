@@ -1,0 +1,152 @@
+{
+  "villains": [
+    {
+      "id": "villain_joker",
+      "alias": "Joker",
+      "summary": "Terrorista psicológico que explota el vacío tras la muerte de Batman. Secuestró al hijo de los Somerset y atacó el Hospital General con toxina de la risa.",
+      "parentId": "",
+      "nodeType": "leaf",
+      "category": "villains",
+      "realName": "Unknown",
+      "species": "Human",
+      "age": "Unknown (appears 40s–50s)",
+      "height": "196 cm",
+      "weight": "86 kg",
+      "status": "active",
+      "lastSeen": "Hospital General de Gotham (ataque a la habitación de los Somerset)",
+      "patterns": [
+        "Escalada simbólica: busca corromper y traumatizar más que matar.",
+        "Ataques en dos tiempos: rescate/descanso seguido de un segundo golpe más cruel.",
+        "Infiltración oportunista: acceso encubierto y golpe rápido."
+      ],
+      "knownAssociates": [
+        "Harley Quinn",
+        "Diversos esbirros y imitadores",
+        "Red criminal oportunista"
+      ],
+      "notes": [
+        "Identidad real desconocida incluso dentro del canon DC.",
+        "Físicamente ágil pese a su complexión delgada."
+      ],
+      "threatLevel": "Extreme"
+    },
+    {
+      "id": "villain_deathstroke",
+      "alias": "Deathstroke",
+      "summary": "Ejecutor profesional del asesinato de Bruce Wayne (como Batman). Intentó huir por el aeropuerto con documentación falsa; fue detenido tras un tiroteo.",
+      "parentId": "",
+      "nodeType": "leaf",
+      "category": "villains",
+      "realName": "Slade Joseph Wilson",
+      "species": "Human (enhanced)",
+      "age": "Mid 40s",
+      "height": "193 cm",
+      "weight": "102 kg",
+      "status": "active",
+      "lastSeen": "Aeropuerto Internacional de Gotham (detención tras tiroteo)",
+      "patterns": [
+        "Operaciones militares precisas y planificación exhaustiva.",
+        "Uso de identidades falsas y redes internacionales.",
+        "Prioriza la misión sobre cualquier daño colateral."
+      ],
+      "knownAssociates": [
+        "Banda de Odesa",
+        "Contactos mercenarios internacionales",
+        "Redes de falsificación de documentos"
+      ],
+      "notes": [
+        "Veterano militar sometido a mejoras experimentales.",
+        "Capacidad física y táctica muy superior a la media humana."
+      ],
+      "threatLevel": "High"
+    },
+    {
+      "id": "villain_riddler",
+      "alias": "Enigma",
+      "summary": "Criminal intelectual obsesionado con el reconocimiento. Internado en Arkham durante el asesinato de Batman; dedujo los hechos posteriormente.",
+      "parentId": "",
+      "nodeType": "leaf",
+      "category": "villains",
+      "realName": "Edward Nashton (Edward Nygma)",
+      "species": "Human",
+      "age": "Late 30s–early 40s",
+      "height": "185 cm",
+      "weight": "82 kg",
+      "status": "active",
+      "lastSeen": "Arkham Asylum (entrevista)",
+      "patterns": [
+        "Uso compulsivo de acertijos y pistas.",
+        "Necesidad de humillar intelectualmente a sus adversarios.",
+        "Apropiación del crédito cuando encaja con su narrativa."
+      ],
+      "knownAssociates": [
+        "Ocasionales alianzas con otros villanos de Gotham",
+        "Contactos informativos en el bajo mundo"
+      ],
+      "notes": [
+        "Intelecto excepcional; ego frágil.",
+        "No participó operativamente en el asesinato de Batman."
+      ],
+      "threatLevel": "Medium"
+    },
+    {
+      "id": "villain_penguin",
+      "alias": "Pingüino",
+      "summary": "Operador criminal y mediador entre bandas. Convocó la reunión en la Cúpula de Cristal.",
+      "parentId": "",
+      "nodeType": "leaf",
+      "category": "villains",
+      "realName": "Oswald Chesterfield Cobblepot",
+      "species": "Human",
+      "age": "Early 40s",
+      "height": "157 cm",
+      "weight": "79 kg",
+      "status": "active",
+      "lastSeen": "Cúpula de Cristal (reunión de bandas)",
+      "patterns": [
+        "Control mediante negociación y dependencia mutua.",
+        "Uso de negocios legítimos como tapadera.",
+        "Centralización del crimen organizado."
+      ],
+      "knownAssociates": [
+        "Bandas criminales de Gotham",
+        "Empresarios corruptos",
+        "Matones y guardaespaldas personales"
+      ],
+      "notes": [
+        "Prefiere el poder estructural al enfrentamiento directo.",
+        "Alta influencia en el hampa de Gotham."
+      ],
+      "threatLevel": "Medium"
+    },
+    {
+      "id": "villain_odesa_gang",
+      "alias": "Banda de Odesa",
+      "summary": "Red criminal especializada en documentación falsa y logística internacional.",
+      "parentId": "",
+      "nodeType": "leaf",
+      "category": "villains",
+      "realName": "Unknown",
+      "species": "Organization",
+      "age": "Unknown",
+      "height": "",
+      "weight": "",
+      "status": "active",
+      "lastSeen": "Vínculo indirecto con el Aeropuerto Internacional de Gotham",
+      "patterns": [
+        "Falsificación de identidades y pasaportes.",
+        "Operación celular y compartimentada.",
+        "Colaboración con mercenarios de alto nivel."
+      ],
+      "knownAssociates": [
+        "Deathstroke",
+        "Redes criminales internacionales"
+      ],
+      "notes": [
+        "Entidad criminal, no individuo.",
+        "Difícil atribución directa de responsabilidades."
+      ],
+      "threatLevel": "Medium"
+    }
+  ]
+}

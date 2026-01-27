@@ -75,7 +75,7 @@ const Monitor = ({on, reset}) => {
                     </div>
                 </div>
           </pre>
-          <h2>IMSAI</h2>
+          <h2>WAYNE AUX NODE</h2>
         </div>
       )
 }

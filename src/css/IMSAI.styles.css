@@ -13,3 +13,34 @@
   font-size: 14px;
   opacity: 50%;
 }
+
+@media (max-width: 639px) {
+  .imsai {
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .imsai > p,
+  .imsai > br {
+    display: none;
+  }
+}
+
+@media (max-width: 639px) and (orientation: portrait) {
+  .imsai {
+    padding: 0;
+    min-height: 100%;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .imsai {
+    justify-content: flex-start;
+  }
+
+  .imsai > p {
+    font-size: 12px;
+    margin-top: 6px;
+  }
+}

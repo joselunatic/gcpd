@@ -1,0 +1,49 @@
+.update-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 2000;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(6, 13, 18, 0.92);
+  border: 1px solid rgba(87, 133, 183, 0.55);
+  border-radius: 10px;
+  color: var(--color);
+  font-family: "WOPR";
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 0 14px rgba(0, 0, 0, 0.5);
+}
+
+.update-banner button {
+  border: 1px solid rgba(87, 133, 183, 0.8);
+  background: transparent;
+  color: var(--color);
+  font-family: "WOPR";
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.update-banner button:hover {
+  background: rgba(87, 133, 183, 0.15);
+}
+
+@media (max-width: 639px) {
+  .update-banner {
+    width: calc(100% - 24px);
+    justify-content: space-between;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .update-banner button {
+    font-size: 12px;
+  }
+}

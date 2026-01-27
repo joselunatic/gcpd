@@ -97,6 +97,14 @@
   animation: pulse 5s linear infinite;
 }
 
+@media (max-width: 639px) {
+  #screen,
+  #screen-on-off-container,
+  #screen-container {
+    height: 100%;
+  }
+}
+
 #screen-container::before {
   position: absolute;
   left: 0;
@@ -153,4 +161,36 @@
   50% {
     transform: scale(1.2);
   }
+}
+
+@media (max-width: 639px) {
+  #screen-container::after {
+    opacity: 0.25;
+  }
+
+  #screen-container::before {
+    opacity: 0.35;
+  }
+}
+
+@media (max-width: 639px) and (orientation: portrait) {
+  #screen-container::after {
+    opacity: 0.18;
+  }
+
+  #screen-container::before {
+    opacity: 0.22;
+  }
+}
+
+body.resume-static #screen-on-off-container.on,
+body.resume-static #screen-on-off-container.off {
+  animation: none !important;
+}
+
+body.resume-static #screen-on-off-container {
+  opacity: 1;
+  -webkit-filter: contrast(1) brightness(1.2) saturate(1.3);
+  filter: contrast(1) brightness(1.2) saturate(1.3);
+  transform: scale(1);
 }

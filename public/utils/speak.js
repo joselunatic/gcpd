@@ -1,7 +1,9 @@
 const synth = window.speechSynthesis;
 let volume = 20;
+const speechEnabled = false;
 
 function say(text, pitch = 0.6, rate = 0.6) {
+  if (!speechEnabled) return;
   if (volume === 0) return;
   if (synth.speaking) {
     synth.pause();
@@ -44,6 +46,7 @@ function say(text, pitch = 0.6, rate = 0.6) {
 }
 
 function stopSpeaking() {
+  if (!speechEnabled) return;
   if (synth) {
     synth.pause();
     synth.cancel();
