@@ -8,18 +8,23 @@
     "server": "node server/index.js",
     "build": "vite build",
     "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gen-ballistics-assets": "node scripts/gen-ballistics-assets.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.4.1",
+    "canvas": "^3.2.1",
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "marked": "^12.0.2",
+    "multer": "^1.4.5-lts.1",
     "react": "^18.2.0",
     "react-audio-player": "^0.17.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.14.2",
     "sudoku": "^0.0.3",
+    "three": "^0.182.0",
     "use-sound": "^4.0.1"
   },
   "devDependencies": {

@@ -12,3 +12,7 @@
   background-size: 100% var(--interlace-size);
   background-repeat: repeat-y;
 }
+
+body.boot-ascii-active #interlace {
+  opacity: 0;
+}

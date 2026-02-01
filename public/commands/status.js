@@ -2,7 +2,7 @@ import { print, type } from "/utils/io.js";
 import clear from "/commands/clear.js";
 import { renderStatusHeader } from "/utils/status.js";
 import { loadCampaignState } from "/utils/campaignState.js";
-import { main_with_info, mapConsole } from "/utils/screens.js";
+import { main_with_info, osMenu } from "/utils/screens.js";
 
 const CAMPAIGN_URL = "/api/campaign-state";
 
@@ -57,7 +57,7 @@ export default async () => {
   clear();
   const screenStatus = localStorage.getItem("screenStatus") || sessionStorage.getItem("screenStatus");
   if (screenStatus === "map") {
-    return mapConsole();
+    return osMenu();
   }
   return main_with_info();
 };

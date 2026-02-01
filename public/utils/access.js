@@ -3,12 +3,14 @@ import {
   markUnlocked,
   isUnlocked as isUnlockedInState,
   hasFlag,
+  isAttributeUnlocked as isAttributeUnlockedInState,
 } from "/utils/campaignState.js";
 
 const DEFAULT_ACCESS = {
   visibility: "listed",
   unlockMode: "none",
   password: "",
+  phrase: "",
   prerequisites: [],
   requiredFlags: [],
   autoUnlockOn: "resolve",
@@ -46,6 +48,25 @@ function getAccessConfig(entity) {
   return config;
 }
 
+function getAttributeAccessConfig(entity, attribute) {
+  const fallback = { ...DEFAULT_ACCESS };
+  if (!entity || !attribute) return fallback;
+  const attributes = entity?.unlockConditions?.attributes || {};
+  const config =
+    typeof attributes === "object" && attributes
+      ? attributes[attribute]
+      : null;
+  if (!config || typeof config !== "object") return fallback;
+  const merged = { ...DEFAULT_ACCESS, ...config };
+  merged.prerequisites = Array.isArray(merged.prerequisites)
+    ? merged.prerequisites.filter(Boolean)
+    : [];
+  merged.requiredFlags = Array.isArray(merged.requiredFlags)
+    ? merged.requiredFlags.filter(Boolean)
+    : [];
+  return merged;
+}
+
 function evaluateAccess(entity, campaignState = loadCampaignState()) {
   const scope = getScope(entity);
   const config = getAccessConfig(entity);
@@ -65,6 +86,45 @@ function evaluateAccess(entity, campaignState = loadCampaignState()) {
     visibleStatus &&
     (config.visibility !== "hidden" || unlocked || config.unlockMode === "none");
   const listed = visibleStatus && config.visibility !== "hidden";
+  return {
+    scope,
+    config,
+    unlocked,
+    prerequisitesMet,
+    flagsMet,
+    visible,
+    listed,
+  };
+}
+
+function evaluateAttributeAccess(
+  entity,
+  attribute,
+  campaignState = loadCampaignState()
+) {
+  const scope = getScope(entity);
+  const config = getAttributeAccessConfig(entity, attribute);
+  const unlockedInState = isAttributeUnlockedInState(
+    scope,
+    entity.id,
+    attribute,
+    campaignState
+  );
+  const unlocked =
+    config.visibility === "hidden"
+      ? config.initialAccessStatus === "unlocked" || unlockedInState
+      : config.unlockMode === "none" ||
+        config.initialAccessStatus === "unlocked" ||
+        unlockedInState;
+  const prerequisitesMet = config.prerequisites.every((id) =>
+    isUnlockedInState(scope, id, campaignState)
+  );
+  const flagsMet = config.requiredFlags.every((flag) =>
+    hasFlag(flag, campaignState)
+  );
+  const visible =
+    config.visibility !== "hidden" || unlocked || config.unlockMode === "none";
+  const listed = config.visibility !== "hidden";
   return {
     scope,
     config,
@@ -141,7 +201,9 @@ function buildNavigationTree(entities = []) {
 
 export {
   getAccessConfig,
+  getAttributeAccessConfig,
   evaluateAccess,
+  evaluateAttributeAccess,
   unlockEntity,
   getNodeType,
   getNodeLabel,

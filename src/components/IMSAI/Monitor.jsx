@@ -1,12 +1,15 @@
-import {  Routes, Route, useNavigate} from 'react-router-dom'
-import { useEffect } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom'
+import { useEffect, lazy, Suspense } from 'react';
 import { memo } from 'react';
+import { loadThreeModules } from '../../three/AssetManager.js';
 
 import '../../css/Monitor.styles.css';
 import '../../css/Screen.styles.css';
 import '../../css/Interlace.styles.css';
 import '../../css/Scanline.styles.css';
 import Terminal from './Terminal';
+const bootAsciiImport = () => import('../BootAscii');
+const BootAscii = lazy(bootAsciiImport);
 
 import TicTacToe from '../games/tic-tac-toe/TicTacToe';
 import Hangman from '../games/hangman/Hangman';
@@ -14,12 +17,21 @@ import Sudoku from '../games/sudoku/Sudoku';
 import GTW from '../games/gtw/GTW';
 import Pacman from '../games/pacman/Pacman';
 
-const Monitor = ({on, reset}) => {
+const Monitor = ({on, reset, bootActive = false, onBootDone}) => {
 
     const navigate = useNavigate();
 
     useEffect(()=>{
-        console.log('Render Monitor');
+        console.log('[Monitor]', new Date().toISOString(), 'Render Monitor');
+        bootAsciiImport();
+        loadThreeModules()
+          .then((modules) => {
+            window.__three = modules.THREE;
+            window.__AsciiEffect = modules.AsciiEffect;
+            window.__STLLoader = modules.STLLoader;
+            window.__OrbitControls = modules.OrbitControls;
+          })
+          .catch(() => {});
         window.addEventListener("loadgame", (event) => {
             console.log('Event listener loadgame: ', event);
             console.log('Event listener loadgame: ', event.detail);
@@ -44,31 +56,41 @@ const Monitor = ({on, reset}) => {
                         <div id="screen-container">
                             <div id="interlace" />
                             <div id="scanline" />
+                            <div className="monitor-debug">
+                              <div>POWER: {on}</div>
+                              <div>BOOT: {bootActive ? 'active' : 'done'}</div>
+                              <div>TIME: {new Date().toLocaleTimeString()}</div>
+                            </div>
+                            {bootActive && on === 'on' && (
+                                <Suspense fallback={null}>
+                                    <BootAscii onDone={onBootDone} modelUrl="/export.stl" />
+                                </Suspense>
+                            )}
                             <Routes>
-                                <Route 
+                                <Route
                                     index
-                                    element={<Terminal reset={reset} on={on} />}>
+                                    element={<Terminal reset={reset} on={on} bootReady={!bootActive} />}>
                                 </Route>
-                                <Route 
-                                    path='/tic-tac-toe/*' 
+                                <Route
+                                    path='/tic-tac-toe/*'
                                     element={<TicTacToe />}>
-                                </Route> 
-                                <Route 
-                                    path='/hangman/*' 
+                                </Route>
+                                <Route
+                                    path='/hangman/*'
                                     element={<Hangman />}>
                                 </Route>
-                                <Route 
-                                    path='/sudoku/*' 
+                                <Route
+                                    path='/sudoku/*'
                                     element={<Sudoku />}>
                                 </Route>
-                                <Route 
-                                    path='/global-thermonuclear-war/*' 
+                                <Route
+                                    path='/global-thermonuclear-war/*'
                                     element={<GTW />}>
                                 </Route>
-                                <Route 
-                                    path='/pacman/*' 
+                                <Route
+                                    path='/pacman/*'
                                     element={<Pacman />}>
-                                </Route>                     
+                                </Route>
                             </Routes>
                             {/* <Terminal /> */}
                         </div>

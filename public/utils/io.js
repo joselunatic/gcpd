@@ -205,8 +205,26 @@ async function type(
   container = document.querySelector(".terminal")
 ) {
   return new Promise(async (resolve) => {
+    const startedAt = performance.now();
+    const preview =
+      typeof text === "string"
+        ? text.slice(0, 32)
+        : Array.isArray(text)
+        ? String(text[0] || "").slice(0, 32)
+        : "";
+    console.log(
+      "[TYPER]",
+      new Date().toISOString(),
+      "start",
+      preview
+    );
     //console.log("Type");
     if (interval) {
+      console.log(
+        "[TYPER]",
+        new Date().toISOString(),
+        "clearing previous interval"
+      );
       clearInterval(interval);
       interval = null;
     }
@@ -285,16 +303,59 @@ async function type(
         if (stopBlinking) {
           typer.classList.remove("active");
         }
+        console.log(
+          "[TYPER]",
+          new Date().toISOString(),
+          "done",
+          preview,
+          "dt",
+          performance.now() - startedAt
+        );
         resolve();
       }
     }, adjustedWait);
   });
 }
 
-function createLineNode(text = "", { selectable = false, action = "", value = "" } = {}) {
+function createLineNode(lineInput = "", { selectable = false, action = "", value = "" } = {}) {
   const line = document.createElement("div");
   line.classList.add("terminal-line");
-  line.textContent = text;
+  let plainText = "";
+  if (typeof lineInput === "string" || typeof lineInput === "number") {
+    plainText = String(lineInput ?? "");
+    line.textContent = plainText;
+  } else if (lineInput && typeof lineInput === "object") {
+    if (lineInput.className) {
+      String(lineInput.className)
+        .split(" ")
+        .filter(Boolean)
+        .forEach((cls) => line.classList.add(cls));
+    }
+    if (lineInput.semantic) {
+      line.classList.add(`tui-${String(lineInput.semantic)}`);
+    }
+    if (Array.isArray(lineInput.parts)) {
+      lineInput.parts.forEach((part) => {
+        const span = document.createElement("span");
+        const text = String(part?.text || "");
+        plainText += text;
+        span.textContent = text;
+        if (part?.className) {
+          String(part.className)
+            .split(" ")
+            .filter(Boolean)
+            .forEach((cls) => span.classList.add(cls));
+        }
+        line.appendChild(span);
+      });
+    } else {
+      plainText = String(lineInput.text || "");
+      line.textContent = plainText;
+    }
+  }
+  if (plainText) {
+    line.dataset.text = plainText;
+  }
   if (selectable) {
     line.classList.add("touch-selectable");
     line.dataset.selectable = "true";
@@ -389,6 +450,35 @@ async function renderSelectableLines(
   } else {
     setSelectables([], { context, defaultIndex });
   }
+}
+
+async function renderLayout({
+  headerLines = [],
+  bodyLines = [],
+  footerLines = [],
+  promptLines = [],
+  items = [],
+  chips = [],
+  context = {},
+  defaultIndex = 0,
+} = {}, options = {}) {
+  const lines = [];
+  if (headerLines.length) {
+    lines.push(...headerLines);
+  }
+  if (bodyLines.length) {
+    if (lines.length) lines.push(" ");
+    lines.push(...bodyLines);
+  }
+  const combinedFooter = [...footerLines, ...promptLines].filter(Boolean);
+  return renderSelectableLines({
+    lines,
+    items,
+    footerLines: combinedFooter,
+    chips,
+    context,
+    defaultIndex,
+  }, options);
 }
 
 async function renderCommandChips(chips = [], options = {}) {
@@ -712,6 +802,7 @@ export {
   scroll,
   waitForKey,
   renderSelectableLines,
+  renderLayout,
   renderCommandChips,
   submitInput,
   focusInput,

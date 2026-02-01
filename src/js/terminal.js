@@ -12,6 +12,33 @@ async function initTouch() {
 
 initTouch();
 
+function setTuiPalette(palette = "") {
+  const container = document.getElementById("terminal-container");
+  if (!container) return;
+  const next = String(palette || "").toLowerCase();
+  container.classList.remove("terminal-theme--green", "terminal-theme--amber");
+  if (next === "green") {
+    container.classList.add("terminal-theme--green");
+  } else if (next === "amber") {
+    container.classList.add("terminal-theme--amber");
+  }
+  try {
+    localStorage.setItem("tuiPalette", next);
+  } catch (e) {}
+  window.dispatchEvent(
+    new CustomEvent("wopr-theme-change", { detail: { palette: next } })
+  );
+}
+
+window.setTuiPalette = setTuiPalette;
+
+try {
+  const storedPalette = localStorage.getItem("tuiPalette");
+  if (storedPalette) {
+    setTuiPalette(storedPalette);
+  }
+} catch (e) {}
+
 window.addEventListener("playwoprsound", (event) => {
   console.log("Terminal event listener playwoprsound: ", event);
   if (woprsound.muted) return;
@@ -29,6 +56,7 @@ async function dialer() {
     `${import.meta.env.BASE_URL}utils/screens.js` /* @vite-ignore */
   );
   if (module) {
+    console.log("[Terminal]", new Date().toISOString(), "dialer()");
     module.dialer();
   }
 }
@@ -38,6 +66,7 @@ async function login() {
     `${import.meta.env.BASE_URL}utils/screens.js` /* @vite-ignore */
   );
   if (module) {
+    console.log("[Terminal]", new Date().toISOString(), "login()");
     module.login();
   }
 }
@@ -47,8 +76,9 @@ async function mapScreen() {
     `${import.meta.env.BASE_URL}utils/screens.js` /* @vite-ignore */
   );
   if (module) {
-    if (module.mapConsole) {
-      module.mapConsole();
+    console.log("[Terminal]", new Date().toISOString(), "mapScreen()");
+    if (module.osMenu) {
+      module.osMenu();
     } else if (module.games) {
       module.games();
     }
@@ -60,6 +90,7 @@ async function main_with_info() {
     `${import.meta.env.BASE_URL}utils/screens.js` /* @vite-ignore */
   );
   if (module) {
+    console.log("[Terminal]", new Date().toISOString(), "main_with_info()");
     module.main_with_info();
   }
 }
@@ -69,6 +100,7 @@ async function main() {
     `${import.meta.env.BASE_URL}utils/screens.js` /* @vite-ignore */
   );
   if (module) {
+    console.log("[Terminal]", new Date().toISOString(), "main()");
     module.main();
   }
 }
@@ -93,6 +125,7 @@ async function parse(...args) {
 
 // Check if query param is set and load that command
 async function loadingTerminal() {
+  console.log("[Terminal]", new Date().toISOString(), "loadingTerminal()");
   let screen = document.querySelector(".terminal");
   let screenStatus = localStorage.getItem("screenStatus");
   if (!screenStatus) {
@@ -111,7 +144,11 @@ async function loadingTerminal() {
   const module = await import(
     `${import.meta.env.BASE_URL}utils/screens.js` /* @vite-ignore */
   );
-  if (module && module.restoreTerminalSnapshot) {
+  const allowResume =
+    module && typeof module.shouldAllowResume === "function"
+      ? module.shouldAllowResume()
+      : true;
+  if (allowResume && module && module.restoreTerminalSnapshot) {
     const restored = module.restoreTerminalSnapshot(screenStatus);
     if (restored) {
       return;
@@ -124,6 +161,7 @@ async function loadingTerminal() {
         ? module.getTerminalState()
         : null;
     if (
+      allowResume &&
       savedState &&
       typeof module.restoreTerminalState === "function"
     ) {
@@ -133,7 +171,7 @@ async function loadingTerminal() {
       }
     }
   }
-  console.log("loadingTerminal. screenStatus: ", screenStatus);
+  console.log("[Terminal]", new Date().toISOString(), "loadingTerminal screenStatus:", screenStatus);
   if (screenStatus === "dialer") {
     dialer();
   } else if (screenStatus === "login") {

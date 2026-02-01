@@ -7,6 +7,11 @@ const DEFAULT_STATE = {
     map: [],
     villains: [],
   },
+  unlockedAttributes: {
+    cases: {},
+    map: {},
+    villains: {},
+  },
   flags: [],
   alertLevel: "low",
   activeCaseId: "",
@@ -33,6 +38,11 @@ function cloneState(state = DEFAULT_STATE) {
       map: [...(state.unlocked?.map || [])],
       villains: [...(state.unlocked?.villains || [])],
     },
+    unlockedAttributes: {
+      cases: { ...(state.unlockedAttributes?.cases || {}) },
+      map: { ...(state.unlockedAttributes?.map || {}) },
+      villains: { ...(state.unlockedAttributes?.villains || {}) },
+    },
     flags: [...(state.flags || [])],
     alertLevel: state.alertLevel || "low",
     activeCaseId: state.activeCaseId || "",
@@ -48,6 +58,7 @@ function normalizeState(state) {
   const unlocked = state?.unlocked || {};
   const legacyUnlocked = state?.unlocked?.modules || [];
   const legacyLastSeen = state?.lastSeen?.modules || {};
+  const unlockedAttributes = state?.unlockedAttributes || {};
   return {
     unlocked: {
       cases: Array.isArray(unlocked.cases)
@@ -57,6 +68,21 @@ function normalizeState(state) {
           : [],
       map: Array.isArray(unlocked.map) ? unlocked.map : [],
       villains: Array.isArray(unlocked.villains) ? unlocked.villains : [],
+    },
+    unlockedAttributes: {
+      cases:
+        typeof unlockedAttributes?.cases === "object" && unlockedAttributes.cases
+          ? unlockedAttributes.cases
+          : {},
+      map:
+        typeof unlockedAttributes?.map === "object" && unlockedAttributes.map
+          ? unlockedAttributes.map
+          : {},
+      villains:
+        typeof unlockedAttributes?.villains === "object" &&
+        unlockedAttributes.villains
+          ? unlockedAttributes.villains
+          : {},
     },
     flags: Array.isArray(state?.flags) ? state.flags : [],
     alertLevel: typeof state?.alertLevel === "string" ? state.alertLevel : "low",
@@ -197,6 +223,36 @@ function isUnlocked(scope, id, state = loadCampaignState()) {
   return state.unlocked[scope].includes(id);
 }
 
+function ensureAttributeScope(state, scope) {
+  if (!state.unlockedAttributes) {
+    state.unlockedAttributes = { cases: {}, map: {}, villains: {} };
+  }
+  if (!state.unlockedAttributes[scope]) {
+    state.unlockedAttributes[scope] = {};
+  }
+}
+
+function markAttributeUnlocked(scope, id, attribute) {
+  if (!id || !attribute) return;
+  const state = loadCampaignState();
+  ensureAttributeScope(state, scope);
+  const bucket = state.unlockedAttributes[scope];
+  const list = Array.isArray(bucket[id]) ? bucket[id] : [];
+  if (!list.includes(attribute)) {
+    bucket[id] = [...list, attribute];
+    saveCampaignState(state);
+  }
+  return state;
+}
+
+function isAttributeUnlocked(scope, id, attribute, state = loadCampaignState()) {
+  if (!id || !attribute) return false;
+  ensureAttributeScope(state, scope);
+  const bucket = state.unlockedAttributes[scope];
+  const list = Array.isArray(bucket[id]) ? bucket[id] : [];
+  return list.includes(attribute);
+}
+
 function addFlag(flag) {
   if (!flag) return;
   const state = loadCampaignState();
@@ -232,6 +288,8 @@ export {
   markUnlocked,
   markUnlockedBulk,
   isUnlocked,
+  markAttributeUnlocked,
+  isAttributeUnlocked,
   addFlag,
   hasFlag,
   markSeen,

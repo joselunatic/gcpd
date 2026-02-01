@@ -17,6 +17,8 @@ import showMap from "/commands/map.js";
 import villainsGallery from "/commands/villains.js";
 import casesCommand from "/commands/cases.js";
 import { renderStatusHeader } from "/utils/status.js";
+import { shouldAutoEnable } from "/utils/touch.js";
+import { remoteOsShell } from "/utils/remoteOs.js";
 import {
   waitForSelection,
   moveSelection,
@@ -27,6 +29,7 @@ import {
   getSelectedElement,
 } from "/utils/selection.js";
 import { isPortraitNarrow, getWrapLimit } from "/utils/portrait.js";
+import { pushKeymap } from "/utils/keymap.js";
 
 const wrapLine = (text = "", limit = 80) => {
   const adjustedLimit = getWrapLimit(limit);
@@ -45,6 +48,7 @@ const wrapLine = (text = "", limit = 80) => {
   if (current) segments.push(current);
   return segments.length ? segments : [text];
 };
+
 
 function ensureSelectionState() {
   if (getSelectedElement()) return true;
@@ -246,6 +250,31 @@ const dialerLines = [
     number: "(311) 437-8739",
     label: "NODO AUX BROTHER-MK0",
     action: "activate",
+  },
+  {
+    number: "(311) 437-9011",
+    label: "TERMINAL REMOTO // OS LIMITADO",
+    action: "remote-os",
+    desktopLines: [
+      "ESTADO: ENLACE DISPONIBLE",
+      "",
+      "Consola remota de contingencia.",
+      "Limitada a comandos primarios.",
+      "",
+      "Acceso restringido.",
+      "Respuestas sinteticas.",
+      "",
+      "Protocolo de desconexion:",
+      "  EXIT / BYE / HANGUP",
+    ],
+    mobileLines: [
+      "ESTADO: ENLACE DISPONIBLE",
+      "",
+      "Consola remota.",
+      "Comandos primarios.",
+      "",
+      "Salida: EXIT / BYE / HANGUP",
+    ],
   },
   {
     number: "(311) 437-1083",
@@ -608,48 +637,40 @@ function ensureDialerKeyHandler() {
 
 function ensureSelectableKeyHandler() {
   if (window.__selectableKeyHandler) return;
-  const handler = (event) => {
-    if (isInputActive()) return;
-    if (event.__woprHandled) return;
+  const shouldHandle = () => {
+    if (isInputActive()) return false;
+    if (document.body.classList.contains("terminal-viewer-active")) return false;
     if (!hasPendingSelection()) {
       const hasSelectables = document.querySelector("[data-selectable='true']");
-      if (!hasSelectables) return;
+      if (!hasSelectables) return false;
     }
+    return true;
+  };
+  const handler = (event) => {
+    if (!shouldHandle()) return false;
     const hotkey = String(event.key || "").toUpperCase();
     if (hotkey && /^[A-Z]$/.test(hotkey)) {
       const target = document.querySelector(`[data-hotkey="${hotkey}"]`);
       if (target) {
-        event.preventDefault();
-        event.stopPropagation();
-        event.__woprHandled = true;
-        if (triggerSelectedAction(target)) return;
+        return triggerSelectedAction(target);
       }
     }
     if (event.key === "ArrowUp") {
-      event.preventDefault();
-      event.stopPropagation();
-      event.__woprHandled = true;
       moveSelection(-1);
-      return;
+      return true;
     }
     if (event.key === "ArrowDown") {
-      event.preventDefault();
-      event.stopPropagation();
-      event.__woprHandled = true;
       moveSelection(1);
-      return;
+      return true;
     }
     if (event.key === "Enter") {
-      event.preventDefault();
-      event.stopPropagation();
-      event.__woprHandled = true;
       if (hasPendingSelection()) {
         activateSelection();
-        return;
+        return true;
       }
       ensureSelectionState();
       const selected = getSelectedElement();
-      if (triggerSelectedAction(selected)) return;
+      if (triggerSelectedAction(selected)) return true;
       const terminal = document.querySelector(".terminal");
       if (selected) {
         const value = selected.dataset.value || "";
@@ -663,7 +684,7 @@ function ensureSelectableKeyHandler() {
           };
           if (mainMap[value]) {
             parse(mainMap[value]);
-            return;
+            return true;
           }
         }
         if (value) {
@@ -675,21 +696,71 @@ function ensureSelectableKeyHandler() {
           };
           if (mainMap[value] && /HELP|CASES|MAP|VILLAINS/i.test(text)) {
             parse(mainMap[value]);
-            return;
+            return true;
           }
         }
         if (terminal?.dataset?.screenStatus === "dialer") {
           handleDialerSelection(selected, isPortraitNarrow());
+          return true;
         }
       }
-      return;
+      return true;
     }
+    return false;
   };
   window.__selectableKeyHandler = handler;
-  document.addEventListener("keydown", handler, { capture: true });
+  window.__selectableKeymapDispose = pushKeymap(
+    {
+      ArrowUp: handler,
+      ArrowDown: handler,
+      Enter: handler,
+      "*": handler,
+    },
+    { shouldHandle }
+  );
 }
 
 ensureSelectableKeyHandler();
+
+function ensureGlobalKeymap() {
+  if (window.__woprGlobalKeymapDispose) return;
+  const allowHotkeys = () => {
+    if (isInputActive()) return false;
+    const terminal = document.querySelector(".terminal");
+    if (!terminal) return false;
+    if (document.body.classList.contains("terminal-viewer-active")) return false;
+    return true;
+  };
+  window.__woprGlobalKeymapDispose = pushKeymap(
+    {
+      F1: () => {
+        if (!allowHotkeys()) return false;
+        parse("map");
+        return true;
+      },
+      F2: () => {
+        if (!allowHotkeys()) return false;
+        parse("cases");
+        return true;
+      },
+      F3: () => {
+        if (!allowHotkeys()) return false;
+        parse("villains");
+        return true;
+      },
+      F4: () => {
+        if (!allowHotkeys()) return false;
+        parse("dialer");
+        return true;
+      },
+    },
+    {
+      shouldHandle: () => allowHotkeys(),
+    }
+  );
+}
+
+ensureGlobalKeymap();
 
 if (!window.__woprDebugKeyListener) {
   window.__woprDebugKeyListener = (event) => {
@@ -823,8 +894,7 @@ async function login() {
     await pause();
     await alert("ACCESS GRANTED - CONTINGENCY CHANNEL OPEN");
     clear();
-    //return main();
-    return mapConsole();
+    return main_with_info();
   } else {
     await type([
       " ",
@@ -916,6 +986,10 @@ async function dialer() {
       label: "NODO AUX BROTHER-MK0",
     },
     {
+      number: "(311) 437-9011",
+      label: "TERMINAL REMOTO // OS LIMITADO",
+    },
+    {
       number: "(311) 437-1083",
       label: "CLOCKTOWER BACKUP",
     },
@@ -979,6 +1053,13 @@ async function dialer() {
     if (!document.body.classList.contains("dialer-mode")) return;
     if (event.__woprHandled) return;
     if (event.repeat) return;
+    if (event.key === "Enter" || event.key === "Return" || event.key === "NumpadEnter") {
+      event.preventDefault();
+      event.stopPropagation();
+      event.__woprHandled = true;
+      activateSelection();
+      return;
+    }
     if (event.key === "ArrowUp") {
       event.preventDefault();
       event.stopPropagation();
@@ -1094,7 +1175,7 @@ async function handleDialerSelection(selected, isPortrait = isPortraitNarrow()) 
 
   // DEVELOPMENT & TESTING SHORT CUTS
   //return main();
-  //return mapConsole();
+  //return osMenu();
 
   var dialupsound = new Audio("/assets/sounds/dtmf-wopr.wav");
   dialupsound.playbackRate = 2.0;
@@ -1119,15 +1200,29 @@ async function handleDialerSelection(selected, isPortrait = isPortraitNarrow()) 
     return;
   }
 
+  if (line.action === "remote-os") {
+    const dialNumber = line.number;
+    await alert(`CONTACTING LINE ${dialNumber}`);
+    dialupsound.play();
+    dialupsound.onended = function () {
+      modemupsound.play();
+      modemupsound.onended = async function () {
+        await connecting();
+        return remoteOsScreen(line, index);
+      };
+    };
+    return;
+  }
+
   return displayLineMessage(line, isPortrait, index);
 }
 
-/** Gotham map access */
-async function mapConsole() {
-  console.log("Map console");
+/** OS service menu (home) */
+async function osMenu() {
+  console.log("OS menu");
   document.body.classList.remove("dialer-mode");
   clear();
-  setScreenStatus("map");
+  setScreenStatus("os");
   const fastRender = { wait: false, initialWait: false, finalWait: false };
 
   console.log("Play wopr sound");
@@ -1295,6 +1390,22 @@ async function mapConsole() {
   return main();
 }
 
+async function remoteOsScreen(line, index) {
+  document.body.classList.remove("dialer-mode");
+  setScreenStatus("os-remote", { lineIndex: index });
+  clear();
+  await remoteOsShell({
+    banner: [
+      "REMOTE TTY ACTIVE",
+      line?.label || "TERMINAL REMOTO",
+      "",
+      "PROTO-IA LIMITADA",
+      "HELP PARA COMANDOS",
+      "",
+    ],
+  });
+  return dialer();
+}
 
 /** Main input terminal, recursively calls itself */
 async function main_with_info() {
@@ -1420,8 +1531,19 @@ async function restoreTerminalState(saved = {}) {
       await dialer();
       return true;
     case "map":
-      await mapConsole();
+    case "os":
+      await osMenu();
       return true;
+    case "os-remote": {
+      const index = Number(saved.context?.lineIndex);
+      const resolvedIndex =
+        Number.isFinite(index) && index >= 0 && index < dialerLines.length
+          ? index
+          : 3;
+      const line = dialerLines[resolvedIndex] || dialerLines[3];
+      await remoteOsScreen(line, resolvedIndex);
+      return true;
+    }
     case "main":
       await main_with_info();
       return true;
@@ -1439,6 +1561,10 @@ async function restoreTerminalState(saved = {}) {
     default:
       return false;
   }
+}
+
+function shouldAllowResume() {
+  return shouldAutoEnable();
 }
 
 function addClasses(el, ...cls) {
@@ -1511,10 +1637,11 @@ export {
   login,
   main,
   main_with_info,
-  mapConsole,
+  osMenu,
   dialer,
   handleDialerSelection,
   restoreTerminalState,
+  shouldAllowResume,
   getTerminalState,
   // woprsound,
   getScreen,

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import fs from 'fs';
+import multer from 'multer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,12 +16,44 @@ const PORT = process.env.PORT || 4000;
 const DEFAULT_PASSWORD = process.env.DM_DEFAULT_PASSWORD || 'brother';
 const BACKDOOR_PASSWORD = process.env.DM_BACKDOOR_PASSWORD || '1234';
 const SESSION_DURATION_MS = Number(process.env.DM_SESSION_DURATION_MS || 1000 * 60 * 60 * 6);
+const GLOBAL_COMMANDS_KEY = 'global_commands';
 
 const dbPath = path.join(__dirname, 'batconsole.db');
 const db = new Database(dbPath);
 
 app.use(cors());
 app.use(express.json());
+
+const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
+fs.mkdirSync(uploadsDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
+app.use('/api/uploads', express.static(uploadsDir));
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const safeExt = ext === '.stl' ? ext : '.stl';
+    const stamp = Date.now();
+    const random = crypto.randomBytes(4).toString('hex');
+    cb(null, `evidence-${stamp}-${random}${safeExt}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (ext !== '.stl') {
+      cb(new Error('Solo se permiten archivos STL.'));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 function initDatabase() {
   db.prepare(
@@ -120,6 +153,44 @@ function setSetting(key, value) {
   ).run(key, value);
 }
 
+function getEvidenceModels() {
+  const raw = getSetting('evidence_models');
+  const parsed = parseJSON(raw, []);
+  const models = Array.isArray(parsed) ? parsed : [];
+  const migrated = models.map((entry) => {
+    if (!entry || typeof entry !== 'object') return entry;
+    const stlPath = String(entry.stlPath || entry.url || '').trim();
+    if (stlPath.startsWith('/uploads/')) {
+      return { ...entry, stlPath: `/api${stlPath}` };
+    }
+    return entry;
+  });
+  const changed = JSON.stringify(migrated) !== JSON.stringify(models);
+  if (changed) {
+    setSetting('evidence_models', stringify(migrated));
+  }
+  return migrated;
+}
+
+function setEvidenceModels(models = []) {
+  const cleaned = Array.isArray(models)
+    ? models
+        .map((entry) => {
+          if (!entry || typeof entry !== 'object') return null;
+          return {
+            id: String(entry.id || '').trim(),
+            label: String(entry.label || '').trim(),
+            command: String(entry.command || '').trim(),
+            stlPath: String(entry.stlPath || entry.url || '').trim(),
+            updatedAt: Date.now(),
+          };
+        })
+        .filter((entry) => entry && entry.id && entry.stlPath)
+    : [];
+  setSetting('evidence_models', stringify(cleaned));
+  return cleaned;
+}
+
 function ensureDefaultPassword() {
   const existingHash = getSetting('dm_password_hash');
   if (!existingHash) {
@@ -176,6 +247,45 @@ const toArray = (value) => {
   }
   return [];
 };
+
+const toResponseLines = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((entry) => (entry == null ? '' : String(entry)));
+  }
+  if (typeof value === 'string') {
+    return value.split(/\r?\n/);
+  }
+  return [];
+};
+
+const normalizeGlobalCommands = (payload) => {
+  const list = Array.isArray(payload) ? payload : payload?.commands;
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const triggers = toArray(entry.triggers || entry.trigger || entry.command || entry.commands);
+      const response = toResponseLines(entry.response || entry.output || entry.text || '');
+      return {
+        id: typeof entry.id === 'string' ? entry.id : '',
+        triggers,
+        response,
+      };
+    })
+    .filter((entry) => entry && entry.triggers.length && entry.response.length);
+};
+
+function getGlobalCommands() {
+  const raw = getSetting(GLOBAL_COMMANDS_KEY);
+  const parsed = parseJSON(raw, []);
+  return normalizeGlobalCommands(parsed);
+}
+
+function setGlobalCommands(commands) {
+  const normalized = normalizeGlobalCommands(commands);
+  setSetting(GLOBAL_COMMANDS_KEY, stringify(normalized));
+  return normalized;
+}
 
 const normalizeUnlockConditions = (value, fallbackPassword = '') => {
   if (!value && fallbackPassword) {
@@ -296,6 +406,11 @@ function authMiddleware(req, res, next) {
   const [, token] = header.split(' ');
   const session = validateToken(token);
   if (!session) {
+    console.warn('[AUTH] invalid session', {
+      path: req.path,
+      ip: req.ip,
+      tokenPresent: Boolean(token),
+    });
     return res.status(401).json({ message: 'Sesion no valida. Vuelve a iniciar sesion.' });
   }
   req.session = session;
@@ -321,6 +436,7 @@ function ensureCampaignState() {
   if (!existing) {
     const payload = JSON.stringify({
       unlocked: { cases: [], map: [], villains: [] },
+      unlockedAttributes: { cases: {}, map: {}, villains: {} },
       flags: [],
       alertLevel: 'low',
       activeCaseId: '',
@@ -336,6 +452,7 @@ function normalizeCampaignState(state) {
   const unlocked = state?.unlocked || {};
   const legacyUnlocked = state?.unlocked?.modules || [];
   const legacyLastSeen = state?.lastSeen?.modules || {};
+  const unlockedAttributes = state?.unlockedAttributes || {};
   return {
     unlocked: {
       cases: Array.isArray(unlocked.cases)
@@ -345,6 +462,20 @@ function normalizeCampaignState(state) {
           : [],
       map: Array.isArray(unlocked.map) ? unlocked.map : [],
       villains: Array.isArray(unlocked.villains) ? unlocked.villains : [],
+    },
+    unlockedAttributes: {
+      cases:
+        typeof unlockedAttributes?.cases === 'object' && unlockedAttributes.cases
+          ? unlockedAttributes.cases
+          : {},
+      map:
+        typeof unlockedAttributes?.map === 'object' && unlockedAttributes.map
+          ? unlockedAttributes.map
+          : {},
+      villains:
+        typeof unlockedAttributes?.villains === 'object' && unlockedAttributes.villains
+          ? unlockedAttributes.villains
+          : {},
     },
     flags: Array.isArray(state?.flags) ? state.flags : [],
     alertLevel: typeof state?.alertLevel === 'string' ? state.alertLevel : 'low',
@@ -583,6 +714,51 @@ app.post('/api/campaign-state', (req, res) => {
   res.json(saved);
 });
 
+app.get('/api/global-commands', (req, res) => {
+  res.json({ commands: getGlobalCommands() });
+});
+
+app.post('/api/global-commands', authMiddleware, (req, res) => {
+  const payload = req.body?.commands ?? req.body ?? [];
+  const saved = setGlobalCommands(payload);
+  res.json({ commands: saved });
+});
+
+app.get('/api/evidence', (req, res) => {
+  res.json({ models: getEvidenceModels() });
+});
+
+app.post('/api/evidence', authMiddleware, (req, res) => {
+  const payload = req.body?.models ?? req.body ?? [];
+  const saved = setEvidenceModels(payload);
+  res.json({ models: saved });
+});
+
+app.post('/api/evidence-upload', authMiddleware, (req, res) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      console.warn('[EVIDENCE_UPLOAD] failed', {
+        ip: req.ip,
+        error: err.message,
+      });
+      return res.status(400).json({ message: err.message || 'Error al subir archivo.' });
+    }
+    if (!req.file) {
+      console.warn('[EVIDENCE_UPLOAD] missing file', { ip: req.ip });
+      return res.status(400).json({ message: 'Archivo STL requerido.' });
+    }
+    const url = `/api/uploads/${req.file.filename}`;
+    console.info('[EVIDENCE_UPLOAD] ok', {
+      ip: req.ip,
+      filename: req.file.filename,
+      original: req.file.originalname,
+      size: req.file.size,
+      url,
+    });
+    res.json({ url, filename: req.file.filename, originalName: req.file.originalname });
+  });
+});
+
 const mapCaseRow = (row) => {
   if (!row) return null;
   const unlockConfig = normalizeUnlockConditions(parseJSON(row.unlock_conditions, null));
@@ -652,8 +828,34 @@ app.delete('/api/cases-data/:id', authMiddleware, (req, res) => {
   if (!id) {
     return res.status(400).json({ message: 'ID obligatorio.' });
   }
-  db.prepare('DELETE FROM cases_data WHERE id = ?').run(id);
-  res.json({ success: true });
+  const rows = db.prepare('SELECT id, commands FROM cases_data').all();
+  const childrenMap = new Map();
+  rows.forEach((row) => {
+    const commands = parseJSON(row.commands, {});
+    const parentId = commands?.parentId || '';
+    if (!parentId) return;
+    if (!childrenMap.has(parentId)) {
+      childrenMap.set(parentId, []);
+    }
+    childrenMap.get(parentId).push(row.id);
+  });
+
+  const toDelete = new Set();
+  const collect = (nodeId) => {
+    if (!nodeId || toDelete.has(nodeId)) return;
+    toDelete.add(nodeId);
+    const children = childrenMap.get(nodeId) || [];
+    children.forEach((childId) => collect(childId));
+  };
+  collect(id);
+
+  const ids = Array.from(toDelete);
+  const deleteStmt = db.prepare('DELETE FROM cases_data WHERE id = ?');
+  const transaction = db.transaction((list) => {
+    list.forEach((caseId) => deleteStmt.run(caseId));
+  });
+  transaction(ids);
+  res.json({ success: true, deletedIds: ids });
 });
 
 // Backward-compatible aliases for legacy clients.
@@ -708,8 +910,34 @@ app.delete('/api/modules-data/:id', authMiddleware, (req, res) => {
   if (!id) {
     return res.status(400).json({ message: 'ID obligatorio.' });
   }
-  db.prepare('DELETE FROM cases_data WHERE id = ?').run(id);
-  res.json({ success: true });
+  const rows = db.prepare('SELECT id, commands FROM cases_data').all();
+  const childrenMap = new Map();
+  rows.forEach((row) => {
+    const commands = parseJSON(row.commands, {});
+    const parentId = commands?.parentId || '';
+    if (!parentId) return;
+    if (!childrenMap.has(parentId)) {
+      childrenMap.set(parentId, []);
+    }
+    childrenMap.get(parentId).push(row.id);
+  });
+
+  const toDelete = new Set();
+  const collect = (nodeId) => {
+    if (!nodeId || toDelete.has(nodeId)) return;
+    toDelete.add(nodeId);
+    const children = childrenMap.get(nodeId) || [];
+    children.forEach((childId) => collect(childId));
+  };
+  collect(id);
+
+  const ids = Array.from(toDelete);
+  const deleteStmt = db.prepare('DELETE FROM cases_data WHERE id = ?');
+  const transaction = db.transaction((list) => {
+    list.forEach((caseId) => deleteStmt.run(caseId));
+  });
+  transaction(ids);
+  res.json({ success: true, deletedIds: ids });
 });
 
 const mapPoiRow = (row) => {
@@ -842,6 +1070,12 @@ app.post('/api/villains-data', authMiddleware, (req, res) => {
   const payload = req.body || {};
   if (!payload.id) {
     return res.status(400).json({ message: 'ID del villano obligatorio.' });
+  }
+  if (payload.unlockConditions?.attributes) {
+    const attrKeys = Object.keys(payload.unlockConditions.attributes || {});
+    console.log(
+      `[ACCESS] Villain attributes updated: ${payload.id} (${attrKeys.length} fields)`
+    );
   }
   const unlockConfig = normalizeUnlockConditions(payload.unlockConditions);
   const dmNotes = normalizeDmNotes(payload.dm);

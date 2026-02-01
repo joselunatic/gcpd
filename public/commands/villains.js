@@ -1,4 +1,4 @@
-import { prompt, type, print, renderSelectableLines, parse } from "/utils/io.js";
+import { prompt, type, print, renderSelectableLines, parse, input } from "/utils/io.js";
 import {
   loadCampaignState,
   markSeen,
@@ -11,11 +11,21 @@ import {
   getNodeType,
   getNodeLabel,
 } from "/utils/access.js";
-import { renderStatusHeader } from "/utils/status.js";
+import { getStatusContext } from "/utils/status.js";
 import { getDeltaMarker } from "/utils/delta.js";
 import { isPortraitNarrow, getWrapLimit } from "/utils/portrait.js";
 import { waitForSelection } from "/utils/selection.js";
 import { paginateSelectableItems } from "/utils/pagination.js";
+import {
+  SYMBOLS,
+  buildHeaderLines,
+  buildFooterLines,
+  titleLine,
+  mergePartsLine,
+  toParts,
+  trimParts,
+  padParts,
+} from "/utils/tui.js";
 
 const API_URL = "/api/villains-data";
 const FALLBACK_URL = "/data/villains/gallery.json";
@@ -68,14 +78,23 @@ const fetchGallery = async () => {
   return cache;
 };
 
-const output = [
-  " ",
-  "GALERIA DE VILLANOS",
-  "====================",
-  "MARCAS: * NUEVO  ~ ACTUALIZADO  ! CRITICO",
-  " ",
-];
 const fastRender = { wait: false, initialWait: false, finalWait: false };
+const COLUMN = { left: 38, right: 51, divider: "│" };
+
+const mergeLine = (left = "", right = "") =>
+  mergePartsLine(left, right, {
+    leftWidth: COLUMN.left,
+    rightWidth: COLUMN.right,
+    divider: COLUMN.divider,
+    dividerClass: "tui-sep",
+  });
+
+const labelValueLine = (label, value, valueClass = "tui-primary") => ({
+  parts: [
+    { text: `${label}: `, className: "tui-system" },
+    { text: String(value || ""), className: valueClass },
+  ],
+});
 
 const renderDetails = async (villain, evaluation) => {
   const detailLine = (text) => wrapLine(text, 80);
@@ -199,20 +218,146 @@ const statusLabel = (evaluation) => {
 const formatNodeLine = (villain, evaluation, index, campaignState) => {
   const marker = getDeltaMarker(villain, "villains", campaignState);
   const label = getNodeLabel(villain);
-  if (isPortraitNarrow()) {
-    const lines = [
-      `${index + 1}. ${label}`,
+  const threat = villain.threatLevel
+    ? String(villain.threatLevel).toUpperCase()
+    : "UNKNOWN";
+  const status = statusLabel(evaluation);
+  const line1 = {
+    parts: [
+      { text: `${String(index + 1).padStart(2, "0")} `, className: "tui-muted" },
+      { text: `${SYMBOLS.selected} `, className: "tui-muted" },
+      { text: label, className: "tui-primary" },
+      ...(marker
+        ? [
+            {
+              text: ` ${marker === "!" ? SYMBOLS.critical : marker}`,
+              className: marker === "!" ? "tui-alert" : "tui-warn",
+            },
+          ]
+        : []),
+    ],
+  };
+  const line2 = {
+    parts: [
+      { text: "  THREAT: ", className: "tui-system" },
+      { text: threat, className: threat === "HIGH" ? "tui-alert" : "tui-warn" },
+      { text: " | ", className: "tui-muted" },
+      { text: status, className: status === "ONLINE" ? "tui-ok" : "tui-warn" },
+    ],
+  };
+  return [line1, line2];
+};
+
+const buildPreviewLines = (villain, evaluation, campaignState, breadcrumb = []) => {
+  if (!villain) {
+    return [
+      { parts: [{ text: "SIN PERFIL SELECCIONADO.", className: "tui-muted" }] },
+      { parts: [{ text: "REVISA LOS FILTROS.", className: "tui-muted" }] },
     ];
-    if (villain.summary) {
-      lines.push(`${villain.summary}`);
-    }
-    return [lines.join("\n")];
   }
-  const summary = villain.summary ? ` - ${villain.summary}` : "";
-  const base = `${index + 1}. [${statusLabel(evaluation)}] ${marker ? marker + " " : ""}${label}${villain.alias ? ` (${villain.alias})` : ""}${summary}`;
-  return wrapLine(base, 80).map((segment, idx) =>
-    idx === 0 ? segment : `    ${segment}`
-  );
+  const marker = getDeltaMarker(villain, "villains", campaignState);
+  const threat = villain.threatLevel
+    ? String(villain.threatLevel).toUpperCase()
+    : "UNKNOWN";
+  const status = statusLabel(evaluation);
+  const lines = [
+    {
+      parts: [
+        { text: "FOCUS ", className: "tui-system" },
+        { text: `${SYMBOLS.selected} ${villain.alias || villain.id}`, className: "tui-accent" },
+        ...(marker
+          ? [
+              {
+                text: ` ${marker === "!" ? SYMBOLS.critical : marker}`,
+                className: marker === "!" ? "tui-alert" : "tui-warn",
+              },
+            ]
+          : []),
+      ],
+    },
+    labelValueLine("ID", villain.id, "tui-muted"),
+    labelValueLine("STATUS", status, status === "ONLINE" ? "tui-ok" : "tui-warn"),
+    labelValueLine("THREAT", threat, threat === "HIGH" ? "tui-alert" : "tui-warn"),
+  ];
+  if (breadcrumb.length) {
+    lines.push(labelValueLine("PATH", breadcrumb.join(" / "), "tui-muted"));
+  }
+  if (villain.lastSeen) {
+    lines.push(labelValueLine("LAST SEEN", villain.lastSeen, "tui-muted"));
+  }
+  if (villain.summary) {
+    lines.push({ parts: [{ text: "SUMMARY:", className: "tui-system" }] });
+    wrapLine(villain.summary, COLUMN.right - 2).forEach((line) => {
+      lines.push({
+        parts: [
+          { text: "  ", className: "tui-muted" },
+          { text: line, className: "tui-primary" },
+        ],
+      });
+    });
+  }
+  if (villain.patterns?.length) {
+    lines.push({ parts: [{ text: "PATRONES:", className: "tui-system" }] });
+    villain.patterns.slice(0, 3).forEach((entry) => {
+      wrapLine(entry, COLUMN.right - 4).forEach((line) => {
+        lines.push({
+          parts: [
+            { text: "  ", className: "tui-muted" },
+            { text: SYMBOLS.bullet + " ", className: "tui-muted" },
+            { text: line, className: "tui-primary" },
+          ],
+        });
+      });
+    });
+  }
+  if (villain.knownAssociates?.length) {
+    lines.push({ parts: [{ text: "ASSOCIATES:", className: "tui-system" }] });
+    villain.knownAssociates.slice(0, 3).forEach((entry) => {
+      wrapLine(entry, COLUMN.right - 4).forEach((line) => {
+        lines.push({
+          parts: [
+            { text: "  ", className: "tui-muted" },
+            { text: SYMBOLS.relation + " ", className: "tui-muted" },
+            { text: line, className: "tui-primary" },
+          ],
+        });
+      });
+    });
+  }
+  return lines;
+};
+
+const mergeItemsWithPreview = (items, previewLines) => {
+  const totalLines = items.reduce((sum, item) => {
+    const list = Array.isArray(item.lines) ? item.lines : [item.lines];
+    return sum + list.length;
+  }, 0);
+  const rightLines = previewLines.slice(0, totalLines);
+  while (rightLines.length < totalLines) rightLines.push("");
+  let rowIndex = 0;
+  return items.map((item) => {
+    const lines = Array.isArray(item.lines) ? item.lines : [item.lines];
+    const merged = lines.map((line) => {
+      const right = rightLines[rowIndex] || "";
+      rowIndex += 1;
+      const leftParts = padParts(
+        trimParts(toParts(line), COLUMN.left),
+        COLUMN.left
+      );
+      const rightParts = padParts(
+        trimParts(toParts(right), COLUMN.right),
+        COLUMN.right
+      );
+      return {
+        parts: [
+          ...leftParts,
+          { text: COLUMN.divider, className: "tui-sep" },
+          ...rightParts,
+        ],
+      };
+    });
+    return { ...item, lines: merged };
+  });
 };
 
 async function attemptUnlock(villain, evaluation) {
@@ -299,6 +444,7 @@ async function browseVillains(villains) {
 
   while (stack.length) {
     campaignState = loadCampaignState();
+    const statusContext = await getStatusContext();
     const { parentId, crumbs } = stack[stack.length - 1];
     const nodes = villains
       .filter((villain) => (villain.commands?.parentId || "") === parentId)
@@ -321,14 +467,68 @@ async function browseVillains(villains) {
     }
 
     const breadcrumb = crumbs.join(" / ");
+    const activeCaseId = statusContext?.state?.activeCaseId || "";
     const items = nodes.map(({ villain, evaluation }, index) => ({
       lines: formatNodeLine(villain, evaluation, index, campaignState),
       action: "input",
       value: String(index + 1),
+      _villain: villain,
+      _evaluation: evaluation,
     }));
 
-    const headerLines = [" ", `/${breadcrumb}`];
-    const baseFooterLines = [" ", "Selecciona perfil.", " "];
+    const headerLines = [
+      ...buildHeaderLines({
+        node: "WAYNE AUX NODE",
+        view: "VILLAINS",
+        status: "ONLINE",
+        link: "SECURE",
+        mode: "INTEL",
+        caseLabel: statusContext?.activeCase
+          ? statusContext.activeCase.title || statusContext.activeCase.id
+          : activeCaseId || "NONE",
+        alert: statusContext?.state?.alertLevel || "LOW",
+        flags: (statusContext?.state?.flags || []).join(" | ") || "NONE",
+      }).map((line) => ({ parts: [{ text: line, className: "tui-system" }] })),
+      { parts: [{ text: titleLine("VILLANOS :: BASE DE INTEL"), className: "tui-system" }] },
+      mergeLine(
+        { parts: [{ text: "INDICE / FILES", className: "tui-system" }] },
+        { parts: [{ text: "PERFIL / RELACIONES", className: "tui-system" }] }
+      ),
+      mergePartsLine(
+        { text: "─".repeat(COLUMN.left), className: "tui-sep" },
+        { text: "─".repeat(COLUMN.right), className: "tui-sep" },
+        { leftWidth: COLUMN.left, rightWidth: COLUMN.right, divider: "┼", dividerClass: "tui-sep" }
+      ),
+    ];
+    if (statusContext?.unsynced) {
+      headerLines.push(
+        mergeLine(
+          { parts: [{ text: "SYNC: DATA LOCAL", className: "tui-warn" }] },
+          { parts: [{ text: "API OFFLINE", className: "tui-warn" }] }
+        )
+      );
+    }
+
+    const baseFooterLines = [
+      mergeLine(
+        {
+          parts: [
+            { text: "HINTS: ", className: "tui-system" },
+            { text: "ENTER", className: "tui-accent" },
+            { text: " abrir | ", className: "tui-muted" },
+            { text: "/", className: "tui-accent" },
+            { text: " buscar | ", className: "tui-muted" },
+            { text: "B", className: "tui-accent" },
+            { text: " back", className: "tui-muted" },
+          ],
+        },
+        ""
+      ),
+      ...buildFooterLines({
+        mode: "INTEL",
+        link: "SECURE",
+      }).map((line) => ({ parts: [{ text: line, className: "tui-muted" }] })),
+    ];
     const baseChips = [
       { label: "MAPA", action: "command", value: "map" },
       { label: "CASOS", action: "command", value: "cases" },
@@ -347,13 +547,20 @@ async function browseVillains(villains) {
     );
     stack[stack.length - 1].pageIndex = pageIndex;
     const pageItems = pages[pageIndex] || [];
+    const pageDefaultIndex = pageItems.length ? 0 : -1;
+    const focusItem = pageItems[pageDefaultIndex] || pageItems[0] || null;
+    const previewLines = buildPreviewLines(
+      focusItem?._villain,
+      focusItem?._evaluation,
+      campaignState,
+      crumbs
+    );
+    const pageItemsMerged = mergeItemsWithPreview(pageItems, previewLines);
     const footerLines =
       pageCount > 1
         ? [
-            " ",
-            "Selecciona perfil.",
-            `PAGINA ${pageIndex + 1}/${pageCount} (N/P)`,
-            " ",
+            mergeLine(`PAGINA ${pageIndex + 1}/${pageCount} (N/P)`, ""),
+            ...baseFooterLines,
           ]
         : baseFooterLines;
     const chips =
@@ -368,11 +575,12 @@ async function browseVillains(villains) {
     clear();
     await renderSelectableLines({
       lines: headerLines,
-      items: pageItems,
+      items: pageItemsMerged,
       footerLines,
       chips,
       context: { backValue: "B", backAction: "input" },
-    });
+      defaultIndex: pageDefaultIndex,
+    }, fastRender);
 
     let choice = "";
     if (isPortraitNarrow()) {
@@ -385,7 +593,9 @@ async function browseVillains(villains) {
       }
       choice = value || "";
     } else {
-      choice = await prompt("SELECCION: ");
+      choice = await input(false, {
+        hint: "AUX-01 > open profile 2 | / filter threat:high | back",
+      });
     }
     if (!choice) continue;
     const normalized = choice.trim().toUpperCase();
@@ -431,7 +641,6 @@ async function browseVillains(villains) {
     }
 
     clear();
-    await renderStatusHeader(fastRender);
     await renderDetails(villain, evaluation);
 
     const nodeType = getNodeType(villain);
@@ -475,9 +684,7 @@ async function browseVillains(villains) {
 }
 
 export default async () => {
-  await renderStatusHeader(fastRender);
   await refreshCampaignState();
-  await type(output, { stopBlinking: true, ...fastRender });
   const data = await fetchGallery();
   if (dataSource !== "api") {
     await print(["FALLBACK DATA IN USE."], {

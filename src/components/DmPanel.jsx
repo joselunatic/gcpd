@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '../css/DmPanel.styles.css';
 
 const CASES_ENDPOINT = '/api/cases-data';
@@ -6,6 +6,9 @@ const POIS_ENDPOINT = '/api/pois-data';
 const VILLAINS_ENDPOINT = '/api/villains-data';
 const AUTH_ENDPOINT = '/api/auth';
 const CAMPAIGN_ENDPOINT = '/api/campaign-state';
+const GLOBAL_COMMANDS_ENDPOINT = '/api/global-commands';
+const EVIDENCE_ENDPOINT = '/api/evidence';
+const EVIDENCE_UPLOAD_ENDPOINT = '/api/evidence-upload';
 
 const initialCaseForm = {
   id: '',
@@ -40,6 +43,88 @@ const defaultAccessConfig = {
   requiredFlags: [],
   autoUnlockOn: 'resolve',
   initialAccessStatus: 'locked',
+};
+
+const VILLAIN_ATTRIBUTE_FIELDS = [
+  { key: 'alias', label: 'Alias', group: 'Primarios' },
+  { key: 'realName', label: 'Nombre real', group: 'Primarios' },
+  { key: 'summary', label: 'Resumen', group: 'Primarios' },
+  { key: 'status', label: 'Estado', group: 'Primarios' },
+  { key: 'species', label: 'Especie', group: 'Opcionales' },
+  { key: 'age', label: 'Edad', group: 'Opcionales' },
+  { key: 'height', label: 'Altura', group: 'Opcionales' },
+  { key: 'weight', label: 'Peso', group: 'Opcionales' },
+  { key: 'threatLevel', label: 'Nivel de amenaza', group: 'Opcionales' },
+  { key: 'lastSeen', label: 'Ultima vez visto', group: 'Opcionales' },
+  { key: 'patterns', label: 'Patrones', group: 'Opcionales' },
+  { key: 'knownAssociates', label: 'Asociados conocidos', group: 'Opcionales' },
+  { key: 'notes', label: 'Notas', group: 'Opcionales' },
+];
+
+const buildAttributeAccessForm = (attributes = {}) => {
+  const result = {};
+  VILLAIN_ATTRIBUTE_FIELDS.forEach(({ key }) => {
+    const raw = attributes?.[key] || {};
+    result[key] = {
+      visibility: raw.visibility || defaultAccessConfig.visibility,
+      unlockMode: raw.unlockMode || defaultAccessConfig.unlockMode,
+      password: raw.password || '',
+      phrase: raw.phrase || '',
+      initialAccessStatus:
+        raw.initialAccessStatus || defaultAccessConfig.initialAccessStatus,
+    };
+  });
+  return result;
+};
+
+const buildAttributeAccessPayload = (formAttributes = {}, existing = {}) => {
+  const result = {};
+  VILLAIN_ATTRIBUTE_FIELDS.forEach(({ key }) => {
+    const existingConfig =
+      existing && typeof existing[key] === 'object' ? existing[key] : {};
+    const formConfig = formAttributes[key] || {};
+    const merged = {
+      ...defaultAccessConfig,
+      ...existingConfig,
+      ...formConfig,
+    };
+    merged.password =
+      merged.unlockMode === 'password' ? formConfig.password || merged.password : '';
+    merged.phrase = formConfig.phrase || merged.phrase || '';
+    result[key] = merged;
+  });
+  return result;
+};
+
+const normalizeAccessMatrix = (matrix = {}, existing = {}) => {
+  const result = {};
+  VILLAIN_ATTRIBUTE_FIELDS.forEach(({ key }) => {
+    const current = matrix[key] || {};
+    const previous = existing && typeof existing[key] === 'object' ? existing[key] : {};
+    const visibility =
+      current.visibility || previous.visibility || defaultAccessConfig.visibility;
+    const initialAccessStatus =
+      current.initialAccessStatus ||
+      previous.initialAccessStatus ||
+      defaultAccessConfig.initialAccessStatus;
+    const password = current.password || '';
+    const phrase = current.phrase || '';
+    let unlockMode = current.unlockMode || previous.unlockMode || 'none';
+    if (password) {
+      unlockMode = 'password';
+    } else if (unlockMode === 'password') {
+      unlockMode = 'none';
+    }
+    result[key] = {
+      ...previous,
+      visibility,
+      unlockMode,
+      password,
+      phrase,
+      initialAccessStatus,
+    };
+  });
+  return result;
 };
 
 const VISIBILITY_OPTIONS = [
@@ -125,13 +210,32 @@ const initialPoiForm = {
   category: 'map',
 };
 
+const initialEvidenceForm = {
+  id: '',
+  label: '',
+  command: '',
+  stlPath: '',
+};
+
 const initialVillainForm = {
   id: '',
   alias: '',
+  realName: '',
+  species: '',
+  age: '',
+  height: '',
+  weight: '',
+  threatLevel: '',
+  status: '',
   summary: '',
+  lastSeen: '',
+  patterns: '',
+  knownAssociates: '',
+  notes: '',
   nodeType: 'mixed',
   parentId: '',
   category: 'villains',
+  attributeAccess: buildAttributeAccessForm(),
 };
 
 const splitList = (value = '') =>
@@ -150,6 +254,8 @@ const VIEW_OPTIONS = [
   { id: 'cases', label: 'Casos' },
   { id: 'pois', label: 'POIs' },
   { id: 'villains', label: 'Villanos' },
+  { id: 'evidence', label: 'Evidencias' },
+  { id: 'access', label: 'Accesos' },
   { id: 'campaign', label: 'Campaña' },
 ];
 
@@ -212,10 +318,27 @@ const formFieldsToState = (form, baseState = {}) => ({
   activeCaseId: form.activeCaseId || '',
 });
 
-const labelRow = (label, tooltip, impact) => (
+const normalizeUnlockedAttributes = (state = {}) => {
+  const unlockedAttributes = state?.unlockedAttributes || {};
+  return {
+    cases:
+      typeof unlockedAttributes?.cases === 'object' && unlockedAttributes.cases
+        ? unlockedAttributes.cases
+        : {},
+    map:
+      typeof unlockedAttributes?.map === 'object' && unlockedAttributes.map
+        ? unlockedAttributes.map
+        : {},
+    villains:
+      typeof unlockedAttributes?.villains === 'object' && unlockedAttributes.villains
+        ? unlockedAttributes.villains
+        : {},
+  };
+};
+
+const labelRow = (label, tooltip) => (
   <span className="dm-panel__label-row">
     <span>{label}</span>
-    {impact && <span className="dm-panel__impact">Affects: {impact}</span>}
     {tooltip && (
       <span className="dm-panel__tooltip" tabIndex="0" data-tooltip={tooltip}>
         ?
@@ -225,11 +348,21 @@ const labelRow = (label, tooltip, impact) => (
   </span>
 );
 
-const renderSection = ({ id, title, open, onToggle, impact, help, children }) => (
+const basicLabel = (label, tooltip) => (
+  <span className="dm-panel__label-row dm-panel__label-row--basic">
+    <span>{label}</span>
+    {tooltip && (
+      <span className="dm-panel__tooltip" tabIndex="0" data-tooltip={tooltip}>
+        ?
+      </span>
+    )}
+  </span>
+);
+
+const renderSection = ({ id, title, open, onToggle, help, children }) => (
   <div className={`dm-panel__accordion ${open ? 'open' : ''}`} key={id}>
     <button type="button" className="dm-panel__accordion-toggle" onClick={onToggle}>
       <span>{title}</span>
-      {impact && <span className="dm-panel__impact">Affects: {impact}</span>}
       <span className="dm-panel__accordion-icon">{open ? '▾' : '▸'}</span>
     </button>
     {open && (
@@ -318,6 +451,7 @@ const DmPanel = () => {
   const [previewByView, setPreviewByView] = useState(
     () => readJsonStorage(STORAGE_KEYS.preview, {})
   );
+  const [advancedByView, setAdvancedByView] = useState({});
   const [selectorByView, setSelectorByView] = useState(
     () => readJsonStorage(STORAGE_KEYS.selector, {})
   );
@@ -330,6 +464,8 @@ const DmPanel = () => {
   const [selectionState, setSelectionState] = useState(
     () => readJsonStorage(STORAGE_KEYS.selections, {})
   );
+  const [previewBriefOpen, setPreviewBriefOpen] = useState(false);
+  const [caseTypeOverride, setCaseTypeOverride] = useState(null);
 
   const [cases, setCases] = useState([]);
   const [casesError, setCasesError] = useState('');
@@ -357,6 +493,15 @@ const DmPanel = () => {
     JSON.stringify(initialVillainForm)
   );
   const [villainSaveState, setVillainSaveState] = useState({ status: 'idle', at: null });
+  const [accessVillainId, setAccessVillainId] = useState(
+    () => readJsonStorage(STORAGE_KEYS.selections, {}).access || ''
+  );
+  const [accessMatrix, setAccessMatrix] = useState(buildAttributeAccessForm());
+  const [accessBaseline, setAccessBaseline] = useState(
+    JSON.stringify(buildAttributeAccessForm())
+  );
+  const [accessMessage, setAccessMessage] = useState('');
+  const [accessLoading, setAccessLoading] = useState(false);
 
   const [campaignSnapshot, setCampaignSnapshot] = useState(null);
   const [campaignForm, setCampaignForm] = useState({
@@ -370,6 +515,22 @@ const DmPanel = () => {
   const [campaignMessage, setCampaignMessage] = useState('');
   const [campaignLoading, setCampaignLoading] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [globalCommandsText, setGlobalCommandsText] = useState('[]');
+  const [globalCommandsMessage, setGlobalCommandsMessage] = useState('');
+  const [globalCommandsLoading, setGlobalCommandsLoading] = useState(false);
+  const [evidenceModels, setEvidenceModels] = useState([]);
+  const [evidenceForm, setEvidenceForm] = useState(initialEvidenceForm);
+  const [evidenceProfile, setEvidenceProfile] = useState('default');
+  const [evidencePreviewNonce, setEvidencePreviewNonce] = useState(0);
+  const [evidenceMessage, setEvidenceMessage] = useState('');
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [evidenceUploading, setEvidenceUploading] = useState(false);
+  const [evidenceFile, setEvidenceFile] = useState(null);
+  const evidencePreviewRef = useRef(null);
+  const evidenceViewerRef = useRef(null);
+  const evidenceMeshRef = useRef(null);
+  const evidenceMaterialRef = useRef(null);
+  const evidenceAxisCleanupRef = useRef(null);
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -531,6 +692,17 @@ const DmPanel = () => {
   }, [cases, selectionState.cases, selectedCase?.id]);
 
   useEffect(() => {
+    setPreviewBriefOpen(false);
+    setCaseTypeOverride(null);
+  }, [caseForm.id]);
+
+  useEffect(() => {
+    if (caseForm.parentId) {
+      setCaseTypeOverride(null);
+    }
+  }, [caseForm.parentId]);
+
+  useEffect(() => {
     if (!authorized || !sessionToken) return;
     fetch(POIS_ENDPOINT, { headers: { Authorization: `Bearer ${sessionToken}` } })
       .then((res) => {
@@ -589,6 +761,31 @@ const DmPanel = () => {
   }, [villains, selectionState.villains, selectedVillain?.id]);
 
   useEffect(() => {
+    if (!villains.length) return;
+    const storedAccessId = selectionState.access;
+    const fallbackId = villains[0]?.id || '';
+    const nextId = storedAccessId || accessVillainId || fallbackId;
+    if (!nextId) return;
+    if (nextId !== accessVillainId) {
+      setAccessVillainId(nextId);
+    }
+  }, [villains, selectionState.access, accessVillainId]);
+
+  useEffect(() => {
+    if (!accessVillainId) return;
+    const target = villains.find((item) => item.id === accessVillainId);
+    if (!target) return;
+    const matrix = buildAttributeAccessForm(target.unlockConditions?.attributes || {});
+    setAccessMatrix(matrix);
+    setAccessBaseline(JSON.stringify(matrix));
+  }, [accessVillainId, villains]);
+
+  useEffect(() => {
+    if (!accessVillainId) return;
+    setSelection('access', accessVillainId);
+  }, [accessVillainId]);
+
+  useEffect(() => {
     if (!authorized || !sessionToken) return;
     fetch(CAMPAIGN_ENDPOINT)
       .then((res) => {
@@ -605,6 +802,356 @@ const DmPanel = () => {
         setCampaignMessage('No se pudo cargar el estado de campaña.');
       });
   }, [authorized, sessionToken]);
+
+  useEffect(() => {
+    if (!authorized || !sessionToken) return;
+    fetch(GLOBAL_COMMANDS_ENDPOINT, { cache: 'no-store' })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        const commands = Array.isArray(data?.commands) ? data.commands : [];
+        setGlobalCommandsText(JSON.stringify(commands, null, 2));
+        setGlobalCommandsMessage('');
+      })
+      .catch((error) => {
+        console.error('Load global commands error', error);
+        setGlobalCommandsMessage('No se pudieron cargar los comandos globales.');
+      });
+  }, [authorized, sessionToken]);
+
+  useEffect(() => {
+    if (activeView !== 'evidence') return;
+    const container = evidencePreviewRef.current;
+    if (!container) return;
+    if (!evidenceForm.stlPath) {
+      if (evidenceViewerRef.current) {
+        evidenceViewerRef.current.dispose();
+        evidenceViewerRef.current = null;
+      }
+      if (evidenceMeshRef.current) {
+        evidenceMeshRef.current.geometry.dispose();
+        evidenceMeshRef.current = null;
+      }
+      if (evidenceMaterialRef.current) {
+        evidenceMaterialRef.current.dispose();
+        evidenceMaterialRef.current = null;
+      }
+      container.innerHTML = '';
+      return;
+    }
+
+    let cancelled = false;
+    const setup = async () => {
+      try {
+        const getThemeColors = () => {
+          const source =
+            document.getElementById('terminal-container') ||
+            document.documentElement ||
+            document.body;
+          if (!source || typeof getComputedStyle !== 'function') return null;
+          const styles = getComputedStyle(source);
+          const fg =
+            styles.getPropertyValue('--fg-primary')?.trim() ||
+            styles.getPropertyValue('--color')?.trim();
+          const bg =
+            styles.getPropertyValue('--bg')?.trim() ||
+            styles.getPropertyValue('--background-color')?.trim();
+          return { fg, bg };
+        };
+        const [{ loadThreeModules }, { createAsciiViewer }] = await Promise.all([
+          import('../three/AssetManager.js'),
+          import('../three/asciiViewer.js'),
+        ]);
+        const { THREE, AsciiEffect, STLLoader, OrbitControls } = await loadThreeModules();
+        if (cancelled) return;
+
+        if (evidenceViewerRef.current) {
+          evidenceViewerRef.current.dispose();
+          evidenceViewerRef.current = null;
+        }
+        if (evidenceMeshRef.current) {
+          evidenceMeshRef.current.geometry.dispose();
+          evidenceMeshRef.current = null;
+        }
+        if (evidenceMaterialRef.current) {
+          evidenceMaterialRef.current.dispose();
+          evidenceMaterialRef.current = null;
+        }
+        container.innerHTML = '';
+
+        const viewer = createAsciiViewer({
+          THREE,
+          AsciiEffect,
+          OrbitControls,
+          container,
+          profiles: {
+            default: {
+              label: 'Default',
+              characters: ' .:-+*=%@#',
+              resolution: 0.2,
+              mode: 'ascii',
+              flatShading: true,
+              roughness: 0.35,
+              metalness: 0.1,
+              toneMapping: null,
+              exposure: 1,
+            },
+            normal: {
+              label: 'Normal',
+              characters: ' .:-+*=%@#',
+              resolution: 0.2,
+              mode: 'render',
+              flatShading: true,
+              roughness: 0.35,
+              metalness: 0.1,
+              toneMapping: null,
+              exposure: 1,
+            },
+            wayne90x30: {
+              label: 'Wayne 90x30',
+              characters: ' .:-+*=%@#',
+              resolution: 0.2,
+              mode: 'ascii',
+              flatShading: false,
+              roughness: 0.95,
+              metalness: 0,
+              toneMapping: 'ACES',
+              exposure: 1.0,
+            },
+          },
+          initialProfileKey: evidenceProfile,
+          themeSource: document.getElementById('terminal-container') || document.body,
+          controlsConfig: {
+            enableDamping: true,
+            dampingFactor: 0.08,
+            enableZoom: true,
+            enablePan: true,
+            enableRotate: true,
+            autoRotate: false,
+          },
+          onFrame: () => {},
+        });
+        evidenceViewerRef.current = viewer;
+        if (evidenceAxisCleanupRef.current) {
+          evidenceAxisCleanupRef.current();
+          evidenceAxisCleanupRef.current = null;
+        }
+        viewer.setProfile(evidenceProfile);
+
+        const { scene, camera, renderer } = viewer;
+        camera.position.set(0, 0, 160);
+
+        const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+        scene.add(ambient);
+        const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
+        keyLight.position.set(120, 160, 200);
+        scene.add(keyLight);
+        const fillLight = new THREE.PointLight(0xffffff, 0.9);
+        fillLight.position.set(-120, -80, 100);
+        scene.add(fillLight);
+
+        const material = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: 0.35,
+          metalness: 0.1,
+          flatShading: true,
+          side: THREE.DoubleSide,
+        });
+        evidenceMaterialRef.current = material;
+        const applyThemeColors = () => {
+          const colors = getThemeColors();
+          if (!colors) return;
+          if (colors.fg) {
+            viewer.setAsciiColor(colors.fg);
+            material.color.set(colors.fg);
+            ambient.color.set(colors.fg);
+            keyLight.color.set(colors.fg);
+            fillLight.color.set(colors.fg);
+          }
+          if (colors.bg) {
+            viewer.setBackgroundColor(colors.bg);
+          }
+        };
+        applyThemeColors();
+        const handleThemeChange = () => {
+          applyThemeColors();
+        };
+        window.addEventListener('wopr-theme-change', handleThemeChange);
+
+        const loader = new STLLoader();
+        const resolvedPath = evidenceForm.stlPath.startsWith('/uploads/')
+          ? `/api${evidenceForm.stlPath}`
+          : evidenceForm.stlPath;
+        loader.load(
+          resolvedPath,
+          (geometry) => {
+            if (cancelled) return;
+            geometry.computeVertexNormals();
+            geometry.center();
+            geometry.computeBoundingBox();
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.rotation.set(Math.PI, 0, 0);
+            scene.add(mesh);
+            evidenceMeshRef.current = mesh;
+          },
+          undefined,
+          () => {
+            if (cancelled) return;
+            const fallback = new THREE.TorusKnotGeometry(28, 9, 120, 16);
+            fallback.computeVertexNormals();
+            fallback.center();
+            const mesh = new THREE.Mesh(fallback, material);
+            mesh.rotation.set(Math.PI, 0, 0);
+            scene.add(mesh);
+            evidenceMeshRef.current = mesh;
+          }
+        );
+
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        viewer.start();
+
+        const targetEl = viewer.getEffect()?.domElement || renderer.domElement;
+        const setupAxisRotate = (el) => {
+          if (!el) return () => {};
+          let dragging = false;
+          let lastX = 0;
+          let lastY = 0;
+          const speed = 0.005;
+          const onPointerDown = (event) => {
+            dragging = true;
+            lastX = event.clientX;
+            lastY = event.clientY;
+          };
+          const onPointerMove = (event) => {
+            if (!dragging || !evidenceMeshRef.current) return;
+            const axis = event.ctrlKey ? 'x' : event.shiftKey ? 'y' : event.altKey ? 'z' : '';
+            if (!axis) return;
+            const dx = event.clientX - lastX;
+            const dy = event.clientY - lastY;
+            lastX = event.clientX;
+            lastY = event.clientY;
+            if (axis === 'x') evidenceMeshRef.current.rotation.x += dy * speed;
+            if (axis === 'y') evidenceMeshRef.current.rotation.y += dx * speed;
+            if (axis === 'z') evidenceMeshRef.current.rotation.z += dx * speed;
+            const controls = viewer.getControls();
+            if (controls) controls.enableRotate = false;
+            event.preventDefault();
+            event.stopPropagation();
+          };
+          const onPointerUp = () => {
+            dragging = false;
+            const controls = viewer.getControls();
+            if (controls) controls.enableRotate = true;
+          };
+          el.addEventListener('pointerdown', onPointerDown);
+          el.addEventListener('pointermove', onPointerMove);
+          el.addEventListener('pointerup', onPointerUp);
+          el.addEventListener('pointerleave', onPointerUp);
+          return () => {
+            el.removeEventListener('pointerdown', onPointerDown);
+            el.removeEventListener('pointermove', onPointerMove);
+            el.removeEventListener('pointerup', onPointerUp);
+            el.removeEventListener('pointerleave', onPointerUp);
+          };
+        };
+
+        evidenceAxisCleanupRef.current = setupAxisRotate(targetEl);
+        viewer.__themeCleanup = () => {
+          window.removeEventListener('wopr-theme-change', handleThemeChange);
+        };
+      } catch (error) {
+        console.error('Evidence preview error', error);
+      }
+    };
+
+    setup();
+
+    return () => {
+      cancelled = true;
+      if (evidenceViewerRef.current) {
+        if (evidenceViewerRef.current.__themeCleanup) {
+          evidenceViewerRef.current.__themeCleanup();
+        }
+        evidenceViewerRef.current.dispose();
+        evidenceViewerRef.current = null;
+      }
+      if (evidenceMeshRef.current) {
+        evidenceMeshRef.current.geometry.dispose();
+        evidenceMeshRef.current = null;
+      }
+      if (evidenceMaterialRef.current) {
+        evidenceMaterialRef.current.dispose();
+        evidenceMaterialRef.current = null;
+      }
+      if (evidenceAxisCleanupRef.current) {
+        evidenceAxisCleanupRef.current();
+        evidenceAxisCleanupRef.current = null;
+      }
+      if (container) {
+        container.innerHTML = '';
+      }
+    };
+  }, [activeView, evidenceForm.stlPath, evidenceProfile, evidencePreviewNonce]);
+
+  useEffect(() => {
+    if (activeView !== 'evidence') return;
+    if (!evidenceViewerRef.current) return;
+    evidenceViewerRef.current.setProfile(evidenceProfile);
+    if (evidenceAxisCleanupRef.current) {
+      evidenceAxisCleanupRef.current();
+      evidenceAxisCleanupRef.current = null;
+    }
+    const viewer = evidenceViewerRef.current;
+    const targetEl = viewer.getEffect()?.domElement || viewer.renderer?.domElement;
+    if (targetEl) {
+      const setupAxisRotate = (el) => {
+        if (!el) return () => {};
+        let dragging = false;
+        let lastX = 0;
+        let lastY = 0;
+        const speed = 0.005;
+        const onPointerDown = (event) => {
+          dragging = true;
+          lastX = event.clientX;
+          lastY = event.clientY;
+        };
+        const onPointerMove = (event) => {
+          if (!dragging || !evidenceMeshRef.current) return;
+          const axis = event.ctrlKey ? 'x' : event.shiftKey ? 'y' : event.altKey ? 'z' : '';
+          if (!axis) return;
+          const dx = event.clientX - lastX;
+          const dy = event.clientY - lastY;
+          lastX = event.clientX;
+          lastY = event.clientY;
+          if (axis === 'x') evidenceMeshRef.current.rotation.x += dy * speed;
+          if (axis === 'y') evidenceMeshRef.current.rotation.y += dx * speed;
+          if (axis === 'z') evidenceMeshRef.current.rotation.z += dx * speed;
+          const controls = viewer.getControls();
+          if (controls) controls.enableRotate = false;
+          event.preventDefault();
+          event.stopPropagation();
+        };
+        const onPointerUp = () => {
+          dragging = false;
+          const controls = viewer.getControls();
+          if (controls) controls.enableRotate = true;
+        };
+        el.addEventListener('pointerdown', onPointerDown);
+        el.addEventListener('pointermove', onPointerMove);
+        el.addEventListener('pointerup', onPointerUp);
+        el.addEventListener('pointerleave', onPointerUp);
+        return () => {
+          el.removeEventListener('pointerdown', onPointerDown);
+          el.removeEventListener('pointermove', onPointerMove);
+          el.removeEventListener('pointerup', onPointerUp);
+          el.removeEventListener('pointerleave', onPointerUp);
+        };
+      };
+      evidenceAxisCleanupRef.current = setupAxisRotate(targetEl);
+    }
+  }, [activeView, evidenceProfile]);
 
   const handleAuthorize = async (event) => {
     event.preventDefault();
@@ -734,6 +1281,7 @@ const DmPanel = () => {
       nodeType: data.commands?.nodeType || 'mixed',
       parentId: data.commands?.parentId || '',
       category: data.commands?.category || 'villains',
+      attributeAccess: buildAttributeAccessForm(data.unlockConditions?.attributes || {}),
     };
     setVillainForm(nextForm);
     setVillainBaseline(JSON.stringify(nextForm));
@@ -751,13 +1299,21 @@ const DmPanel = () => {
       selectedCase?.dm && typeof selectedCase.dm === 'object'
         ? selectedCase.dm
         : { notes: '', spoilers: [] };
+    const existingUnlock = selectedCase?.unlockConditions || { ...defaultAccessConfig };
+    const mergedUnlock = {
+      ...existingUnlock,
+      ...formFieldsToAccess(caseForm),
+    };
+    if (existingUnlock?.attributes) {
+      mergedUnlock.attributes = existingUnlock.attributes;
+    }
     const payload = {
       id: caseForm.id.trim() || `case_${Date.now().toString(36)}`,
       title: caseForm.title,
       status: caseForm.status,
       summary: caseForm.summary,
       tags: existingTags,
-      unlockConditions: formFieldsToAccess(caseForm),
+      unlockConditions: mergedUnlock,
       commands: formFieldsToCommands(caseForm, { category: 'cases' }, existingCommands),
       dm: existingDm,
     };
@@ -788,18 +1344,47 @@ const DmPanel = () => {
 
   const deleteCase = async () => {
     if (!selectedCase?.id) return;
-    if (!window.confirm('Eliminar caso de forma permanente?')) return;
+    const collectDescendants = (rootId) => {
+      const map = new Map();
+      cases.forEach((item) => {
+        const parentId = item?.commands?.parentId || '';
+        if (!parentId) return;
+        if (!map.has(parentId)) map.set(parentId, []);
+        map.get(parentId).push(item.id);
+      });
+      const result = new Set();
+      const walk = (nodeId) => {
+        if (!nodeId || result.has(nodeId)) return;
+        result.add(nodeId);
+        const children = map.get(nodeId) || [];
+        children.forEach((childId) => walk(childId));
+      };
+      walk(rootId);
+      return result;
+    };
+    const ids = collectDescendants(selectedCase.id);
+    const subcaseCount = Math.max(ids.size - 1, 0);
+    const confirmLabel = subcaseCount
+      ? `Eliminar caso y ${subcaseCount} subcaso(s) de forma permanente?`
+      : 'Eliminar caso de forma permanente?';
+    if (!window.confirm(confirmLabel)) return;
     try {
-      await fetch(`${CASES_ENDPOINT}/${selectedCase.id}`, {
+      const res = await fetch(`${CASES_ENDPOINT}/${selectedCase.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${sessionToken}` },
       });
-      setCases((prev) => prev.filter((item) => item.id !== selectedCase.id));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'No se pudo eliminar el caso.');
+      const deletedIds = Array.isArray(data.deletedIds)
+        ? data.deletedIds
+        : Array.from(ids);
+      const deletedSet = new Set(deletedIds);
+      setCases((prev) => prev.filter((item) => !deletedSet.has(item.id)));
       resetCaseForm(null);
       setSelectedCase(null);
       setCaseMessage('Caso eliminado.');
     } catch (error) {
-      setCaseMessage('No se pudo eliminar el caso.');
+      setCaseMessage(error.message || 'No se pudo eliminar el caso.');
     }
   };
 
@@ -887,24 +1472,30 @@ const DmPanel = () => {
     const existingDm = existing.dm || { notes: '', spoilers: [] };
     const existingCommands =
       existing.commands && typeof existing.commands === 'object' ? existing.commands : {};
+    const mergedAttributes = buildAttributeAccessPayload(
+      villainForm.attributeAccess,
+      existingUnlock.attributes || {}
+    );
+    const mergedUnlock = {
+      ...existingUnlock,
+      attributes: mergedAttributes,
+    };
     const payload = {
       id: villainForm.id.trim() || `villain_${Date.now().toString(36)}`,
       alias: villainForm.alias,
-      realName: existing.realName || '',
-      species: existing.species || '',
-      age: existing.age || '',
-      height: existing.height || '',
-      weight: existing.weight || '',
-      threatLevel: existing.threatLevel || '',
-      status: existing.status || 'active',
+      realName: villainForm.realName || '',
+      species: villainForm.species || '',
+      age: villainForm.age || '',
+      height: villainForm.height || '',
+      weight: villainForm.weight || '',
+      threatLevel: villainForm.threatLevel || '',
+      status: villainForm.status || 'active',
       summary: villainForm.summary,
-      lastSeen: existing.lastSeen || '',
-      patterns: Array.isArray(existing.patterns) ? existing.patterns : [],
-      knownAssociates: Array.isArray(existing.knownAssociates)
-        ? existing.knownAssociates
-        : [],
-      notes: Array.isArray(existing.notes) ? existing.notes : [],
-      unlockConditions: existingUnlock,
+      lastSeen: villainForm.lastSeen || '',
+      patterns: splitLines(villainForm.patterns),
+      knownAssociates: splitLines(villainForm.knownAssociates),
+      notes: splitLines(villainForm.notes),
+      unlockConditions: mergedUnlock,
       dm: existingDm,
       commands: {
         ...existingCommands,
@@ -935,6 +1526,129 @@ const DmPanel = () => {
     } catch (error) {
       setVillainMessage(error.message);
       setVillainSaveState({ status: 'error', at: Date.now() });
+    }
+  };
+
+  const saveAccessMatrix = async (event) => {
+    event.preventDefault();
+    if (!accessVillainId) {
+      setAccessMessage('Selecciona un villano.');
+      return;
+    }
+    const target = villains.find((item) => item.id === accessVillainId);
+    if (!target) {
+      setAccessMessage('No se encontro el villano.');
+      return;
+    }
+    setAccessLoading(true);
+    setAccessMessage('');
+    const existingUnlock = target.unlockConditions || { ...defaultAccessConfig };
+    const attributes = normalizeAccessMatrix(
+      accessMatrix,
+      existingUnlock.attributes || {}
+    );
+    const payload = {
+      id: target.id,
+      alias: target.alias || '',
+      realName: target.realName || '',
+      species: target.species || '',
+      age: target.age || '',
+      height: target.height || '',
+      weight: target.weight || '',
+      threatLevel: target.threatLevel || '',
+      status: target.status || 'active',
+      summary: target.summary || '',
+      lastSeen: target.lastSeen || '',
+      patterns: Array.isArray(target.patterns) ? target.patterns : [],
+      knownAssociates: Array.isArray(target.knownAssociates)
+        ? target.knownAssociates
+        : [],
+      notes: Array.isArray(target.notes) ? target.notes : [],
+      unlockConditions: {
+        ...existingUnlock,
+        attributes,
+      },
+      dm: target.dm || { notes: '', spoilers: [] },
+      commands:
+        target.commands && typeof target.commands === 'object'
+          ? target.commands
+          : {},
+    };
+    try {
+      const res = await fetch(VILLAINS_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('No se pudo guardar accesos.');
+      const saved = await res.json();
+      setAccessMessage('Accesos guardados.');
+      setAccessBaseline(JSON.stringify(accessMatrix));
+      setVillains((prev) => {
+        const others = prev.filter((v) => v.id !== saved.id);
+        return [...others, saved];
+      });
+      if (selectedVillain?.id === saved.id) {
+        resetVillainForm(saved);
+        setSelectedVillain(saved);
+      }
+    } catch (error) {
+      setAccessMessage(error.message || 'No se pudo guardar accesos.');
+    } finally {
+      setAccessLoading(false);
+    }
+  };
+
+  const resetAccessMatrix = () => {
+    if (!accessVillainId) return;
+    const target = villains.find((item) => item.id === accessVillainId);
+    if (!target) return;
+    const matrix = buildAttributeAccessForm(target.unlockConditions?.attributes || {});
+    setAccessMatrix(matrix);
+    setAccessBaseline(JSON.stringify(matrix));
+    setAccessMessage('');
+  };
+
+  const updateRuntimeUnlock = async (fieldKey, enabled) => {
+    if (!accessVillainId) return;
+    const baseState = campaignSnapshot || {};
+    const unlockedAttributes = normalizeUnlockedAttributes(baseState);
+    const currentList = Array.isArray(unlockedAttributes.villains[accessVillainId])
+      ? unlockedAttributes.villains[accessVillainId]
+      : [];
+    const nextList = enabled
+      ? Array.from(new Set([...currentList, fieldKey]))
+      : currentList.filter((entry) => entry !== fieldKey);
+    const nextState = {
+      ...baseState,
+      unlockedAttributes: {
+        ...unlockedAttributes,
+        villains: {
+          ...unlockedAttributes.villains,
+          [accessVillainId]: nextList,
+        },
+      },
+    };
+    setCampaignSnapshot(nextState);
+    try {
+      const res = await fetch(CAMPAIGN_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ state: nextState }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudo guardar el estado.');
+      }
+      setCampaignSnapshot(data.state || nextState);
+    } catch (error) {
+      setAccessMessage(error.message || 'No se pudo guardar el estado.');
     }
   };
 
@@ -1008,6 +1722,7 @@ const DmPanel = () => {
 
   const previewOpen = previewByView[activeView] ?? getDefaultPreviewOpen();
   const selectorOpen = selectorByView[activeView] ?? getDefaultSelectorOpen();
+  const advancedOpen = advancedByView[activeView] ?? false;
 
   const togglePreview = () => {
     setPreviewByView((prev) => ({ ...prev, [activeView]: !previewOpen }));
@@ -1015,6 +1730,10 @@ const DmPanel = () => {
 
   const toggleSelector = () => {
     setSelectorByView((prev) => ({ ...prev, [activeView]: !selectorOpen }));
+  };
+
+  const toggleAdvanced = () => {
+    setAdvancedByView((prev) => ({ ...prev, [activeView]: !advancedOpen }));
   };
 
   const defaultSections = (view, mode) => {
@@ -1111,8 +1830,196 @@ const DmPanel = () => {
     }
   };
 
+  const refreshGlobalCommands = async () => {
+    setGlobalCommandsLoading(true);
+    setGlobalCommandsMessage('');
+    try {
+      const res = await fetch(GLOBAL_COMMANDS_ENDPOINT, { cache: 'no-store' });
+      if (!res.ok) throw new Error('No se pudieron cargar los comandos.');
+      const data = await res.json();
+      const commands = Array.isArray(data?.commands) ? data.commands : [];
+      setGlobalCommandsText(JSON.stringify(commands, null, 2));
+    } catch (error) {
+      setGlobalCommandsMessage(error.message || 'No se pudieron cargar los comandos.');
+    } finally {
+      setGlobalCommandsLoading(false);
+    }
+  };
+
+  const saveGlobalCommands = async (event) => {
+    event.preventDefault();
+    setGlobalCommandsLoading(true);
+    setGlobalCommandsMessage('');
+    let parsed;
+    try {
+      parsed = JSON.parse(globalCommandsText || '[]');
+    } catch (error) {
+      setGlobalCommandsLoading(false);
+      setGlobalCommandsMessage('JSON invalido. Revisa el formato.');
+      return;
+    }
+    try {
+      const res = await fetch(GLOBAL_COMMANDS_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ commands: parsed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudieron guardar los comandos.');
+      }
+      const commands = Array.isArray(data?.commands) ? data.commands : parsed;
+      setGlobalCommandsText(JSON.stringify(commands, null, 2));
+      setGlobalCommandsMessage('Comandos globales guardados.');
+    } catch (error) {
+      setGlobalCommandsMessage(error.message || 'No se pudieron guardar los comandos.');
+    } finally {
+      setGlobalCommandsLoading(false);
+    }
+  };
+
+  const loadEvidenceModels = useCallback(async () => {
+    setEvidenceLoading(true);
+    setEvidenceMessage('');
+    try {
+      const res = await fetch(EVIDENCE_ENDPOINT, { cache: 'no-store' });
+      if (!res.ok) throw new Error('No se pudieron cargar las evidencias.');
+      const data = await res.json();
+      const models = Array.isArray(data?.models) ? data.models : [];
+      setEvidenceModels(models);
+      // keep "Nuevo" as default state; do not auto-select first model
+    } catch (error) {
+      setEvidenceMessage(error.message || 'No se pudieron cargar las evidencias.');
+    } finally {
+      setEvidenceLoading(false);
+    }
+  }, [evidenceForm.id]);
+
+  const saveEvidenceModels = useCallback(
+    async (models) => {
+      if (!authorized || !sessionToken) {
+        setEvidenceMessage('Necesitas sesion activa para guardar.');
+        return;
+      }
+      setEvidenceLoading(true);
+      setEvidenceMessage('');
+      try {
+        const res = await fetch(EVIDENCE_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${sessionToken}`,
+          },
+          body: JSON.stringify({ models }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message || 'No se pudieron guardar las evidencias.');
+        }
+        const saved = Array.isArray(data?.models) ? data.models : models;
+        setEvidenceModels(saved);
+        setEvidenceMessage('Evidencias guardadas.');
+      } catch (error) {
+        setEvidenceMessage(error.message || 'No se pudieron guardar las evidencias.');
+      } finally {
+        setEvidenceLoading(false);
+      }
+    },
+    [authorized, sessionToken]
+  );
+
+  const handleEvidenceUpload = useCallback(async () => {
+    if (!evidenceFile) {
+      setEvidenceMessage('Selecciona un archivo STL.');
+      return;
+    }
+    if (!authorized || !sessionToken) {
+      setEvidenceMessage('Necesitas sesion activa para subir archivos.');
+      return;
+    }
+    setEvidenceUploading(true);
+    setEvidenceMessage('');
+    const formData = new FormData();
+    formData.append('file', evidenceFile);
+    try {
+      const res = await fetch(EVIDENCE_UPLOAD_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudo subir el STL.');
+      }
+      setEvidenceForm((prev) => ({
+        ...prev,
+        stlPath: data.url || prev.stlPath,
+      }));
+      setEvidenceMessage('STL cargado.');
+    } catch (error) {
+      setEvidenceMessage(error.message || 'No se pudo subir el STL.');
+    } finally {
+      setEvidenceUploading(false);
+    }
+  }, [authorized, evidenceFile, sessionToken]);
+
+  const handleEvidenceSave = useCallback(
+    async (event) => {
+      event.preventDefault();
+      if (!evidenceForm.id || !evidenceForm.stlPath) {
+        setEvidenceMessage('ID y STL son obligatorios.');
+        return;
+      }
+      const entry = {
+        id: evidenceForm.id.trim(),
+        label: evidenceForm.label.trim(),
+        command: evidenceForm.command.trim(),
+        stlPath: evidenceForm.stlPath.trim(),
+      };
+      const next = [
+        entry,
+        ...evidenceModels.filter((item) => item.id !== entry.id),
+      ];
+      await saveEvidenceModels(next);
+    },
+    [evidenceForm, evidenceModels, saveEvidenceModels]
+  );
+
+  const handleEvidenceDelete = useCallback(
+    async (id) => {
+      if (!id) return;
+      const next = evidenceModels.filter((item) => item.id !== id);
+      await saveEvidenceModels(next);
+      if (evidenceForm.id === id) {
+        setEvidenceForm(initialEvidenceForm);
+      }
+    },
+    [evidenceForm.id, evidenceModels, saveEvidenceModels]
+  );
+
+  useEffect(() => {
+    if (activeView !== 'evidence') return;
+    if (evidenceForm.id) return;
+    setEvidenceForm({ ...initialEvidenceForm });
+    setEvidenceFile(null);
+    setEvidenceMessage('');
+    setEvidenceProfile('default');
+    setEvidencePreviewNonce((prev) => prev + 1);
+  }, [activeView, evidenceForm.id]);
+
+  useEffect(() => {
+    if (!authorized) return;
+    if (activeView !== 'evidence') return;
+    loadEvidenceModels();
+  }, [authorized, activeView, loadEvidenceModels]);
+
   const renderNav = () => (
-    <div className="dm-panel__nav">
+    <div className="dm-panel__nav" data-workspace={activeView}>
       {VIEW_OPTIONS.map((option) => (
         <button
           key={option.id}
@@ -1201,6 +2108,18 @@ const DmPanel = () => {
       })}
     </ul>
   );
+
+  const flattenTree = (nodes, level = 0, acc = []) => {
+    nodes.forEach(({ item, children }) => {
+      if (item.id !== '__draft__') {
+        acc.push({ item, level });
+      }
+      if (children?.length) {
+        flattenTree(children, level + 1, acc);
+      }
+    });
+    return acc;
+  };
 
   const renderCampaignView = () => (
     <section className="dm-panel__section">
@@ -1298,6 +2217,38 @@ const DmPanel = () => {
             </div>
           </form>
         </div>
+        <div className="dm-panel__card">
+          <form onSubmit={saveGlobalCommands} className="dm-panel__form">
+            <div className="dm-panel__form-group">
+              <h4>Comandos globales</h4>
+              <p className="dm-panel__hint">
+                JSON con lista de comandos. Cada entrada debe incluir
+                <code>triggers</code> y <code>response</code>.
+              </p>
+              <textarea
+                className="dm-panel__textarea--lg"
+                value={globalCommandsText}
+                onChange={(e) => setGlobalCommandsText(e.target.value)}
+                placeholder='[{"id":"oracle","triggers":["oracle","ora"],"response":["linea 1","linea 2"]}]'
+              />
+            </div>
+            {globalCommandsMessage && (
+              <p className="dm-panel__hint">{globalCommandsMessage}</p>
+            )}
+            <div className="dm-panel__actions">
+              <button type="submit" disabled={globalCommandsLoading}>
+                {globalCommandsLoading ? 'Guardando...' : 'Guardar comandos'}
+              </button>
+              <button
+                type="button"
+                onClick={refreshGlobalCommands}
+                disabled={globalCommandsLoading}
+              >
+                Recargar
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </section>
   );
@@ -1388,65 +2339,38 @@ const DmPanel = () => {
   };
 
   const buildCasePreview = () => {
-    const access = resolvePreviewAccess(caseForm, 'cases');
-    const commands = [];
-    if (caseForm.brief?.trim()) commands.push('BRIEF');
     const parentId =
       caseForm.parentId || (selectedCase ? resolveParentId(selectedCase, 'cases') : '');
-    const isDraft = caseDraftActive && !selectedCase;
-    const parentPathIds = parentId ? buildCaseIdPath(parentId) : [];
-    const parentPathLabels = parentPathIds.map(getCaseLabel);
-    const location = parentPathLabels.length
-      ? `CASOS > ${parentPathLabels.join(' > ')}`
-      : 'CASOS';
-    const depth = parentPathLabels.length;
-    const depthLabel = depth === 0 ? 'CASO RAIZ' : 'SUBCASO';
-    return [
-      'VISTA AGENTE :: CASO',
-      'ACCESO: ESTIMADO',
-      `UBICACION: ${location}`,
-      `PROFUNDIDAD: NIVEL ${depth} (${depthLabel})`,
-      ...(isDraft ? ['ESTADO: BORRADOR (sin guardar)'] : []),
-      `TITULO: ${caseForm.title || 'SIN TITULO'}`,
-      `ID: ${caseForm.id || 'SIN ID'}`,
-      `ESTADO: ${(caseForm.status || 'desconocido').toUpperCase()}`,
-      `ACCESO: ${access.unlocked ? 'DESBLOQUEADO' : 'BLOQUEADO'}`,
-      `VISIBILIDAD: ${(caseForm.accessVisibility || 'listed').toUpperCase()}`,
-      `MODO DESBLOQUEO: ${(caseForm.accessUnlockMode || 'none').toUpperCase()}`,
-      `RESUMEN: ${caseForm.summary || 'SIN RESUMEN'}`,
-      `COMANDOS: ${commands.length ? commands.join(' | ') : 'NINGUNO'}`,
-    ];
+    return {
+      title: caseForm.title?.trim() || 'Sin titulo',
+      summary: caseForm.summary?.trim() || 'Sin resumen.',
+      parentLabel: parentId ? getCaseLabel(parentId) : '',
+      brief: caseForm.brief?.trim() || '',
+    };
   };
 
   const buildPoiPreview = () => {
-    return [
-      'VISTA AGENTE :: POI',
-      `NOMBRE: ${poiForm.name || 'SIN NOMBRE'}`,
-      `ID: ${poiForm.id || 'SIN ID'}`,
-      `DISTRITO: ${poiForm.district || 'SIN DISTRITO'}`,
-      `ESTADO: ${(poiForm.status || 'desconocido').toUpperCase()}`,
-      `RESUMEN: ${poiForm.summary || 'SIN RESUMEN'}`,
-      `DETALLES: ${poiForm.details?.trim() ? 'SI' : 'NO'}`,
-    ];
+    return {
+      title: poiForm.name?.trim() || 'Sin nombre',
+      summary: poiForm.summary?.trim() || 'Sin resumen.',
+      meta: poiForm.district?.trim() ? `Distrito: ${poiForm.district.trim()}` : '',
+    };
   };
 
   const buildVillainPreview = () => {
-    return [
-      'VISTA AGENTE :: VILLANO',
-      `ALIAS: ${villainForm.alias || 'SIN ALIAS'}`,
-      `ID: ${villainForm.id || 'SIN ID'}`,
-      `RESUMEN: ${villainForm.summary || 'SIN RESUMEN'}`,
-    ];
+    return {
+      title: villainForm.alias?.trim() || 'Sin alias',
+      summary: villainForm.summary?.trim() || 'Sin resumen.',
+    };
   };
 
   const renderCaseView = () => {
-    const sections = openSections.cases || defaultSections('cases', editorMode);
     const updatedAt = selectedCase?.updatedAt;
-    const previewLines = buildCasePreview();
-    const isOperation = editorMode === 'operation';
+    const previewData = buildCasePreview();
     const parentId =
       caseForm.parentId || (selectedCase ? resolveParentId(selectedCase, 'cases') : '');
-    const nodeTypeLabel = parentId ? 'Subcaso' : 'Caso raiz';
+    const caseType = caseTypeOverride || (parentId ? 'subcase' : 'case');
+    const isSubcase = caseType === 'subcase';
     const isDraft = caseDraftActive && !selectedCase;
     const parentPathIds = parentId ? buildCaseIdPath(parentId) : [];
     const parentPathLabels = parentPathIds.map(getCaseLabel);
@@ -1462,164 +2386,70 @@ const DmPanel = () => {
       }
       return [caseForm.title || 'NUEVO CASO'];
     })();
-    const breadcrumb = `RUTA: CASOS > ${pathParts.join(' > ')}`;
+    const breadcrumbValue = `CASOS > ${pathParts.join(' > ')}`;
     const selectedCasePath = selectedCase?.id ? buildCaseIdPath(selectedCase.id) : [];
     const ancestorIds = new Set(selectedCasePath.slice(0, -1));
     if (!selectedCase && isDraft && parentPathIds.length) {
       parentPathIds.forEach((id) => ancestorIds.add(id));
     }
-    const selectedLabel = selectedCase ? getCaseLabel(selectedCase.id) : '';
-    const newRootLabel = '+ Nuevo caso raiz';
-    const newSubcaseLabel = selectedLabel
-      ? `+ Nuevo subcaso de ${selectedLabel}`
-      : '+ Nuevo subcaso';
-    const subcaseHelper = selectedCase
-      ? ''
-      : 'Selecciona un caso para crear un subcaso.';
     const saveState = formatSaveState(
       JSON.stringify(caseForm) !== caseBaseline,
       updatedAt,
       caseSaveState
     );
+    const saveStateCompact =
+      saveState.status === 'dirty'
+        ? 'Cambios sin guardar'
+        : saveState.status === 'error'
+          ? 'Error al guardar'
+          : 'Guardado';
+    const availableParents = caseParentOptions.filter(
+      (option) => option.id !== caseForm.id
+    );
+    const showBrief = Boolean(previewData.brief);
+    const caseList = flattenTree(caseTreeWithDraft);
 
     return (
       <section className={`dm-panel__section ${helpMode ? 'dm-panel__help-on' : ''}`}>
         <h2 className="dm-panel__section-title">Casos Knightfall</h2>
         {casesError && <p className="dm-panel__error">{casesError}</p>}
         <div className="dm-panel__grid dm-panel__grid--split">
-          <div className="dm-panel__selector">
-            <div className="dm-panel__panel-title">Selecciona caso</div>
-            <button
-              type="button"
-              className="dm-panel__selector-toggle"
-              onClick={toggleSelector}
-            >
-              {selectorOpen ? 'Ocultar lista' : 'Mostrar lista'}
-            </button>
-            {selectorOpen && (
-              <div className="dm-panel__tree-wrapper">
-                {renderTree(
-                  caseTreeWithDraft,
-                  selectedCase?.id || (caseDraftActive ? '__draft__' : ''),
-                  (node) => {
-                    if (node.id === '__draft__') return;
-                    setCaseDraftActive(false);
-                    setSelectedCase(node);
-                    setSelection('cases', node.id);
-                    resetCaseForm(node);
-                    expandCaseParents(node);
-                  },
-                  'cases',
-                  0,
-                  { highlightIds: ancestorIds }
-                )}
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedCase(null);
-                setSelection('cases', '');
-                resetCaseForm(null);
-              }}
-            >
-              Limpiar seleccion
-            </button>
-            <div className="dm-panel__sidebar-block">
-              <div className="dm-panel__panel-title">Crear caso</div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelection('cases', '');
-                  startNewCase('');
-                }}
-              >
-                {newRootLabel}
-              </button>
-              <button
-                type="button"
-                disabled={!selectedCase}
-                className={!selectedCase ? 'dm-panel__ghost dm-panel__ghost--disabled' : ''}
-                onClick={() => {
-                  if (!selectedCase) return;
-                  setSelection('cases', '');
-                  startNewCase(selectedCase.id);
-                }}
-              >
-                {newSubcaseLabel}
-              </button>
-              {!selectedCase && (
-                <span className="dm-panel__helper">{subcaseHelper}</span>
-              )}
-            </div>
-            <div className="dm-panel__sidebar-block">
-              <div className="dm-panel__panel-title">Modo</div>
-              <div className="dm-panel__mode-toggle">
-                {MODE_OPTIONS.map((option) => (
+          <div className="dm-panel__selector dm-panel__selector--cases">
+            <div className="dm-panel__panel-title">Listado de casos</div>
+            <div className="dm-panel__case-list">
+              {caseList.map(({ item, level }, index) => {
+                const parentId = item.commands?.parentId || '';
+                const isSubcase = Boolean(parentId);
+                const isActive = selectedCase?.id === item.id;
+                return (
                   <button
-                    key={option.value}
+                    key={item.id}
                     type="button"
-                    className={editorMode === option.value ? 'active' : ''}
-                    onClick={() => setEditorMode(option.value)}
+                    className={`dm-panel__case-item ${isActive ? 'active' : ''}`}
+                    style={level ? { paddingLeft: '12px' } : undefined}
+                    data-tooltip={`${isSubcase ? '› ' : ''}${getNodeLabel(item)}`}
+                    onClick={() => {
+                      setCaseDraftActive(false);
+                      setSelectedCase(item);
+                      setSelection('cases', item.id);
+                      resetCaseForm(item);
+                      expandCaseParents(item);
+                    }}
                   >
-                    {option.label}
+                    <span className="dm-panel__case-index">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="dm-panel__case-title">
+                      {isSubcase ? '› ' : ''}
+                      {getNodeLabel(item)}
+                    </span>
                   </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                className={`dm-panel__ghost ${helpMode ? 'active' : ''}`}
-                onClick={() => setHelpMode((prev) => !prev)}
-              >
-                Ayuda {helpMode ? 'ACTIVADA' : 'DESACTIVADA'}
-              </button>
-            </div>
-            <div className="dm-panel__quick-actions">
-              <div className="dm-panel__panel-title">Acciones rapidas</div>
-              <div className="dm-panel__pill-group">
-                {['active', 'locked', 'resolved', 'archived'].map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    className={`dm-panel__pill ${
-                      caseForm.status === status ? 'active' : ''
-                    }`}
-                    onClick={() => setCaseForm({ ...caseForm, status })}
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
-              <div className="dm-panel__quick-meta">
-                <span>Ultima actualizacion: {formatUpdatedAt(updatedAt)}</span>
-                <button
-                  type="button"
-                  className="dm-panel__ghost"
-                  onClick={() => {
-                    setActiveView('campaign');
-                    setCampaignForm((prev) => ({
-                      ...prev,
-                      activeCaseId: caseForm.id || '',
-                    }));
-                  }}
-                >
-                  Abrir campaña
-                </button>
-              </div>
+                );
+              })}
             </div>
           </div>
           <div className="dm-panel__details">
-            <div className="dm-panel__breadcrumb">{breadcrumb}</div>
-            <div className="dm-panel__editor-head">
-              <div className="dm-panel__panel-title">Editar / Crear</div>
-              <button
-                type="button"
-                className="dm-panel__ghost"
-                onClick={togglePreview}
-              >
-                {previewOpen ? 'Ocultar previsualizacion' : 'Ver previsualizacion'}
-              </button>
-            </div>
+            <div className="dm-panel__breadcrumb">{breadcrumbValue}</div>
             <div
               className={`dm-panel__editor-layout ${
                 previewOpen ? 'dm-panel__editor-layout--preview' : ''
@@ -1627,141 +2457,147 @@ const DmPanel = () => {
             >
               <div className="dm-panel__editor-main">
                 <form onSubmit={saveCase} className="dm-panel__form">
-                  {renderSection({
-                    id: 'case-identity',
-                    title: 'Identidad',
-                    open: sections.identity,
-                    impact: 'TUI output',
-                    onToggle: () => toggleSection('cases', 'identity'),
-                    children: (
-                      <div className="dm-panel__form-group">
-                        <label>
-                          {labelRow(
-                          'Tipo de nodo',
-                          'Determina donde aparece en la navegacion del terminal.',
-                            'TUI routing'
-                          )}
-                          <input type="text" value={nodeTypeLabel} readOnly />
-                        </label>
-                        <div className="dm-panel__form-grid dm-panel__form-grid--identification">
-                          <label>
-                            {labelRow(
-                              'ID',
-                              'Identificador unico usado por la TUI (se bloquea al guardar).',
-                              'TUI routing'
-                            )}
-                            <input
-                              type="text"
-                              value={caseForm.id}
-                              readOnly={Boolean(selectedCase?.id)}
-                              onChange={(e) =>
-                                setCaseForm({ ...caseForm, id: e.target.value })
-                              }
-                            />
-                          </label>
-                          <label>
-                            {labelRow('Titulo', 'Nombre visible para agentes.', 'TUI output')}
-                            <input
-                              type="text"
-                              value={caseForm.title}
-                              onChange={(e) =>
-                                setCaseForm({ ...caseForm, title: e.target.value })
-                              }
-                              required
-                            />
-                          </label>
-                        </div>
-                        <label>
-                          {labelRow('Estado', 'Controla visibilidad narrativa.', 'TUI output')}
-                          <select
-                            value={caseForm.status}
-                            onChange={(e) =>
-                              setCaseForm({ ...caseForm, status: e.target.value })
-                            }
-                          >
-                            <option value="active">active</option>
-                            <option value="locked">locked</option>
-                            <option value="resolved">resolved</option>
-                            <option value="archived">archived</option>
-                          </select>
-                        </label>
-                      </div>
-                    ),
-                  })}
+                  <div className="dm-panel__editor-actions">
+                    <button type="submit" className="dm-panel__primary">
+                      Guardar
+                    </button>
+                    <button type="button" className="dm-panel__ghost" onClick={toggleAdvanced}>
+                      {advancedOpen ? 'Avanzado ▾' : 'Avanzado ▸'}
+                    </button>
+                    <button type="button" className="dm-panel__ghost" onClick={togglePreview}>
+                      {previewOpen ? 'Preview ▾' : 'Preview ▸'}
+                    </button>
+                    <span className={`dm-panel__save-state dm-panel__save-state--${saveState.status}`}>
+                      {saveStateCompact}
+                    </span>
+                    <div className="dm-panel__editor-shortcuts">
+                      <button
+                        type="button"
+                        className="dm-panel__ghost"
+                        onClick={() => {
+                          setSelection('cases', '');
+                          startNewCase('');
+                        }}
+                      >
+                        Nuevo caso
+                      </button>
+                      <button
+                        type="button"
+                        className="dm-panel__ghost"
+                        disabled={!selectedCase}
+                        onClick={() => {
+                          if (!selectedCase) return;
+                          setSelection('cases', '');
+                          startNewCase(selectedCase.id);
+                        }}
+                      >
+                        Nuevo subcaso
+                      </button>
+                      <button
+                        type="button"
+                        className="dm-panel__ghost"
+                        onClick={() => {
+                          setSelectedCase(null);
+                          setSelection('cases', '');
+                          resetCaseForm(null);
+                        }}
+                      >
+                        Limpiar
+                      </button>
+                    </div>
+                  </div>
 
-                  {renderSection({
-                    id: 'case-summary',
-                    title: 'Agent-facing Summary',
-                    open: sections.summary,
-                    impact: 'TUI output',
-                    onToggle: () => toggleSection('cases', 'summary'),
-                    children: (
-                      <div className="dm-panel__form-group">
-                        <label>
-                          {labelRow(
-                            'Resumen',
-                            'Texto breve mostrado a agentes.',
-                            'TUI output'
-                          )}
-                          <textarea
-                            className="dm-panel__textarea--sm"
-                            value={caseForm.summary}
-                            onChange={(e) =>
-                              setCaseForm({ ...caseForm, summary: e.target.value })
-                            }
-                          />
-                        </label>
+                  <div className="dm-panel__editor-card">
+                    <label>
+                      {basicLabel('Tipo de nodo')}
+                      <div className="dm-panel__segmented" role="group" aria-label="Tipo de nodo">
+                        <button
+                          type="button"
+                          className={!isSubcase ? 'active' : ''}
+                          aria-pressed={!isSubcase}
+                          onClick={() => {
+                            setCaseTypeOverride('case');
+                            setCaseForm({ ...caseForm, parentId: '' });
+                          }}
+                        >
+                          Caso
+                        </button>
+                        <button
+                          type="button"
+                          className={isSubcase ? 'active' : ''}
+                          aria-pressed={isSubcase}
+                          onClick={() => setCaseTypeOverride('subcase')}
+                        >
+                          Subcaso
+                        </button>
                       </div>
-                    ),
-                  })}
+                    </label>
 
-                  {!isOperation && renderSection({
-                    id: 'case-content',
-                    title: 'Contenido',
-                    open: sections.content,
-                    impact: 'TUI output',
-                    onToggle: () => toggleSection('cases', 'content'),
-                    children: (
-                      <div className="dm-panel__form-group">
-                        <label>
-                          {labelRow(
-                            'Brief',
-                            'Bloques cortos visibles en el caso.',
-                            'TUI output'
-                          )}
-                          <textarea
-                            className="dm-panel__textarea--sm"
-                            value={caseForm.brief}
-                            onChange={(e) =>
-                              setCaseForm({ ...caseForm, brief: e.target.value })
-                            }
-                          />
-                        </label>
-                      </div>
-                    ),
-                  })}
+                    {isSubcase && (
+                      <label className="dm-panel__field-inline">
+                        {basicLabel('Caso padre')}
+                        <select
+                          value={caseForm.parentId}
+                          onChange={(e) =>
+                            setCaseForm({ ...caseForm, parentId: e.target.value })
+                          }
+                          required
+                        >
+                          <option value="">Selecciona caso padre</option>
+                          {availableParents.map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
 
-                  {!isOperation && renderSection({
-                    id: 'case-engine',
-                    title: 'Acceso',
-                    open: sections.engine,
-                    impact: 'Unlock logic',
-                    onToggle: () => toggleSection('cases', 'engine'),
-                    help: (
-                      <>
-                        <p>Controla visibilidad, desbloqueo y navegacion en la TUI.</p>
-                        <pre className="dm-panel__code">{`{ "visibility": "listed", "unlockMode": "password" }`}</pre>
-                      </>
-                    ),
-                    children: (
+                    <label>
+                      {basicLabel('Titulo')}
+                      <input
+                        type="text"
+                        value={caseForm.title}
+                        onChange={(e) =>
+                          setCaseForm({ ...caseForm, title: e.target.value })
+                        }
+                        placeholder="Titulo del caso"
+                        required
+                      />
+                    </label>
+
+                    <label>
+                      {basicLabel('Resumen', 'Visible para agentes. 2-5 lineas.')}
+                      <textarea
+                        className="dm-panel__textarea--md"
+                        value={caseForm.summary}
+                        onChange={(e) =>
+                          setCaseForm({ ...caseForm, summary: e.target.value })
+                        }
+                        placeholder="Visible para agentes. 2-5 lineas."
+                      />
+                    </label>
+
+                    <label>
+                      {basicLabel('Brief', 'Texto libre interno del caso (mas extenso).')}
+                      <textarea
+                        className="dm-panel__textarea--lg"
+                        value={caseForm.brief}
+                        onChange={(e) =>
+                          setCaseForm({ ...caseForm, brief: e.target.value })
+                        }
+                        placeholder="Texto libre interno del caso (mas extenso)."
+                      />
+                    </label>
+                  </div>
+
+                  {advancedOpen && (
+                    <div className="dm-panel__advanced">
                       <div className="dm-panel__form-group">
+                        <h4>Visibilidad / Acceso</h4>
                         <div className="dm-panel__form-grid dm-panel__form-grid--two">
                           <label>
-                            {labelRow(
-                              'Visibilidad',
-                              'Controla si se lista o se oculta.',
-                              'Unlock logic'
-                            )}
+                            {basicLabel('Visibilidad')}
                             <select
                               value={caseForm.accessVisibility}
                               onChange={(e) =>
@@ -1779,11 +2615,7 @@ const DmPanel = () => {
                             </select>
                           </label>
                           <label>
-                            {labelRow(
-                              'Modo de desbloqueo',
-                              'Define como se desbloquea.',
-                              'Unlock logic'
-                            )}
+                            {basicLabel('Modo de desbloqueo')}
                             <select
                               value={caseForm.accessUnlockMode}
                               onChange={(e) =>
@@ -1803,11 +2635,7 @@ const DmPanel = () => {
                         </div>
                         {caseForm.accessUnlockMode === 'password' && (
                           <label>
-                            {labelRow(
-                              'Contraseña',
-                              'Clave requerida para abrir el caso.',
-                              'Unlock logic'
-                            )}
+                            {basicLabel('Contraseña')}
                             <input
                               type="text"
                               value={caseForm.accessPassword}
@@ -1821,11 +2649,7 @@ const DmPanel = () => {
                           </label>
                         )}
                         <label>
-                          {labelRow(
-                            'Prerrequisitos (IDs)',
-                            'IDs requeridos para desbloquear.',
-                            'Unlock logic'
-                          )}
+                          {basicLabel('Prerrequisitos (IDs)')}
                           <input
                             type="text"
                             value={caseForm.accessPrerequisites}
@@ -1838,11 +2662,7 @@ const DmPanel = () => {
                           />
                         </label>
                         <label>
-                          {labelRow(
-                            'Flags requeridos',
-                            'Flags de campaña necesarios.',
-                            'Unlock logic'
-                          )}
+                          {basicLabel('Flags requeridos')}
                           <input
                             type="text"
                             value={caseForm.accessFlags}
@@ -1856,11 +2676,7 @@ const DmPanel = () => {
                         </label>
                         <div className="dm-panel__form-grid dm-panel__form-grid--two">
                           <label>
-                            {labelRow(
-                              'Auto unlock',
-                              'Cuando se activa automaticamente.',
-                              'Unlock logic'
-                            )}
+                            {basicLabel('Auto unlock')}
                             <select
                               value={caseForm.accessAutoUnlockOn}
                               onChange={(e) =>
@@ -1878,11 +2694,7 @@ const DmPanel = () => {
                             </select>
                           </label>
                           <label>
-                            {labelRow(
-                              'Estado inicial',
-                              'Estado inicial de acceso.',
-                              'Unlock logic'
-                            )}
+                            {basicLabel('Estado inicial')}
                             <select
                               value={caseForm.accessInitialStatus}
                               onChange={(e) =>
@@ -1900,36 +2712,27 @@ const DmPanel = () => {
                             </select>
                           </label>
                         </div>
-                        <label>
-                          {labelRow(
-                            'Nodo padre (ID)',
-                            'Define jerarquia en menus.',
-                            'TUI output'
-                          )}
-                          <input
-                            type="text"
-                            list="case-parent-options"
-                            value={caseForm.parentId}
-                            onChange={(e) =>
-                              setCaseForm({ ...caseForm, parentId: e.target.value })
-                            }
-                            placeholder="Ej. case_principal"
-                          />
-                        </label>
-                        <datalist id="case-parent-options">
-                          {caseParentOptions.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </datalist>
+                      </div>
+
+                      <div className="dm-panel__form-group">
+                        <h4>Metadatos</h4>
                         <div className="dm-panel__form-grid dm-panel__form-grid--two">
                           <label>
-                            {labelRow(
-                              'Tipo de nodo',
-                              'Controla si muestra submenu o info.',
-                              'TUI output'
-                            )}
+                            {basicLabel('Estado')}
+                            <select
+                              value={caseForm.status}
+                              onChange={(e) =>
+                                setCaseForm({ ...caseForm, status: e.target.value })
+                              }
+                            >
+                              <option value="active">active</option>
+                              <option value="locked">locked</option>
+                              <option value="resolved">resolved</option>
+                              <option value="archived">archived</option>
+                            </select>
+                          </label>
+                          <label>
+                            {basicLabel('Tipo de nodo')}
                             <select
                               value={caseForm.nodeType}
                               onChange={(e) =>
@@ -1944,32 +2747,75 @@ const DmPanel = () => {
                             </select>
                           </label>
                         </div>
+                        <label>
+                          {basicLabel('ID')}
+                          <input
+                            type="text"
+                            value={caseForm.id}
+                            readOnly={Boolean(selectedCase?.id)}
+                            onChange={(e) =>
+                              setCaseForm({ ...caseForm, id: e.target.value })
+                            }
+                          />
+                        </label>
                       </div>
-                    ),
-                  })}
+
+                      <div className="dm-panel__form-group">
+                        <h4>Debug</h4>
+                        <div className="dm-panel__debug-grid">
+                          <div>
+                            <span className="dm-panel__debug-label">Ruta</span>
+                            <span className="dm-panel__debug-value">{breadcrumbValue}</span>
+                          </div>
+                          <div>
+                            <span className="dm-panel__debug-label">Ultima actualizacion</span>
+                            <span className="dm-panel__debug-value">
+                              {formatUpdatedAt(updatedAt)}
+                            </span>
+                          </div>
+                        </div>
+                        {selectedCase && (
+                          <button
+                            type="button"
+                            className="dm-panel__delete dm-panel__delete--compact"
+                            onClick={deleteCase}
+                          >
+                            Eliminar caso
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {caseMessage && <p className="dm-panel__hint">{caseMessage}</p>}
-                  <div className="dm-panel__actions dm-panel__actions--sticky">
-                    <button type="submit">Guardar caso</button>
-                    {selectedCase && (
-                      <button type="button" className="dm-panel__delete" onClick={deleteCase}>
-                        Eliminar
-                      </button>
-                    )}
-                    <span className={`dm-panel__save-state dm-panel__save-state--${saveState.status}`}>
-                      {saveState.label}
-                    </span>
-                  </div>
                 </form>
               </div>
               {previewOpen && (
                 <aside className="dm-panel__preview">
-                  <div className="dm-panel__panel-title">Previsualizacion vista agente</div>
-                  <pre>
-                    {previewLines.map((line, idx) => (
-                      <div key={idx}>{line}</div>
-                    ))}
-                  </pre>
+                  <div className="dm-panel__panel-title">Preview agente</div>
+                  {previewData.parentLabel && (
+                    <div className="dm-panel__preview-meta">
+                      › Subcaso de: {previewData.parentLabel}
+                    </div>
+                  )}
+                  <div className="dm-panel__preview-title">{previewData.title}</div>
+                  <div className="dm-panel__preview-summary">{previewData.summary}</div>
+                  {showBrief && (
+                    <div className="dm-panel__preview-brief">
+                      <button
+                        type="button"
+                        className="dm-panel__preview-toggle"
+                        onClick={() => setPreviewBriefOpen((prev) => !prev)}
+                      >
+                        {previewBriefOpen ? 'BRIEF ▾' : 'BRIEF ▸'}
+                      </button>
+                      {previewBriefOpen && (
+                        <div className="dm-panel__preview-brief-body">
+                          {previewData.brief}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </aside>
               )}
             </div>
@@ -1982,119 +2828,59 @@ const DmPanel = () => {
   const renderPoiView = () => {
     const sections = openSections.pois || defaultSections('pois', editorMode);
     const updatedAt = selectedPoi?.updatedAt;
-    const previewLines = buildPoiPreview();
+    const previewData = buildPoiPreview();
     const isOperation = editorMode === 'operation';
     const saveState = formatSaveState(
       JSON.stringify(poiForm) !== poiBaseline,
       updatedAt,
       poiSaveState
     );
+    const poiList = flattenTree(poiTree);
+    const saveStateCompact =
+      saveState.status === 'dirty'
+        ? 'Cambios sin guardar'
+        : saveState.status === 'error'
+          ? 'Error al guardar'
+          : 'Guardado';
 
     return (
       <section className={`dm-panel__section ${helpMode ? 'dm-panel__help-on' : ''}`}>
         <h2 className="dm-panel__section-title">Puntos de interes</h2>
         {poisError && <p className="dm-panel__error">{poisError}</p>}
         <div className="dm-panel__grid dm-panel__grid--split">
-          <div className="dm-panel__selector">
-            <div className="dm-panel__panel-title">Selecciona POI</div>
-            <button
-              type="button"
-              className="dm-panel__selector-toggle"
-              onClick={toggleSelector}
-            >
-              {selectorOpen ? 'Ocultar lista' : 'Mostrar lista'}
-            </button>
-            {selectorOpen && (
-              <div className="dm-panel__tree-wrapper">
-                {renderTree(
-                  poiTree,
-                  selectedPoi?.id,
-                  (node) => {
-                    setSelectedPoi(node);
-                    setSelection('pois', node.id);
-                    resetPoiForm(node);
-                  },
-                  'pois'
-                )}
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedPoi(null);
-                setSelection('pois', '');
-                resetPoiForm(null);
-              }}
-            >
-              Limpiar seleccion
-            </button>
-            <div className="dm-panel__sidebar-block">
-              <div className="dm-panel__panel-title">Modo</div>
-              <div className="dm-panel__mode-toggle">
-                {MODE_OPTIONS.map((option) => (
+          <div className="dm-panel__selector dm-panel__selector--cases">
+            <div className="dm-panel__panel-title">Listado de POIs</div>
+            <div className="dm-panel__case-list">
+              {poiList.map(({ item, level }, index) => {
+                const parentId = item.commands?.parentId || '';
+                const isSubcase = Boolean(parentId);
+                const isActive = selectedPoi?.id === item.id;
+                return (
                   <button
-                    key={option.value}
+                    key={item.id}
                     type="button"
-                    className={editorMode === option.value ? 'active' : ''}
-                    onClick={() => setEditorMode(option.value)}
+                    className={`dm-panel__case-item ${isActive ? 'active' : ''}`}
+                    style={level ? { paddingLeft: '12px' } : undefined}
+                    data-tooltip={`${isSubcase ? '› ' : ''}${getNodeLabel(item)}`}
+                    onClick={() => {
+                      setSelectedPoi(item);
+                      setSelection('pois', item.id);
+                      resetPoiForm(item);
+                    }}
                   >
-                    {option.label}
+                    <span className="dm-panel__case-index">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="dm-panel__case-title">
+                      {isSubcase ? '› ' : ''}
+                      {getNodeLabel(item)}
+                    </span>
                   </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                className={`dm-panel__ghost ${helpMode ? 'active' : ''}`}
-                onClick={() => setHelpMode((prev) => !prev)}
-              >
-                Ayuda {helpMode ? 'ACTIVADA' : 'DESACTIVADA'}
-              </button>
-            </div>
-            <div className="dm-panel__quick-actions">
-              <div className="dm-panel__panel-title">Acciones rapidas</div>
-              <div className="dm-panel__pill-group">
-                {['active', 'secured', 'critical', 'locked'].map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    className={`dm-panel__pill ${
-                      poiForm.status === status ? 'active' : ''
-                    }`}
-                    onClick={() => setPoiForm({ ...poiForm, status })}
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
-              <div className="dm-panel__quick-meta">
-                <span>Ultima actualizacion: {formatUpdatedAt(updatedAt)}</span>
-                <button
-                  type="button"
-                  className="dm-panel__ghost"
-                  onClick={() => {
-                    setActiveView('campaign');
-                    setCampaignForm((prev) => ({
-                      ...prev,
-                      activeCaseId: poiForm.id || '',
-                    }));
-                  }}
-                >
-                  Abrir campaña
-                </button>
-              </div>
+                );
+              })}
             </div>
           </div>
           <div className="dm-panel__details">
-            <div className="dm-panel__editor-head">
-              <div className="dm-panel__panel-title">Editar / Crear</div>
-              <button
-                type="button"
-                className="dm-panel__ghost"
-                onClick={togglePreview}
-              >
-                {previewOpen ? 'Ocultar previsualizacion' : 'Ver previsualizacion'}
-              </button>
-            </div>
             <div
               className={`dm-panel__editor-layout ${
                 previewOpen ? 'dm-panel__editor-layout--preview' : ''
@@ -2102,17 +2888,46 @@ const DmPanel = () => {
             >
               <div className="dm-panel__editor-main">
                 <form onSubmit={savePoi} className="dm-panel__form">
+                  <div className="dm-panel__editor-actions">
+                    <button type="submit" className="dm-panel__primary">
+                      Guardar
+                    </button>
+                    <button type="button" className="dm-panel__ghost" onClick={toggleAdvanced}>
+                      {advancedOpen ? 'Avanzado ▾' : 'Avanzado ▸'}
+                    </button>
+                    <button type="button" className="dm-panel__ghost" onClick={togglePreview}>
+                      {previewOpen ? 'Preview ▾' : 'Preview ▸'}
+                    </button>
+                    <span className={`dm-panel__save-state dm-panel__save-state--${saveState.status}`}>
+                      {saveStateCompact}
+                    </span>
+                    <div className="dm-panel__editor-shortcuts">
+                      <button type="button" className="dm-panel__ghost" onClick={() => resetPoiForm(null)}>
+                        Nuevo
+                      </button>
+                      <button
+                        type="button"
+                        className="dm-panel__ghost"
+                        onClick={() => {
+                          setSelectedPoi(null);
+                          setSelection('pois', '');
+                          resetPoiForm(null);
+                        }}
+                      >
+                        Limpiar
+                      </button>
+                    </div>
+                  </div>
                   {renderSection({
                     id: 'poi-identity',
                     title: 'Identidad',
                     open: sections.identity,
-                    impact: 'TUI output',
                     onToggle: () => toggleSection('pois', 'identity'),
                     children: (
                       <div className="dm-panel__form-group">
                         <div className="dm-panel__form-grid dm-panel__form-grid--two">
                           <label>
-                            {labelRow('ID', 'Identificador unico para la TUI.', 'TUI')}
+                            {labelRow('ID', 'Identificador unico para la TUI.')}
                             <input
                               type="text"
                               value={poiForm.id}
@@ -2123,7 +2938,7 @@ const DmPanel = () => {
                             />
                           </label>
                           <label>
-                            {labelRow('Nombre', 'Nombre visible para agentes.', 'TUI output')}
+                            {labelRow('Nombre', 'Nombre visible para agentes.')}
                             <input
                               type="text"
                               value={poiForm.name}
@@ -2135,7 +2950,7 @@ const DmPanel = () => {
                         </div>
                         <div className="dm-panel__form-grid dm-panel__form-grid--two">
                           <label>
-                            {labelRow('Distrito', 'Zona de Gotham.', 'TUI output')}
+                            {labelRow('Distrito', 'Zona de Gotham.')}
                             <input
                               type="text"
                               value={poiForm.district}
@@ -2145,7 +2960,7 @@ const DmPanel = () => {
                             />
                           </label>
                           <label>
-                            {labelRow('Estado', 'Estado operativo.', 'TUI output')}
+                            {labelRow('Estado', 'Estado operativo.')}
                             <input
                               type="text"
                               value={poiForm.status}
@@ -2163,12 +2978,11 @@ const DmPanel = () => {
                     id: 'poi-summary',
                     title: 'Agent-facing Summary',
                     open: sections.summary,
-                    impact: 'TUI output',
                     onToggle: () => toggleSection('pois', 'summary'),
                     children: (
                       <div className="dm-panel__form-group">
                         <label>
-                          {labelRow('Resumen', 'Texto breve visible para agentes.', 'TUI output')}
+                          {labelRow('Resumen', 'Texto breve visible para agentes.')}
                           <textarea
                             className="dm-panel__textarea--sm"
                             value={poiForm.summary}
@@ -2181,16 +2995,15 @@ const DmPanel = () => {
                     ),
                   })}
 
-                  {!isOperation && renderSection({
+                  {advancedOpen && !isOperation && renderSection({
                     id: 'poi-content',
                     title: 'Detalles',
                     open: sections.content,
-                    impact: 'TUI output',
                     onToggle: () => toggleSection('pois', 'content'),
                     children: (
                       <div className="dm-panel__form-group">
                         <label>
-                          {labelRow('Detalles', 'Intel visible en la TUI.', 'TUI output')}
+                          {labelRow('Detalles', 'Intel visible en la TUI.')}
                           <textarea
                             className="dm-panel__textarea--md"
                             value={poiForm.details}
@@ -2203,16 +3016,15 @@ const DmPanel = () => {
                     ),
                   })}
 
-                  {!isOperation && renderSection({
+                  {advancedOpen && !isOperation && renderSection({
                     id: 'poi-structure',
                     title: 'Estructura',
                     open: sections.engine,
-                    impact: 'TUI routing',
                     onToggle: () => toggleSection('pois', 'engine'),
                     children: (
                       <div className="dm-panel__form-group">
                         <label>
-                          {labelRow('Nodo padre (ID)', 'Jerarquia en menus.', 'TUI output')}
+                          {labelRow('Nodo padre (ID)', 'Jerarquia en menus.')}
                           <input
                             type="text"
                             list="poi-parent-options"
@@ -2232,7 +3044,7 @@ const DmPanel = () => {
                         </datalist>
                         <div className="dm-panel__form-grid dm-panel__form-grid--two">
                           <label>
-                            {labelRow('Tipo de nodo', 'Controla submenu.', 'TUI output')}
+                            {labelRow('Tipo de nodo', 'Controla submenu.')}
                             <select
                               value={poiForm.nodeType}
                               onChange={(e) =>
@@ -2251,31 +3063,38 @@ const DmPanel = () => {
                     ),
                   })}
 
-                  {poiMessage && <p className="dm-panel__hint">{poiMessage}</p>}
-                  <div className="dm-panel__actions dm-panel__actions--sticky">
-                    <button type="submit">Guardar POI</button>
-                    <button type="button" onClick={() => resetPoiForm(null)}>
-                      Nuevo
-                    </button>
-                    {selectedPoi && (
-                      <button type="button" className="dm-panel__delete" onClick={deletePoi}>
-                        Eliminar
+                  {advancedOpen && selectedPoi && (
+                    <div className="dm-panel__form-group">
+                      <h4>Debug</h4>
+                      <div className="dm-panel__debug-grid">
+                        <div>
+                          <span className="dm-panel__debug-label">Ultima actualizacion</span>
+                          <span className="dm-panel__debug-value">
+                            {formatUpdatedAt(updatedAt)}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="dm-panel__delete dm-panel__delete--compact"
+                        onClick={deletePoi}
+                      >
+                        Eliminar POI
                       </button>
-                    )}
-                    <span className={`dm-panel__save-state dm-panel__save-state--${saveState.status}`}>
-                      {saveState.label}
-                    </span>
-                  </div>
+                    </div>
+                  )}
+
+                  {poiMessage && <p className="dm-panel__hint">{poiMessage}</p>}
                 </form>
               </div>
               {previewOpen && (
                 <aside className="dm-panel__preview">
-                  <div className="dm-panel__panel-title">Previsualizacion vista agente</div>
-                  <pre>
-                    {previewLines.map((line, idx) => (
-                      <div key={idx}>{line}</div>
-                    ))}
-                  </pre>
+                  <div className="dm-panel__panel-title">Preview agente</div>
+                  {previewData.meta && (
+                    <div className="dm-panel__preview-meta">{previewData.meta}</div>
+                  )}
+                  <div className="dm-panel__preview-title">{previewData.title}</div>
+                  <div className="dm-panel__preview-summary">{previewData.summary}</div>
                 </aside>
               )}
             </div>
@@ -2288,105 +3107,59 @@ const DmPanel = () => {
   const renderVillainView = () => {
     const sections = openSections.villains || defaultSections('villains', editorMode);
     const updatedAt = selectedVillain?.updatedAt;
-    const previewLines = buildVillainPreview();
+    const previewData = buildVillainPreview();
     const isOperation = editorMode === 'operation';
     const saveState = formatSaveState(
       JSON.stringify(villainForm) !== villainBaseline,
       updatedAt,
       villainSaveState
     );
+    const villainList = flattenTree(villainTree);
+    const saveStateCompact =
+      saveState.status === 'dirty'
+        ? 'Cambios sin guardar'
+        : saveState.status === 'error'
+          ? 'Error al guardar'
+          : 'Guardado';
 
     return (
       <section className={`dm-panel__section ${helpMode ? 'dm-panel__help-on' : ''}`}>
         <h2 className="dm-panel__section-title">Galeria de villanos</h2>
         {villainsError && <p className="dm-panel__error">{villainsError}</p>}
         <div className="dm-panel__grid dm-panel__grid--split">
-          <div className="dm-panel__selector">
-            <div className="dm-panel__panel-title">Selecciona villano</div>
-            <button
-              type="button"
-              className="dm-panel__selector-toggle"
-              onClick={toggleSelector}
-            >
-              {selectorOpen ? 'Ocultar lista' : 'Mostrar lista'}
-            </button>
-            {selectorOpen && (
-              <div className="dm-panel__tree-wrapper">
-                {renderTree(
-                  villainTree,
-                  selectedVillain?.id,
-                  (node) => {
-                    setSelectedVillain(node);
-                    setSelection('villains', node.id);
-                    resetVillainForm(node);
-                  },
-                  'villains'
-                )}
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedVillain(null);
-                setSelection('villains', '');
-                resetVillainForm(null);
-              }}
-            >
-              Limpiar seleccion
-            </button>
-            <div className="dm-panel__sidebar-block">
-              <div className="dm-panel__panel-title">Modo</div>
-              <div className="dm-panel__mode-toggle">
-                {MODE_OPTIONS.map((option) => (
+          <div className="dm-panel__selector dm-panel__selector--cases">
+            <div className="dm-panel__panel-title">Listado de villanos</div>
+            <div className="dm-panel__case-list">
+              {villainList.map(({ item, level }, index) => {
+                const parentId = item.commands?.parentId || '';
+                const isSubcase = Boolean(parentId);
+                const isActive = selectedVillain?.id === item.id;
+                return (
                   <button
-                    key={option.value}
+                    key={item.id}
                     type="button"
-                    className={editorMode === option.value ? 'active' : ''}
-                    onClick={() => setEditorMode(option.value)}
+                    className={`dm-panel__case-item ${isActive ? 'active' : ''}`}
+                    style={level ? { paddingLeft: '12px' } : undefined}
+                    data-tooltip={`${isSubcase ? '› ' : ''}${getNodeLabel(item)}`}
+                    onClick={() => {
+                      setSelectedVillain(item);
+                      setSelection('villains', item.id);
+                      resetVillainForm(item);
+                    }}
                   >
-                    {option.label}
+                    <span className="dm-panel__case-index">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="dm-panel__case-title">
+                      {isSubcase ? '› ' : ''}
+                      {getNodeLabel(item)}
+                    </span>
                   </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                className={`dm-panel__ghost ${helpMode ? 'active' : ''}`}
-                onClick={() => setHelpMode((prev) => !prev)}
-              >
-                Ayuda {helpMode ? 'ACTIVADA' : 'DESACTIVADA'}
-              </button>
-            </div>
-            <div className="dm-panel__quick-actions">
-              <div className="dm-panel__panel-title">Acciones rapidas</div>
-              <div className="dm-panel__quick-meta">
-                <span>Ultima actualizacion: {formatUpdatedAt(updatedAt)}</span>
-                <button
-                  type="button"
-                  className="dm-panel__ghost"
-                  onClick={() => {
-                    setActiveView('campaign');
-                    setCampaignForm((prev) => ({
-                      ...prev,
-                      activeCaseId: villainForm.id || '',
-                    }));
-                  }}
-                >
-                  Abrir campaña
-                </button>
-              </div>
+                );
+              })}
             </div>
           </div>
           <div className="dm-panel__details">
-            <div className="dm-panel__editor-head">
-              <div className="dm-panel__panel-title">Editar / Crear</div>
-              <button
-                type="button"
-                className="dm-panel__ghost"
-                onClick={togglePreview}
-              >
-                {previewOpen ? 'Ocultar previsualizacion' : 'Ver previsualizacion'}
-              </button>
-            </div>
             <div
               className={`dm-panel__editor-layout ${
                 previewOpen ? 'dm-panel__editor-layout--preview' : ''
@@ -2394,17 +3167,46 @@ const DmPanel = () => {
             >
               <div className="dm-panel__editor-main">
                 <form onSubmit={saveVillain} className="dm-panel__form">
+                  <div className="dm-panel__editor-actions">
+                    <button type="submit" className="dm-panel__primary">
+                      Guardar
+                    </button>
+                    <button type="button" className="dm-panel__ghost" onClick={toggleAdvanced}>
+                      {advancedOpen ? 'Avanzado ▾' : 'Avanzado ▸'}
+                    </button>
+                    <button type="button" className="dm-panel__ghost" onClick={togglePreview}>
+                      {previewOpen ? 'Preview ▾' : 'Preview ▸'}
+                    </button>
+                    <span className={`dm-panel__save-state dm-panel__save-state--${saveState.status}`}>
+                      {saveStateCompact}
+                    </span>
+                    <div className="dm-panel__editor-shortcuts">
+                      <button type="button" className="dm-panel__ghost" onClick={() => resetVillainForm(null)}>
+                        Nuevo
+                      </button>
+                      <button
+                        type="button"
+                        className="dm-panel__ghost"
+                        onClick={() => {
+                          setSelectedVillain(null);
+                          setSelection('villains', '');
+                          resetVillainForm(null);
+                        }}
+                      >
+                        Limpiar
+                      </button>
+                    </div>
+                  </div>
                   {renderSection({
                     id: 'villain-identity',
                     title: 'Identidad',
                     open: sections.identity,
-                    impact: 'TUI output',
                     onToggle: () => toggleSection('villains', 'identity'),
                     children: (
                       <div className="dm-panel__form-group">
                         <div className="dm-panel__form-grid dm-panel__form-grid--two">
                           <label>
-                            {labelRow('ID', 'Identificador unico.', 'TUI')}
+                            {labelRow('ID', 'Identificador unico.')}
                             <input
                               type="text"
                               value={villainForm.id}
@@ -2418,7 +3220,7 @@ const DmPanel = () => {
                             />
                           </label>
                           <label>
-                            {labelRow('Alias', 'Nombre visible para agentes.', 'TUI output')}
+                            {labelRow('Alias', 'Nombre visible para agentes.')}
                             <input
                               type="text"
                               value={villainForm.alias}
@@ -2440,12 +3242,11 @@ const DmPanel = () => {
                     id: 'villain-summary',
                     title: 'Agent-facing Summary',
                     open: sections.summary,
-                    impact: 'TUI output',
                     onToggle: () => toggleSection('villains', 'summary'),
                     children: (
                       <div className="dm-panel__form-group">
                         <label>
-                          {labelRow('Resumen', 'Resumen visible.', 'TUI output')}
+                          {labelRow('Resumen', 'Resumen visible.')}
                           <textarea
                             className="dm-panel__textarea--sm"
                             value={villainForm.summary}
@@ -2461,16 +3262,171 @@ const DmPanel = () => {
                     ),
                   })}
 
-                  {!isOperation && renderSection({
+                  {renderSection({
+                    id: 'villain-details',
+                    title: 'Detalles de perfil',
+                    open: sections.content,
+                    onToggle: () => toggleSection('villains', 'content'),
+                    children: (
+                      <div className="dm-panel__form-group">
+                        <div className="dm-panel__form-grid dm-panel__form-grid--two">
+                          <label>
+                            {labelRow('Nombre real', 'Campo opcional.')}
+                            <input
+                              type="text"
+                              value={villainForm.realName}
+                              onChange={(e) =>
+                                setVillainForm({
+                                  ...villainForm,
+                                  realName: e.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            {labelRow('Estado', 'Activo, detenido, etc.')}
+                            <input
+                              type="text"
+                              value={villainForm.status}
+                              onChange={(e) =>
+                                setVillainForm({
+                                  ...villainForm,
+                                  status: e.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            {labelRow('Especie', 'Humano, meta, etc.')}
+                            <input
+                              type="text"
+                              value={villainForm.species}
+                              onChange={(e) =>
+                                setVillainForm({
+                                  ...villainForm,
+                                  species: e.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            {labelRow('Edad', 'Numero o rango.')}
+                            <input
+                              type="text"
+                              value={villainForm.age}
+                              onChange={(e) =>
+                                setVillainForm({
+                                  ...villainForm,
+                                  age: e.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            {labelRow('Altura', 'Ej. 1.85m.')}
+                            <input
+                              type="text"
+                              value={villainForm.height}
+                              onChange={(e) =>
+                                setVillainForm({
+                                  ...villainForm,
+                                  height: e.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            {labelRow('Peso', 'Ej. 90kg.')}
+                            <input
+                              type="text"
+                              value={villainForm.weight}
+                              onChange={(e) =>
+                                setVillainForm({
+                                  ...villainForm,
+                                  weight: e.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            {labelRow('Nivel de amenaza', 'Bajo/Medio/Alto.')}
+                            <input
+                              type="text"
+                              value={villainForm.threatLevel}
+                              onChange={(e) =>
+                                setVillainForm({
+                                  ...villainForm,
+                                  threatLevel: e.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            {labelRow('Ultima vez visto', 'Fecha o lugar.')}
+                            <input
+                              type="text"
+                              value={villainForm.lastSeen}
+                              onChange={(e) =>
+                                setVillainForm({
+                                  ...villainForm,
+                                  lastSeen: e.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                        </div>
+                        <label>
+                          {labelRow('Patrones', 'Una linea por item.')}
+                          <textarea
+                            className="dm-panel__textarea--sm"
+                            value={villainForm.patterns}
+                            onChange={(e) =>
+                              setVillainForm({
+                                ...villainForm,
+                                patterns: e.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                        <label>
+                          {labelRow('Asociados conocidos', 'Una linea por item.')}
+                          <textarea
+                            className="dm-panel__textarea--sm"
+                            value={villainForm.knownAssociates}
+                            onChange={(e) =>
+                              setVillainForm({
+                                ...villainForm,
+                                knownAssociates: e.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                        <label>
+                          {labelRow('Notas', 'Una linea por item.')}
+                          <textarea
+                            className="dm-panel__textarea--sm"
+                            value={villainForm.notes}
+                            onChange={(e) =>
+                              setVillainForm({
+                                ...villainForm,
+                                notes: e.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                      </div>
+                    ),
+                  })}
+
+                  {advancedOpen && !isOperation && renderSection({
                     id: 'villain-structure',
                     title: 'Estructura',
                     open: sections.engine,
-                    impact: 'TUI routing',
                     onToggle: () => toggleSection('villains', 'engine'),
                     children: (
                       <div className="dm-panel__form-group">
                         <label>
-                          {labelRow('Nodo padre (ID)', 'Jerarquia en menus.', 'TUI output')}
+                          {labelRow('Nodo padre (ID)', 'Jerarquia en menus.')}
                           <input
                             type="text"
                             list="villain-parent-options"
@@ -2492,7 +3448,7 @@ const DmPanel = () => {
                           ))}
                         </datalist>
                         <label>
-                          {labelRow('Tipo de nodo', 'Controla submenu.', 'TUI output')}
+                          {labelRow('Tipo de nodo', 'Controla submenu.')}
                           <select
                             value={villainForm.nodeType}
                             onChange={(e) =>
@@ -2513,31 +3469,155 @@ const DmPanel = () => {
                     ),
                   })}
 
-                  {villainMessage && <p className="dm-panel__hint">{villainMessage}</p>}
-                  <div className="dm-panel__actions dm-panel__actions--sticky">
-                    <button type="submit">Guardar villano</button>
-                    <button type="button" onClick={() => resetVillainForm(null)}>
-                      Nuevo
-                    </button>
-                    {selectedVillain && (
-                      <button type="button" className="dm-panel__delete" onClick={deleteVillain}>
-                        Eliminar
+                  {advancedOpen && (
+                    <div className="dm-panel__form-group">
+                      <h4>Acceso por atributo</h4>
+                      {VILLAIN_ATTRIBUTE_FIELDS.map((field, index) => {
+                        const access = villainForm.attributeAccess?.[field.key] || {
+                          visibility: defaultAccessConfig.visibility,
+                          unlockMode: defaultAccessConfig.unlockMode,
+                          password: '',
+                          initialAccessStatus: defaultAccessConfig.initialAccessStatus,
+                        };
+                        const previousGroup =
+                          index > 0 ? VILLAIN_ATTRIBUTE_FIELDS[index - 1].group : null;
+                        const showGroup = field.group && field.group !== previousGroup;
+                        return (
+                          <div key={field.key} className="dm-panel__attribute-row">
+                            {showGroup && (
+                              <div className="dm-panel__attribute-group">{field.group}</div>
+                            )}
+                            <div className="dm-panel__attribute-title">{field.label}</div>
+                            <div className="dm-panel__form-grid dm-panel__form-grid--two">
+                              <label>
+                                Visibilidad
+                                <select
+                                  value={access.visibility}
+                                  onChange={(e) =>
+                                    setVillainForm({
+                                      ...villainForm,
+                                      attributeAccess: {
+                                        ...villainForm.attributeAccess,
+                                        [field.key]: {
+                                          ...access,
+                                          visibility: e.target.value,
+                                        },
+                                      },
+                                    })
+                                  }
+                                >
+                                  {VISIBILITY_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label>
+                                Modo de desbloqueo
+                                <select
+                                  value={access.unlockMode}
+                                  onChange={(e) =>
+                                    setVillainForm({
+                                      ...villainForm,
+                                      attributeAccess: {
+                                        ...villainForm.attributeAccess,
+                                        [field.key]: {
+                                          ...access,
+                                          unlockMode: e.target.value,
+                                        },
+                                      },
+                                    })
+                                  }
+                                >
+                                  {UNLOCK_MODE_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label>
+                                Estado inicial
+                                <select
+                                  value={access.initialAccessStatus}
+                                  onChange={(e) =>
+                                    setVillainForm({
+                                      ...villainForm,
+                                      attributeAccess: {
+                                        ...villainForm.attributeAccess,
+                                        [field.key]: {
+                                          ...access,
+                                          initialAccessStatus: e.target.value,
+                                        },
+                                      },
+                                    })
+                                  }
+                                >
+                                  {INITIAL_STATUS_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              {access.unlockMode === 'password' && (
+                                <label>
+                                  Contraseña
+                                  <input
+                                    type="text"
+                                    value={access.password}
+                                    onChange={(e) =>
+                                      setVillainForm({
+                                        ...villainForm,
+                                        attributeAccess: {
+                                          ...villainForm.attributeAccess,
+                                          [field.key]: {
+                                            ...access,
+                                            password: e.target.value,
+                                          },
+                                        },
+                                      })
+                                    }
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {advancedOpen && selectedVillain && (
+                    <div className="dm-panel__form-group">
+                      <h4>Debug</h4>
+                      <div className="dm-panel__debug-grid">
+                        <div>
+                          <span className="dm-panel__debug-label">Ultima actualizacion</span>
+                          <span className="dm-panel__debug-value">
+                            {formatUpdatedAt(updatedAt)}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="dm-panel__delete dm-panel__delete--compact"
+                        onClick={deleteVillain}
+                      >
+                        Eliminar villano
                       </button>
-                    )}
-                    <span className={`dm-panel__save-state dm-panel__save-state--${saveState.status}`}>
-                      {saveState.label}
-                    </span>
-                  </div>
+                    </div>
+                  )}
+
+                  {villainMessage && <p className="dm-panel__hint">{villainMessage}</p>}
                 </form>
               </div>
               {previewOpen && (
                 <aside className="dm-panel__preview">
-                  <div className="dm-panel__panel-title">Previsualizacion vista agente</div>
-                  <pre>
-                    {previewLines.map((line, idx) => (
-                      <div key={idx}>{line}</div>
-                    ))}
-                  </pre>
+                  <div className="dm-panel__panel-title">Preview agente</div>
+                  <div className="dm-panel__preview-title">{previewData.title}</div>
+                  <div className="dm-panel__preview-summary">{previewData.summary}</div>
                 </aside>
               )}
             </div>
@@ -2547,8 +3627,315 @@ const DmPanel = () => {
     );
   };
 
+  const renderEvidenceView = () => (
+    <section className="dm-panel__section">
+      <h2 className="dm-panel__section-title">Evidencias STL</h2>
+      <div className="dm-panel__grid dm-panel__grid--evidence">
+        <div className="dm-panel__card">
+          <div className="dm-panel__panel-title">Modelos</div>
+          {evidenceLoading && <p className="dm-panel__hint">Cargando evidencias...</p>}
+          {!evidenceLoading && !evidenceModels.length && (
+            <p className="dm-panel__hint">No hay evidencias registradas.</p>
+          )}
+          <div className="dm-panel__list">
+            {evidenceModels.map((model) => (
+              <button
+                key={model.id}
+                type="button"
+                className={`dm-panel__list-item${
+                  evidenceForm.id === model.id ? ' active' : ''
+                }`}
+                onClick={() =>
+                  setEvidenceForm({
+                    id: model.id || '',
+                    label: model.label || '',
+                    command: model.command || '',
+                    stlPath: model.stlPath || '',
+                  })
+                }
+              >
+                <strong>{model.label || model.id}</strong>
+                <span>{model.command ? `SHOW ${model.command}` : model.id}</span>
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setEvidenceForm({ ...initialEvidenceForm });
+              setEvidenceFile(null);
+              setEvidenceMessage('');
+              setEvidenceProfile('default');
+              setEvidencePreviewNonce((prev) => prev + 1);
+            }}
+          >
+            Nuevo
+          </button>
+        </div>
+
+        <div className="dm-panel__card">
+          <div className="dm-panel__panel-title">Detalle / Upload</div>
+          <form onSubmit={handleEvidenceSave} className="dm-panel__form">
+            <div className="dm-panel__form-group">
+              <label>
+                {labelRow('ID', 'Identificador interno para la evidencia.')}
+                <input
+                  type="text"
+                  value={evidenceForm.id}
+                  onChange={(e) =>
+                    setEvidenceForm((prev) => ({ ...prev, id: e.target.value }))
+                  }
+                />
+              </label>
+            </div>
+            <div className="dm-panel__form-group">
+              <label>
+                {labelRow('Etiqueta', 'Texto mostrado en el visor ASCII.')}
+                <input
+                  type="text"
+                  value={evidenceForm.label}
+                  onChange={(e) =>
+                    setEvidenceForm((prev) => ({ ...prev, label: e.target.value }))
+                  }
+                />
+              </label>
+            </div>
+            <div className="dm-panel__form-group">
+              <label>
+                {labelRow('Comando SHOW', 'Alias para invocar el modelo (SHOW <alias>).')}
+                <input
+                  type="text"
+                  value={evidenceForm.command}
+                  onChange={(e) =>
+                    setEvidenceForm((prev) => ({ ...prev, command: e.target.value }))
+                  }
+                />
+              </label>
+            </div>
+            <div className="dm-panel__form-group">
+              <label>
+                {labelRow('Perfil ASCII', 'Selecciona el perfil de render en el preview.')}
+                <select
+                  value={evidenceProfile}
+                  onChange={(e) => setEvidenceProfile(e.target.value)}
+                >
+                  <option value="default">Default</option>
+                  <option value="wayne90x30">Wayne 90x30</option>
+                  <option value="normal">Normal</option>
+                </select>
+              </label>
+            </div>
+            <div className="dm-panel__form-group">
+              <label>
+                {labelRow('Ruta STL', 'Ruta generada tras subir el archivo.')}
+                <input type="text" value={evidenceForm.stlPath} readOnly />
+              </label>
+            </div>
+            <div className="dm-panel__form-group">
+              <label>
+                {labelRow('Subir STL', 'Solo .stl (max 20MB).')}
+                <input
+                  type="file"
+                  accept=".stl"
+                  onChange={(e) => setEvidenceFile(e.target.files?.[0] || null)}
+                />
+              </label>
+            </div>
+            <div className="dm-panel__form-actions">
+              <button type="button" onClick={handleEvidenceUpload} disabled={evidenceUploading}>
+                {evidenceUploading ? 'Subiendo...' : 'Subir STL'}
+              </button>
+              <button type="submit" disabled={evidenceLoading}>
+                Guardar evidencia
+              </button>
+              {evidenceForm.id && (
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => handleEvidenceDelete(evidenceForm.id)}
+                >
+                  Eliminar
+                </button>
+              )}
+            </div>
+            {evidenceMessage && <p className="dm-panel__hint">{evidenceMessage}</p>}
+          </form>
+          <div className="dm-panel__preview dm-panel__preview--evidence">
+            <div className="dm-panel__panel-title">Preview ASCII</div>
+            <div className="dm-panel__evidence-preview" ref={evidencePreviewRef} />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderAccessView = () => {
+    const target = villains.find((item) => item.id === accessVillainId);
+    const accessDirty = JSON.stringify(accessMatrix) !== accessBaseline;
+    const runtimeUnlocked =
+      campaignSnapshot?.unlockedAttributes?.villains?.[accessVillainId] || [];
+    return (
+      <section className="dm-panel__section">
+        <h2 className="dm-panel__section-title">Accesos por atributo (Villanos)</h2>
+        {!villains.length && (
+          <p className="dm-panel__hint">No hay villanos cargados.</p>
+        )}
+        <div className="dm-panel__grid">
+          <div className="dm-panel__card">
+            <form onSubmit={saveAccessMatrix} className="dm-panel__form">
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Villano', 'Selecciona el perfil a editar.')}
+                  <select
+                    value={accessVillainId}
+                    onChange={(e) => setAccessVillainId(e.target.value)}
+                  >
+                    {villains.map((villain) => (
+                      <option key={villain.id} value={villain.id}>
+                        {villain.alias || villain.id}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {target && (
+                <div className="dm-panel__form-group">
+                <div className="dm-panel__access-table">
+                    <div className="dm-panel__access-row dm-panel__access-row--header">
+                      <div>Atributo</div>
+                      <div>Locked</div>
+                      <div>Visible</div>
+                      <div>Runtime</div>
+                      <div>Frase</div>
+                      <div>Token</div>
+                    </div>
+                    {VILLAIN_ATTRIBUTE_FIELDS.map((field) => {
+                      const access = accessMatrix[field.key] || {
+                        visibility: defaultAccessConfig.visibility,
+                        unlockMode: defaultAccessConfig.unlockMode,
+                        password: '',
+                        phrase: '',
+                        initialAccessStatus: defaultAccessConfig.initialAccessStatus,
+                      };
+                      const locked = access.initialAccessStatus !== 'unlocked';
+                      const visible = access.visibility !== 'hidden';
+                      const runtime = runtimeUnlocked.includes(field.key);
+                      return (
+                        <div key={field.key} className="dm-panel__access-row">
+                          <div className="dm-panel__access-cell dm-panel__access-cell--name">
+                            <span>{field.label}</span>
+                          </div>
+                          <div className="dm-panel__access-cell">
+                            <input
+                              type="checkbox"
+                              checked={locked}
+                              onChange={(e) =>
+                                setAccessMatrix((prev) => ({
+                                  ...prev,
+                                  [field.key]: {
+                                    ...access,
+                                    initialAccessStatus: e.target.checked
+                                      ? 'locked'
+                                      : 'unlocked',
+                                  },
+                                }))
+                              }
+                            />
+                          </div>
+                          <div className="dm-panel__access-cell">
+                            <input
+                              type="checkbox"
+                              checked={visible}
+                              onChange={(e) =>
+                                setAccessMatrix((prev) => ({
+                                  ...prev,
+                                  [field.key]: {
+                                    ...access,
+                                    visibility: e.target.checked ? 'listed' : 'hidden',
+                                  },
+                                }))
+                              }
+                            />
+                          </div>
+                          <div className="dm-panel__access-cell">
+                            <input
+                              type="checkbox"
+                              checked={runtime}
+                              onChange={(e) =>
+                                updateRuntimeUnlock(field.key, e.target.checked)
+                              }
+                            />
+                          </div>
+                          <div className="dm-panel__access-cell">
+                            <input
+                              type="text"
+                              value={access.phrase || ''}
+                              placeholder="Frase"
+                              onChange={(e) =>
+                                setAccessMatrix((prev) => ({
+                                  ...prev,
+                                  [field.key]: {
+                                    ...access,
+                                    phrase: e.target.value,
+                                  },
+                                }))
+                              }
+                            />
+                          </div>
+                          <div className="dm-panel__access-cell">
+                            <input
+                              type="text"
+                              value={access.password || ''}
+                              placeholder="Token"
+                              onChange={(e) => {
+                                const nextPassword = e.target.value;
+                                const nextUnlockMode = nextPassword
+                                  ? 'password'
+                                  : access.unlockMode === 'password'
+                                    ? 'none'
+                                    : access.unlockMode;
+                                setAccessMatrix((prev) => ({
+                                  ...prev,
+                                  [field.key]: {
+                                    ...access,
+                                    password: nextPassword,
+                                    unlockMode: nextUnlockMode,
+                                  },
+                                }));
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {accessMessage && <p className="dm-panel__hint">{accessMessage}</p>}
+              <div className="dm-panel__actions">
+                <button type="submit" disabled={accessLoading}>
+                  {accessLoading ? 'Guardando...' : 'Guardar accesos'}
+                </button>
+                <button type="button" onClick={resetAccessMatrix} disabled={accessLoading}>
+                  Recargar
+                </button>
+                <span className="dm-panel__save-state">
+                  {accessDirty ? 'Cambios sin guardar' : 'Sin cambios'}
+                </span>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
   return (
-    <div className="dm-panel">
+    <div
+      className={`dm-panel${activeView === 'cases' ? ' dm-panel--workspace' : ''}${
+        authorized ? ' dm-panel--authorized' : ''
+      }`}
+    >
       <div className="dm-panel__inner">
         <section className="dm-panel__section dm-panel__auth">
           <div className="dm-panel__header">
@@ -2697,6 +4084,8 @@ const DmPanel = () => {
             {activeView === 'cases' && renderCaseView()}
             {activeView === 'pois' && renderPoiView()}
             {activeView === 'villains' && renderVillainView()}
+            {activeView === 'evidence' && renderEvidenceView()}
+            {activeView === 'access' && renderAccessView()}
             {activeView === 'campaign' && renderCampaignView()}
           </>
         )}

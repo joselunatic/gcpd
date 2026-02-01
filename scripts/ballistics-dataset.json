@@ -1,0 +1,104 @@
+[
+  {
+    "id": "b01",
+    "caliber": "9mm",
+    "material": "copper-jacketed",
+    "seed": 1001,
+    "tint": 92,
+    "lineDensity": 0.45,
+    "sineFrequency": 9,
+    "silhouette": {
+      "length": 0.74,
+      "width": 0.18,
+      "shoulder": 0.68,
+      "taper": 0.9,
+      "nose": "spitzer",
+      "cannelure": 0.35
+    }
+  },
+  {
+    "id": "b02",
+    "caliber": ".45 ACP",
+    "material": "lead core",
+    "seed": 1027,
+    "tint": 32,
+    "lineDensity": 0.55,
+    "sineFrequency": 7,
+    "silhouette": {
+      "length": 0.7,
+      "width": 0.24,
+      "shoulder": 0.64,
+      "taper": 0.7,
+      "nose": "round",
+      "cannelure": 0.42
+    }
+  },
+  {
+    "id": "b03",
+    "caliber": "5.56 NATO",
+    "material": "steel-core",
+    "seed": 1053,
+    "tint": 178,
+    "lineDensity": 0.35,
+    "sineFrequency": 14,
+    "silhouette": {
+      "length": 0.78,
+      "width": 0.17,
+      "shoulder": 0.72,
+      "taper": 0.92,
+      "nose": "boat-tail",
+      "cannelure": 0.3
+    }
+  },
+  {
+    "id": "b04",
+    "caliber": "7.62x39",
+    "material": "molybdenum",
+    "seed": 1102,
+    "tint": 220,
+    "lineDensity": 0.48,
+    "sineFrequency": 10,
+    "silhouette": {
+      "length": 0.76,
+      "width": 0.2,
+      "shoulder": 0.66,
+      "taper": 0.88,
+      "nose": "hollow",
+      "cannelure": 0.38
+    }
+  },
+  {
+    "id": "b05",
+    "caliber": ".50 BMG",
+    "material": "blackened",
+    "seed": 1139,
+    "tint": 65,
+    "lineDensity": 0.30,
+    "sineFrequency": 6,
+    "silhouette": {
+      "length": 0.82,
+      "width": 0.26,
+      "shoulder": 0.62,
+      "taper": 0.55,
+      "nose": "flat",
+      "cannelure": 0.5
+    }
+  },
+  {
+    "id": "b06",
+    "caliber": "11.43x33",
+    "material": "monel",
+    "seed": 1175,
+    "tint": 12,
+    "lineDensity": 0.5,
+    "sineFrequency": 16,
+    "silhouette": {
+      "length": 0.68,
+      "width": 0.2,
+      "shoulder": 0.7,
+      "taper": 0.85,
+      "nose": "ogive",
+      "cannelure": 0.33
+    }
+  }
+]

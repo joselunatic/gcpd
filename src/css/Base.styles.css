@@ -392,6 +392,17 @@
   border-radius: 15px; */
 }
 
+/* Force all LEDs off while the power switch is off. */
+.cpu.power-off .checkboxControl .indicator {
+  opacity: 0.35;
+}
+
+.cpu.power-off .checkboxControl .indicator:before,
+.cpu.power-off .checkboxControl :checked ~ .indicator:before {
+  box-shadow: 0 0 8px #000 inset;
+  background-color: transparent;
+}
+
 .disquette-base {
   background: var(--caseColor);
   margin-top: 40px;

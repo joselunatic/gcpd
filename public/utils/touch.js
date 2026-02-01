@@ -26,6 +26,8 @@ const state = {
   savedFastMode: null,
 };
 
+const TOUCH_DEBUG_VERSION = "touch-v2";
+
 function readPreference() {
   try {
     const stored = localStorage.getItem(TOUCH_MODE_STORAGE_KEY);
@@ -36,10 +38,17 @@ function readPreference() {
   }
 }
 
+function isDesktopPointer() {
+  const fine = window.matchMedia("(pointer: fine)").matches;
+  const hoverCapable = window.matchMedia("(hover: hover)").matches;
+  return fine || hoverCapable;
+}
+
 function shouldAutoEnable() {
+  if (isDesktopPointer()) return false;
   const coarse = window.matchMedia("(pointer: coarse)").matches;
-  const small = window.matchMedia("(max-width: 900px)").matches;
-  return coarse || small;
+  const hoverless = window.matchMedia("(hover: none)").matches;
+  return coarse || hoverless;
 }
 
 function setTouchMode(enabled, { persist = true } = {}) {
@@ -239,19 +248,35 @@ function initTouchMode() {
   bindSelectableHandler();
   // Tap-only selection on touch mode; keep keyboard input untouched elsewhere.
 
-  const pref = readPreference();
-  if (pref !== null) {
-    setTouchMode(pref, { persist: false });
+  console.log(`[TUI] touch init ${TOUCH_DEBUG_VERSION}`, {
+    coarse: window.matchMedia("(pointer: coarse)").matches,
+    fine: window.matchMedia("(pointer: fine)").matches,
+    hover: window.matchMedia("(hover: hover)").matches,
+    hoverless: window.matchMedia("(hover: none)").matches,
+    autoEnable: shouldAutoEnable(),
+  });
+
+  if (!shouldAutoEnable()) {
+    setTouchMode(false, { persist: false });
   } else {
-    setTouchMode(shouldAutoEnable(), { persist: false });
+    const pref = readPreference();
+    if (pref !== null) {
+      setTouchMode(pref, { persist: false });
+    } else {
+      setTouchMode(true, { persist: false });
+    }
   }
 
   window.addEventListener("resize", () => {
+    if (!shouldAutoEnable()) {
+      setTouchMode(false, { persist: false });
+      return;
+    }
     const stored = readPreference();
     if (stored === null) {
-      setTouchMode(shouldAutoEnable(), { persist: false });
+      setTouchMode(true, { persist: false });
     }
   });
 }
 
-export { initTouchMode, setTouchMode };
+export { initTouchMode, setTouchMode, shouldAutoEnable };

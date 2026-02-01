@@ -10,6 +10,10 @@
   animation: scanline 1.25s linear infinite;
 }
 
+body.boot-ascii-active #scanline {
+  opacity: 0;
+}
+
 @keyframes scanline {
   0% {
     top: 0;

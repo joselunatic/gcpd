@@ -7,11 +7,22 @@
 }
 
 :root {
-  --color:#5785b7
+  --color: #5785b7;
   --bg: #05321e;
   --off: #050505;
   --dark: #111;
   --term: "$/> ";
+  --fg-primary: var(--color);
+  --fg-muted: #8aa6c9;
+  --fg-accent: #b6d6ff;
+  --fg-system: #9fb9d9;
+  --fg-ok: #7fd7a5;
+  --fg-warn: #f1c36a;
+  --fg-alert: #f0847c;
+  --fg-sep: rgba(138, 166, 201, 0.55);
+  --bg-focus: rgba(87, 133, 183, 0.18);
+  --glow-focus: 0 0 6px rgba(182, 214, 255, 0.45);
+  --panel-bg: rgba(255, 255, 255, 0.06);
 }
 
 #terminal-container {
@@ -30,6 +41,33 @@
 #terminal-container.terminal-theme--green {
   --color: #68e06f;
   --bg: #05210f;
+  --fg-primary: #68e06f;
+  --fg-muted: #5fbf7b;
+  --fg-accent: #b7f5c7;
+  --fg-system: #8ad7a3;
+  --fg-ok: #7ff0a0;
+  --fg-warn: #d8c07a;
+  --fg-alert: #f08f7f;
+  --fg-sep: rgba(104, 224, 111, 0.45);
+  --bg-focus: rgba(104, 224, 111, 0.14);
+  --glow-focus: 0 0 6px rgba(104, 224, 111, 0.45);
+  --panel-bg: rgba(0, 0, 0, 0.08);
+}
+
+#terminal-container.terminal-theme--amber {
+  --color: #e7b867;
+  --bg: #1a1207;
+  --fg-primary: #e7b867;
+  --fg-muted: #c9a46b;
+  --fg-accent: #ffd997;
+  --fg-system: #dfc08a;
+  --fg-ok: #cfe1a5;
+  --fg-warn: #f5c26c;
+  --fg-alert: #f08b6d;
+  --fg-sep: rgba(231, 184, 103, 0.45);
+  --bg-focus: rgba(231, 184, 103, 0.14);
+  --glow-focus: 0 0 6px rgba(231, 184, 103, 0.45);
+  --panel-bg: rgba(0, 0, 0, 0.1);
 }
 
 
@@ -75,8 +113,8 @@
 
 .terminal,
 .fullscreen {
-  color: var(--color);
-  text-shadow: 0 0 5px #c8c8c8;
+  color: var(--fg-primary);
+  text-shadow: 0 0 3px rgba(200, 200, 200, 0.55);
 }
 
 ::selection {
@@ -135,19 +173,147 @@
 }
 
 .typer--system {
-  color: #9fb9d9;
+  color: var(--fg-system);
 }
 
 .typer--intel {
-  color: #c0d7f0;
+  color: var(--fg-primary);
 }
 
 .typer--rumor {
-  color: #8fb2d8;
+  color: var(--fg-muted);
 }
 
 .typer--log {
   display: none;
+}
+
+.terminal-ascii-viewer {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.terminal.terminal-viewer-active {
+  padding: 0;
+}
+
+.terminal-ascii-viewer__effect {
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: pre;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.terminal-ascii-viewer__effect table {
+  width: 100%;
+  height: 100%;
+}
+
+.terminal-ascii-ui {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  z-index: 60;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.6rem 0.8rem;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(182, 214, 255, 0.25);
+  color: var(--fg-primary);
+  font-family: "WOPR";
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.terminal-ascii-ui__title {
+  color: var(--fg-accent);
+  font-size: 0.7rem;
+}
+
+.terminal-ascii-ui__controls {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.terminal-ascii-ui button {
+  background: rgba(87, 133, 183, 0.2);
+  border: 1px solid rgba(182, 214, 255, 0.3);
+  color: var(--fg-primary);
+  padding: 0.2rem 0.5rem;
+  font-family: "WOPR";
+  font-size: 0.6rem;
+  cursor: pointer;
+}
+
+.terminal-ascii-ui button:hover {
+  background: rgba(182, 214, 255, 0.18);
+}
+
+.terminal-ascii-ui__row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--fg-muted);
+  font-size: 0.55rem;
+}
+
+.terminal-ascii-ui__row input[type="range"] {
+  width: 100%;
+}
+
+.terminal-ascii-ui__hint {
+  color: var(--fg-muted);
+  font-size: 0.55rem;
+}
+
+
+.tui-primary {
+  color: var(--fg-primary);
+}
+
+.tui-muted {
+  color: var(--fg-muted);
+}
+
+.tui-accent {
+  color: var(--fg-accent);
+  text-shadow: var(--glow-focus);
+}
+
+.tui-system {
+  color: var(--fg-system);
+}
+
+.tui-ok {
+  color: var(--fg-ok);
+}
+
+.tui-warn {
+  color: var(--fg-warn);
+}
+
+.tui-alert {
+  color: var(--fg-alert);
+  text-shadow: 0 0 6px rgba(240, 132, 124, 0.4);
+}
+
+.tui-sep {
+  color: var(--fg-sep);
+}
+
+.tui-panel-right {
+  background: var(--panel-bg);
 }
 
 .terminal-line {
@@ -175,8 +341,8 @@
 }
 
 .touch-selectable.is-selected {
-  background: rgba(90, 180, 223, 0.15);
-  box-shadow: inset 0 0 8px rgba(90, 180, 223, 0.5);
+  background: var(--bg-focus);
+  box-shadow: inset 0 0 6px rgba(90, 180, 223, 0.25);
   transform: scale(1.01);
   animation: pulseSelect 1.2s ease-in-out infinite;
 }
@@ -188,7 +354,7 @@
 .command-chip {
   display: inline-block;
   padding: 0 3px;
-  border: 1px solid rgba(87, 133, 183, 0.5);
+  border: 1px solid var(--fg-sep);
 }
 
 .command-chip .hotkey-underline {
@@ -199,7 +365,7 @@
 
 .input-hint {
   margin-top: 0.25rem;
-  color: #9fb9d9;
+  color: var(--fg-muted);
 }
 
 .dialer-mode .touch-selectable::before {

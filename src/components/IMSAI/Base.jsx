@@ -93,12 +93,23 @@ const Base = ({on, setOn, setReset }) => {
         if (event.target.classList.contains('left-part')) {
             console.log('Left button block: ', event.target.id);
             if (event.target.id === String(LEFT_SWITCH.THEME)) {
-                // Leftmost switch (with its LED) toggles terminal color.
-                const terminalContainer = document.getElementById('terminal-container');
-                if (terminalContainer) {
-                    terminalContainer.classList.toggle(
-                        'terminal-theme--green',
-                        event.target.checked
+                // Leftmost switch toggles terminal color (blue default, green when on).
+                const palette = event.target.checked ? 'green' : 'blue';
+                if (window.setTuiPalette) {
+                    window.setTuiPalette(palette);
+                } else {
+                    try {
+                        localStorage.setItem('tuiPalette', palette);
+                    } catch (e) {}
+                    const terminalContainer = document.getElementById('terminal-container');
+                    if (terminalContainer) {
+                        terminalContainer.classList.toggle(
+                            'terminal-theme--green',
+                            event.target.checked
+                        );
+                    }
+                    window.dispatchEvent(
+                        new CustomEvent('wopr-theme-change', { detail: { palette } })
                     );
                 }
             }
@@ -227,7 +238,7 @@ const Base = ({on, setOn, setReset }) => {
         )
     }
     const eightButtonBlockLeft = Array.from({length: 8}, (_, index) => {
-        const defaultChecked = [0, 1, 5, 7].includes(index, 0);
+        const defaultChecked = [1, 5, 7].includes(index, 0);
         const passiveUp = [0, 5].includes(index, 0);
         const passiveMiddle = [1, 3, 4, 5, 7].includes(index, 0);
         const passiveDown = [0, 2, 3, 4, 6, 7].includes(index, 0);
@@ -285,18 +296,31 @@ const Base = ({on, setOn, setReset }) => {
             }
         }
         // Sync terminal theme with the leftmost switch default state.
-        const terminalContainer = document.getElementById('terminal-container');
         const leftThemeSwitch = document.getElementsByClassName('left-part 0')[0];
-        if (terminalContainer && leftThemeSwitch) {
-            terminalContainer.classList.toggle(
-                'terminal-theme--green',
-                leftThemeSwitch.checked
-            );
+        if (leftThemeSwitch) {
+            const palette = leftThemeSwitch.checked ? 'green' : 'blue';
+            if (window.setTuiPalette) {
+                window.setTuiPalette(palette);
+            } else {
+                try {
+                    localStorage.setItem('tuiPalette', palette);
+                } catch (e) {}
+                const terminalContainer = document.getElementById('terminal-container');
+                if (terminalContainer) {
+                    terminalContainer.classList.toggle(
+                        'terminal-theme--green',
+                        leftThemeSwitch.checked
+                    );
+                }
+                window.dispatchEvent(
+                    new CustomEvent('wopr-theme-change', { detail: { palette } })
+                );
+            }
         }
       }, []);
 
     return (
-      <div className='cpu'>
+      <div className={`cpu ${on === 'on' ? 'power-on' : 'power-off'}`}>
         <div className='cpu-base'>
             <div className='upper-base'>
                 <div className='upper-section-1'>
