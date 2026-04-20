@@ -1,7 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import PoiPicker from './PoiPicker';
 
 const defaultRow = { poiId: '', role: 'related' };
+
+const normalizeRows = (rows = []) =>
+  (Array.isArray(rows) ? rows : []).map((entry) => ({
+    poiId: entry?.poiId || '',
+    role: entry?.role || 'related',
+    type: 'poi',
+  }));
+
+const serializeRows = (rows = []) =>
+  JSON.stringify(
+    normalizeRows(rows).map((entry) => ({
+      poiId: entry.poiId,
+      role: entry.role,
+    }))
+  );
 
 const PoiRelationEditor = ({
   value = [],
@@ -12,11 +27,16 @@ const PoiRelationEditor = ({
   onEditPoi,
   label = 'POIs relacionados',
 }) => {
-  const [rows, setRows] = useState(value.length ? value : []);
+  const externalRows = useMemo(() => normalizeRows(value), [value]);
+  const externalSignature = useMemo(() => serializeRows(externalRows), [externalRows]);
+  const lastExternalSignatureRef = useRef(externalSignature);
+  const [rows, setRows] = useState(externalRows);
 
   useEffect(() => {
-    setRows(value.length ? value : []);
-  }, [value]);
+    if (externalSignature === lastExternalSignatureRef.current) return;
+    lastExternalSignatureRef.current = externalSignature;
+    setRows(externalRows);
+  }, [externalRows, externalSignature]);
 
   const emit = (nextRows) => {
     setRows(nextRows);

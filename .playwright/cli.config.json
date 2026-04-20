@@ -1,0 +1,9 @@
+{
+  "browser": "chrome",
+  "use": {
+    "viewport": {
+      "width": 900,
+      "height": 1400
+    }
+  }
+}

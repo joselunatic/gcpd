@@ -5195,7 +5195,7 @@ const DmPanel = () => {
                   {labelRow('ID', 'Identificador interno para la entrada balistica.')}
                   <input
                     type="text"
-                    value={ballisticsForm.id}
+                    value={ballisticsForm.id || ''}
                     onChange={(e) =>
                       setBallisticsForm((prev) => ({ ...prev, id: e.target.value }))
                     }
@@ -5207,7 +5207,7 @@ const DmPanel = () => {
                   {labelRow('PNG', 'Ruta del PNG (ej: /assets/ballistics/b01.png).')}
                   <input
                     type="text"
-                    value={ballisticsForm.pngPath}
+                    value={ballisticsForm.pngPath || ''}
                     onChange={(e) =>
                       setBallisticsForm((prev) => ({ ...prev, pngPath: e.target.value }))
                     }
@@ -5218,7 +5218,7 @@ const DmPanel = () => {
                 <label>
                   {labelRow('PNG existente', 'Selecciona un PNG ya cargado.')}
                   <select
-                    value={ballisticsForm.pngPath}
+                    value={ballisticsForm.pngPath || ''}
                     onChange={(e) => {
                       const value = e.target.value;
                       setBallisticsForm((prev) => ({
@@ -5255,7 +5255,7 @@ const DmPanel = () => {
                   {labelRow('Case ID', 'ID de caso (ej: gcpd-XYZ-JKL).')}
                   <input
                     type="text"
-                    value={ballisticsForm.caseId}
+                    value={ballisticsForm.caseId || ''}
                     onChange={(e) =>
                       setBallisticsForm((prev) => ({ ...prev, caseId: e.target.value }))
                     }
@@ -5267,7 +5267,7 @@ const DmPanel = () => {
                   {labelRow('Codigo', 'Codigo de 3 letras asociado al caso.')}
                   <input
                     type="text"
-                    value={ballisticsForm.caseCode}
+                    value={ballisticsForm.caseCode || ''}
                     onChange={(e) =>
                       setBallisticsForm((prev) => ({ ...prev, caseCode: e.target.value }))
                     }
@@ -5277,7 +5277,7 @@ const DmPanel = () => {
               <div className="dm-panel__form-group">
                 <PoiPicker
                   label="POI"
-                  value={ballisticsForm.poiId}
+                  value={ballisticsForm.poiId || ''}
                   pois={pois}
                   onChange={applyPoiLocationToBallistics}
                   onCreate={() => openPoiQuickCreate()}
@@ -5290,7 +5290,7 @@ const DmPanel = () => {
                   {labelRow('Localizacion', 'Derivada del POI vinculado.')}
                   <input
                     type="text"
-                    value={ballisticsForm.location}
+                    value={ballisticsForm.location || ''}
                     readOnly
                   />
                 </label>
@@ -5300,7 +5300,7 @@ const DmPanel = () => {
                   {labelRow('Crimen', 'Tipo de crimen asociado.')}
                   <input
                     type="text"
-                    value={ballisticsForm.crime}
+                    value={ballisticsForm.crime || ''}
                     onChange={(e) =>
                       setBallisticsForm((prev) => ({ ...prev, crime: e.target.value }))
                     }
@@ -5312,7 +5312,7 @@ const DmPanel = () => {
                   {labelRow('Estado', 'Estado del caso (ej: ABIERTO).')}
                   <input
                     type="text"
-                    value={ballisticsForm.status}
+                    value={ballisticsForm.status || ''}
                     onChange={(e) =>
                       setBallisticsForm((prev) => ({ ...prev, status: e.target.value }))
                     }
@@ -5324,7 +5324,7 @@ const DmPanel = () => {
                   {labelRow('Cerrado por', 'Agente que cerró el caso (solo si está cerrado).')}
                   <input
                     type="text"
-                    value={ballisticsForm.closedBy}
+                    value={ballisticsForm.closedBy || ''}
                     onChange={(e) =>
                       setBallisticsForm((prev) => ({ ...prev, closedBy: e.target.value }))
                     }

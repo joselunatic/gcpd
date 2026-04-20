@@ -26,7 +26,7 @@ const PoiQuickCreateModal = ({
             Cerrar
           </button>
         </div>
-        <div className="dm-panel__form dm-panel__form--compact">
+        <div className="dm-panel__form dm-panel__form--compact-poi dm-panel__form--poi-quick">
           <div className="dm-panel__form-grid dm-panel__form-grid--two">
             <label>
               {labelRow('Nombre', 'Nombre visible del POI.')}
