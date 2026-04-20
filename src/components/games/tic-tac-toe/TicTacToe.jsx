@@ -26,21 +26,6 @@ const letter_x = [
 ];
 
 // human
-var human_player = "O";
-// ai
-var wopr_ai = "X";
-
-const WINNING_COMBINATIONS = [
-    [0,1,2], 
-    [3,4,5], 
-    [6,7,8],
-    [0,3,6], 
-    [1,4,7], 
-    [2,5,8],
-    [0,4,8], 
-    [2,4,6]
-]
-
 const game_background = [
     '             |             |             ', 
     '             |             |             ', 
@@ -139,7 +124,7 @@ const TicTacToe = () => {
             let isnumber = event.key.match(/[1-9]/i);
             if (event.key === "Escape") {
                console.log('Source: ', event )
-               window.removeEventListener("keydown", eventhandler);
+               window.removeEventListener("keydown", eventHandler);
               exitGame();           
             } else if (event.key === "Backspace") {
               resetGame();           

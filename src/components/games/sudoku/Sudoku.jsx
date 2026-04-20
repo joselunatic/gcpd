@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef} from "react"
 import { useNavigate } from "react-router-dom"
 
-import { fill_async, delay } from '/src/js/game-output-handling.js'
+import { fill_async } from '/src/js/game-output-handling.js'
 import say from '/src/js/game-speak.js'
-import { button, success, loose, blip, mistake, stopAllGameSounds } from '/src/js/game-sounds.js'
+import { button, success, loose, stopAllGameSounds } from '/src/js/game-sounds.js'
 
-import { makepuzzle, solvepuzzle, ratepuzzle } from "sudoku";
+import { makepuzzle, solvepuzzle } from "sudoku";
 
 import './Sudoku.styles.css'
 import Cell from "./Cell"
@@ -84,8 +84,6 @@ const Sudoku = () => {
     const cursorRef = useRef(cursor);
 
     const [allFilled, setAllFilled] = useState(0);
-
-    let eventHandler = null;
 
     // Board output paiting
 

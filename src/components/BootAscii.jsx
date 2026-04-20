@@ -112,7 +112,7 @@ const BootAscii = ({ onDone, durationMs = DEFAULT_DURATION_MS, modelUrl = '' }) 
       effect.domElement.style.display = 'block';
       container.appendChild(effect.domElement);
     } else {
-      renderer.setClearColor(themeBg || '#000000', 1);
+      renderer.setClearColor(bootBackground, 1);
       renderer.domElement.style.width = '100%';
       renderer.domElement.style.height = '100%';
       renderer.domElement.style.display = 'block';
@@ -169,7 +169,7 @@ const BootAscii = ({ onDone, durationMs = DEFAULT_DURATION_MS, modelUrl = '' }) 
         camera.lookAt(0, 0, 0);
       };
 
-      const useGeometry = (geometry) => {
+      const applyGeometry = (geometry) => {
         if (mesh) {
           scene.remove(mesh);
           mesh.geometry.dispose();
@@ -191,18 +191,18 @@ const BootAscii = ({ onDone, durationMs = DEFAULT_DURATION_MS, modelUrl = '' }) 
           modelUrl,
           (geometry) => {
             stopStl({ ok: true });
-            useGeometry(geometry);
+            applyGeometry(geometry);
           },
           undefined,
           () => {
             stopStl({ ok: false });
             const fallback = new THREE.TorusKnotGeometry(28, 9, 120, 16);
-            useGeometry(fallback);
+            applyGeometry(fallback);
           }
         );
       } else {
         const fallback = new THREE.TorusKnotGeometry(28, 9, 120, 16);
-        useGeometry(fallback);
+        applyGeometry(fallback);
       }
 
       let rafId = null;

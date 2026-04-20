@@ -1,9 +1,7 @@
 import { useState, useEffect} from "react"
 import { useNavigate } from "react-router-dom"
 
-import { fill_async, pause } from '/src/js/game-output-handling.js'
-import say from '/src/js/game-speak.js'
-import { button, click } from '/src/js/game-sounds.js'
+import { button } from '/src/js/game-sounds.js'
 
 import './Pacman.styles.css'
 

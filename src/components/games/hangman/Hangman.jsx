@@ -102,7 +102,7 @@ const Hangman = () => {
 
    const [winningMessage, setWinningMessage] = useState(null)
    const [word, setWord] = useState(null);
-   const [maxTurns, setMaxTurns] = useState(6);
+   const maxTurns = 6;
    const [currentTurn, setCurrentTurn] = useState(0);
    const [wrongLetters, setWrongLetters] = useState(0);
    const [wordSolution, setWordSolution] = useState(null);

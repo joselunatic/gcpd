@@ -1,9 +1,56 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const spaHistoryFallback = () => {
+  const attach = (middlewares) => {
+    middlewares.use((req, _res, next) => {
+      if (!req.url || req.method !== 'GET') {
+        next();
+        return;
+      }
+
+      const [pathname] = req.url.split('?');
+      const isAssetRequest = /\.[a-z0-9]+$/i.test(pathname);
+      const isInternalRequest =
+        pathname.startsWith('/api') ||
+        pathname.startsWith('/@') ||
+        pathname.startsWith('/src/') ||
+        pathname.startsWith('/node_modules/') ||
+        pathname.startsWith('/assets/') ||
+        pathname.startsWith('/icons/') ||
+        pathname.startsWith('/public/');
+
+      if (isAssetRequest || isInternalRequest) {
+        next();
+        return;
+      }
+
+      const accepts = req.headers.accept || '';
+      if (accepts.includes('text/html')) {
+        next();
+        return;
+      }
+
+      req.headers.accept = accepts ? `${accepts}, text/html` : 'text/html';
+      req.url = '/index.html';
+      next();
+    });
+  };
+
+  return {
+    name: 'gcpd-spa-history-fallback',
+    configureServer(server) {
+      attach(server.middlewares);
+    },
+    configurePreviewServer(server) {
+      attach(server.middlewares);
+    },
+  };
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [spaHistoryFallback(), react()],
   resolve: {
     dedupe: ['react', 'react-dom'],
   },

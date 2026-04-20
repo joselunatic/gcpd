@@ -15,7 +15,7 @@ function say(text, pitch = 0.6, rate = 0.6) {
   }
 
   function setSpeech() {
-    return new Promise(function (resolve, reject) {
+    return new Promise(function (resolve) {
       let synth = window.speechSynthesis;
       let id;
 

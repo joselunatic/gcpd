@@ -17,7 +17,8 @@ async function type(
   } = {},
   container = document.querySelector(".game-container")
 ) {
-  return new Promise(async (resolve) => {
+  return new Promise((resolve) => {
+    const run = async () => {
     //console.log("Type");
     if (interval) {
       clearInterval(interval);
@@ -94,6 +95,9 @@ async function type(
         resolve();
       }
     }, wait);
+    };
+
+    run();
   });
 }
 

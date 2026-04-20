@@ -1,10 +1,16 @@
-# GCPD Auxiliary Terminal – Functional Blueprint
+# GCPD Brother Eye Auxiliary Terminal – Functional Blueprint
 
 ## 1. Objetivos y restricciones
-- Mantener la experiencia “mainframe” secuencial (marcador → login → consola) pero remapeada al contexto GCPD usando equipo heredado de Batman.
+- Mantener la experiencia “mainframe” secuencial (marcador → login → consola) pero remapeada al contexto GCPD usando un prototipo antiguo de Brother Eye heredado de Batman.
 - Separar claramente lo que ve el jugador/agente de los controles y spoilers del DM.
 - Permitir que el contenido narrativo (casos, eventos, mensajes) se cargue como módulos configurables sin tocar código.
 - Facilitar cambios de skin más adelante (soporte de temas, assets intercambiables) sin reescribir la lógica base.
+
+Marco diegético:
+
+- El terminal no es un ordenador comercial retro genérico.
+- En ficción es una estación auxiliar Wayne/GCPD montada sobre hardware de pruebas y subsistemas fragmentados de Batman.
+- La interfaz debe sentirse vieja, parcial, inquietante y utilitaria, no pulida ni corporativa.
 
 ## 2. Roles y flujos
 - **Agente GCPD (jugador)**  

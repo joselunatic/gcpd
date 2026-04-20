@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import '../../css/Terminal.styles.css'
 import '../../js/terminal.js'

@@ -1,165 +1,126 @@
-# WOPR (Joshua) War Games CRT Terminal and Game Hub.
+# GCPD Brother Eye Auxiliary Terminal
 
-USE GOOGLE CHROME AND TURN UP THE SOUND VOLUME FOR THE BEST EXPERIENCE!!!
+Webapp diegética para una partida de rol ambientada en los cómics **Gotham Central**. La aplicación presenta un terminal antiguo, heredado de Batman, interpretado en ficción como un **prototipo temprano de Brother Eye** reutilizado por la GCPD para consultar casos, nodos de ciudad, villanos y estado operativo de campaña.
 
-The aim was to develop a game hub for playing Tic Tac Toe, Hangman and Sudoku. Whenver I think about Tic Tac Toe I remember the movie "War Games" that was released in 1983 when I was a you boy becoming a computer and tech enthusiast. All three games are design wise and grafically very simple. 
-The end result is an interactive old CRT style terminal where the user can play games, execute commands and ask questions which are either answered with pre-defined sentences or with answers from Chat GPT. The interaction is supported with old CRT monitor style animations, sounds and a synthezied computer voice.
+La experiencia está dividida en dos superficies:
 
-![Terminal example](https://github.com/alainfurter/woprcrt-terminal/assets/3966775/a1d0bbb3-d03b-400d-961c-11209d2327c7)
+- **Terminal de agente**: interfaz CRT secuencial para los jugadores.
+- **Panel de DM**: panel privado para editar contenido, desbloqueos y estado global.
 
+## Estado actual
 
-## Design Ideas and Flow of User Interactions
+El repositorio está operativo a nivel de entorno local:
 
-War Games Movie:
-In the movie WOPR (Joshua) is a game computer developed by Prof. Falken and named after his son Joshua. The uniqueness of this game computer was that it could learn from its own mistake. WOPR was then used by the military to simulate scenarios for World War III. 
-In the movie a young college student, David, hacks into WOPR using an old login (backdoor) left by Falken. Not knowing that WOPR is now part of the norad military defence program, he starts the game "Global Thermonuclear War". The game computer simulates World War III on the real systems of Norad and with real nuclear war heads it is connected to. He manages to stop WOPR when he plays Tic Tac Toe against himself learning that the game does no make any sense as there are no winners. And the only winning move is not to play because winning is the game computers primary goal. When he learns that Tic Tac Toe does not make any sense he tries every scenario of the Global Nuclear War simulation coming to the same conlusion and stops playing. The movie ends. Peace.
+- `npm install` completo
+- `npm run build` validado
+- `server/index.js` validado localmente con respuesta `200` en `GET /api/cases-data`
 
-<table>
-  <tr>
-    <td><img src="/public/assets/screenshots/wg1.jpg" alt="War Games" width:350 height=280 /></td>
-    <td><img src="/public/assets/screenshots/wg2.jpg" alt="War Games" width:350 height=280 /></td>
-  </tr>
-   <tr>
-    <td><img src="/public/assets/screenshots/home.png" alt="War Games" width:300 height=250 /></td>
-     <td><img src="/public/assets/screenshots/imsai.jpg" alt="War Games" width:300 height=250 /></td>
-  </tr>
-  <tr>
-    <td><img src="/public/assets/screenshots/ttt.jpg" alt="War Games" width:300 height=250 /></td>
-     <td><img src="/public/assets/screenshots/hello.png" alt="War Games" width:300 height=250 /></td>
-  </tr>
- </table>
+Queda deuda de código previa en `npm run lint`; no es un problema de setup sino del código actual heredado. El detalle está documentado en [docs/repo-current-state.md](C:/Repos/gcpd/docs/repo-current-state.md).
 
-Remembering this with a touch of nostalgia, I decided to develop an old CRT style terminal similar to the one David had at his home when he connects to WOPR and interacts with it. He used an IMSAI 8080. So the monitor and cpu base were designed accordingly. In the movie WOPR speaks with a synthezized voice, I wanted to have the player of my terminal to have a similar experience. I used the Voice 'Zarvox' with a lower pitch that is present on Google Chrome and Safari as a synthetic voice out of around 140 voices. The terminal had to have some old CRT screen effects like scanlines, blue / back color text and background with blurred letters and some skew animation that distorts the screen frequently. When the user types the letters should show up with a delay one by one simulating the low processing power at the time. The retro sounds of the keyboard click also adds to the old CRT experience.
+## Concepto diegético
 
-Design flow and terminal screens:
-1. Dialer screen: When the web application is loaded the users sees the IMSAI monitor and cpu base. The monitor shows the dialer screen similar to the movie War Games. David let his computer call all numbers with certain area codes and to detect if a modem picks up on the other side search for the game computer of Protovision (at the end we connects to WOPR). When the user clicks a button or with the mouse, the terminal starts dialing WOPR's phone number. The dialing process is accompanied with old modem sounds and animated with a few network screens like in the movie until finally the logon screen shows up.
+En ficción, el terminal representa una estación auxiliar Wayne/GCPD conectada a subsistemas heredados de la Batfamilia:
 
-<img src="/public/assets/screenshots/dialer.png" alt="Dialer Screen" width:200px />
+- líneas muertas o latentes de la Batcueva
+- fail-safes y nodos de contingencia
+- expedientes de casos de Gotham
+- POIs y zonas sensibles
+- galería de villanos
+- estado de campaña controlado por el DM
 
-2. Logon screen: When the logon screens shows up, the user is asked for the logon. Only one word allows to pass. The same logon as in the movie. There is a hint (link) on the webpage what the logon is. After the user types in the correct logon he is welcomed by WOPR with background sound and hears his synthezized voice for the first time
-.
-<img src="/public/assets/screenshots/logon.png" alt="Logon Screen" width:200px />
+No pretende ser una consola realista de operaciones policiales modernas, sino una interfaz narrativa: vieja, fragmentaria, inquietante y parcialmente improvisada sobre tecnología de Batman.
 
-https://youtu.be/q14OTYVKMWc
+## Stack
 
-3. Game screen: when WOPR welcomes the user he asks him if he wants to play a game out of the list. Answering with 'Y' and selecting a game afterwards loads it in order to play. Exiting the game returns to the main screen, see below.
+| Capa | Tecnología |
+|---|---|
+| Frontend shell | React 18 + React Router + Vite |
+| Motor del terminal | JS imperativo en `public/utils` y `public/commands` |
+| Backend | Express 5 |
+| Base de datos | SQLite + `better-sqlite3` |
+| Autenticación DM | sesiones persistidas en SQLite + `bcryptjs` |
+| PWA | `manifest.webmanifest` + `public/sw.js` |
 
-<img src="/public/assets/screenshots/games.png" alt="Games List Screen" width:200px />
+## Estructura del proyecto
 
-4. Main screen: when the user anser 'N' (don't want to play a game) he reaches the main screen. Here he can interact with WOPR in different ways. WOPR explains him that he can ask for help to get a list of available commands. There are three different modes the user can interact with WOPR:
-    4.1 Typing in a one letter word. The terminal looks through the dynamic javascript modules. If there is a module with the name of the commands, the module gets loaded dynamically. Each module must return and export either an OUTPUT value (shown as text on the terminal screen) or a default function which is executed (for more sophisticated and interactive commands) or both. As the command js modules are dynamically loaded, further commands could be added in the future. The web app is quite dynamic. The functions are mostly executed in async mode with the following command waiting until the promise of the previous command is resolved. The currently available commands are: 
-        'CLEAR': deletes the text on the terminal screen
-        'MAP': opens the Gotham district/POI overlay
-        'MODULES': displays Knightfall case files
-        'VILLAINS': opens the Rogue's Gallery profiles
-        'HELLO': WOPR says hello
-        'HELP': showhs the available list of commands
-        'LOGOUT': logs the user out and returns to the login screen
-        'MATRIX': answer with a matrix move like statement
-    4.2 Typing in 3 or more words. When the user types in 3 or more words a special command is loaded and given the word list as parameter (__sentences). This module interprets the user input as a sentence, question. 
-        First it tries to match the words with a list of pre-defined questions and if succefull shows the answer. F.e. when the user types a sentence containing the words 'JOE' and 'BIDEN', the module finds a corresponding entry and shows the predefined answer.
-        If there is no match in the list, the module connects to the Chat GPT API and asks Chat GPI for an answer. If successful, the answer is shown to the user and spoken out by the synthezied voice. This results in an interative conversation between WOPR and the user which is quite impressive. 
-The flow through the screens is recorded in the localstorage of the browser. This way, after having loggin in, the users goes directly to the last screen when he returns to the webpage or reloads. The value of the saved screen can be reset with the button 'RESET', 'EXT. CLR' on the cpu base. By doing that, the interaction starts again on teh dialer screen. The screen flow and corresponding values stored are like this:
-(E)                     (E)      (E)           (E)
-Dialer -> Connecting -> Logon -> Games -> main,main-with-info
-Wheres only the ones with E are accessible when the user returns and the last screen is loaded according to the value saved in localstorage.
+| Ruta | Uso |
+|---|---|
+| `src/App.jsx` | Router principal |
+| `src/components/IMSAI*` | carcasa visual del terminal |
+| `src/components/DmPanel.jsx` | panel de DM |
+| `src/js/terminal.js` | bridge entre React y el motor del terminal |
+| `public/commands` | comandos del terminal |
+| `public/utils` | estado, navegación, render y touch |
+| `public/data/cases` | manifiesto y casos |
+| `public/data/map` | POIs |
+| `public/data/villains` | galería de villanos |
+| `server/index.js` | API, auth, seed y persistencia |
+| `scripts/*.mjs` | importadores de contenido vía API |
+| `schema.sql` | esquema base de SQLite |
 
-IMSAI CPU Base
-1. The 'RESET', 'EXT CLR' button on the right allows the user to delete the value of the last screen stored in localstorage and therefore to start from scratch on the dialer screen.
-2. The 'RUN', 'STOP' button turns the computer on and off.
-3. All other buttons: try to find out :-)
+## Flujo de la aplicación
 
-In case of any suggestions, questions or if you want to add games, please contact me (check socials on the webpage).
+### Jugador
 
-<img src="/public/assets/screenshots/question.png" alt="Question for WOPR" width:200px />
+1. Arranca el terminal CRT.
+2. Navega por el dialer y el login.
+3. Accede al loop principal.
+4. Consulta comandos como `HELP`, `CASES`, `CASE <id>`, `MAP`, `VILLAINS`, `STATUS`, `SUMMARY`.
+5. Interactúa con minijuegos o utilidades narrativas según el caso.
 
-Games:
-The games can be either played with the keyboard or the mouse. Keyboard: the user types in the numbers of the cells (Tic Tac Toe), moves the cursor to the cell and changes the number (Sudoku) or types in the letter of the word (hangman). To exit the game, he can press the 'ESC' key and 'BACKSPACE' to restart the game.
-Tic-Tac-Toe: the user plays againt the WOPR AI (minimax algorithm). Who starts is choosen randomly.
-Sudoku: the game has an integrated solver which shows the solution if required.
-Hangman: just like any other version
-Global Thermonuclear War: is not really a game, integrated just for fun. The US always looses.
+### DM
 
-<p float="left">
-    <img src="/public/assets/screenshots/tictactoe.png" alt="Tic Tac Toe" width:200px />
-    <img src="/public/assets/screenshots/hangman.png" alt="Hangman" width:200px />
-</p>
-<p float="left">
-    <img src="/public/assets/screenshots/sudoku.png" alt="Sudoku" width:200px />
-    <img src="/public/assets/screenshots/gtw.png" alt="Global Thermonuclear War" width:200px />
-</p>
+1. Entra en `/dm`.
+2. Se autentica contra la API.
+3. Crea o edita casos, POIs y villanos.
+4. Modifica flags, alert level, desbloqueos y caso activo.
 
-## Getting Started
+## Comandos de desarrollo
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
-
-### Prerequisites
-
-What things you need to install the software
-
-```
-- VSCode or other editor for development
-- Command line tool 
-- NodeJS installation (>= version 16)
+```bash
+npm install
+npm run dev
+npm run server
+npm run build
+npm run lint
 ```
 
-### Installing
+## Variables de entorno útiles
 
-Steps to get a development env running
+El backend usa estas variables:
 
+```bash
+PORT=4000
+DM_DEFAULT_PASSWORD=brother
+DM_BACKDOOR_PASSWORD=1234
+DM_SESSION_DURATION_MS=21600000
 ```
-- Go the main folder of the project.
-- Install the nodes module according to package.json, 'npm i'.
-- Run the development environment, 'npm run dev'.
-- Check the link in the browser in the output.
-- Copy and paste the link into your browser (Google Chrome works best).
-```
 
-## Deployment
+Si no se define `DM_DEFAULT_PASSWORD`, el servidor inicializa la contraseña del panel DM con `brother`.
 
-- Type 'npm run build' to get the package under the 'dist' folder that can be hosted as a static website.
+## Datos y persistencia
 
-## Database Schema
+- La fuente de verdad del esquema es [schema.sql](C:/Repos/gcpd/schema.sql).
+- La base SQLite vive en `server/batconsole.db`.
+- Si la BD está vacía, el servidor hace seed desde:
+  - `public/data/cases/cases.json`
+  - `public/data/map/pois.json`
+  - `public/data/villains/gallery.json`
 
-The SQLite schema is documented in `schema.sql` (source of truth for `server/batconsole.db`).
+## Documentación interna
 
-## Built With
+- [docs/repo-current-state.md](C:/Repos/gcpd/docs/repo-current-state.md): mapa técnico y riesgos actuales.
+- [docs/gcpd-functional-plan.md](C:/Repos/gcpd/docs/gcpd-functional-plan.md): blueprint funcional.
+- [docs/db-schema.md](C:/Repos/gcpd/docs/db-schema.md): resumen del esquema SQLite.
+- [docs/TOUCH-MOBILE-STATE.md](C:/Repos/gcpd/docs/TOUCH-MOBILE-STATE.md): estado del flujo touch/mobile.
 
-While developing this web app I did a lot of research and the following publications helped me a lot. Thanks to all of them.
+## Próximo trabajo recomendado
 
-* [VSCode](https://code.visualstudio.com) - Code editor
-* [VITE](https://vitejs.dev) - Development environment. Configuration: React and Javascript
-* [NodeJS](https://nodejs.org/) - Open source javascript runtine environment
+1. Reducir la deuda de `eslint`.
+2. Revisar manualmente flujo de terminal, `/dm` y persistencia de campaña.
+3. Partir `server/index.js`, `DmPanel.jsx` y `public/utils/screens.js` en módulos más pequeños.
+4. Añadir smoke tests y validación básica en CI antes de nuevas features grandes.
 
-## Authors
+## Licencia
 
-* [Alain Furter](https://github.com/alainfurter)
-
-## License
-
-This project is licensed under the Attribution-NonCommercial-ShareAlike 4.0 International - see the [LICENSE](LICENSE) file for details
-
-## Acknowledgments / Credits
-
-While developing this web app I did a lot of research and the following publications helped me a lot. Thanks to all of them.
-
-* Screen turn on / off effects: 
-https://codepen.io/lbebber/pen/XJRdrV
-* Old PC design: 
-https://codepen.io/DalonsoAG/pen/oGzQyo 
-https://codepen.io/deluxive/details/AZeBjz
-* WOPR font 
-https://fontstruct.com/fontstructions/show/1854233/wopr-terminal-1
-* Sounds 
-https://github.com/zompiexx/wargames
-* Texts 
-https://github.com/abs0/wargames
-https://github.com/built1n/wargames
-https://github.com/BlckChainDev/WarGames
-https://github.com/Gravy59/WOPR-Console
-* Switch design
-https://codepen.io/pluton/pen/DWwBpr
-
-
-
-
+Este proyecto mantiene la licencia definida en [LICENSE](C:/Repos/gcpd/LICENSE).

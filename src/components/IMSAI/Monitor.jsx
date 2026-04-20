@@ -63,10 +63,6 @@ const Monitor = ({on, reset, bootActive = false, onBootDone}) => {
                             )}
                             <Routes>
                                 <Route
-                                    index
-                                    element={<Terminal reset={reset} on={on} bootReady={!bootActive} />}>
-                                </Route>
-                                <Route
                                     path='/tic-tac-toe/*'
                                     element={<TicTacToe />}>
                                 </Route>
@@ -85,6 +81,10 @@ const Monitor = ({on, reset, bootActive = false, onBootDone}) => {
                                 <Route
                                     path='/pacman/*'
                                     element={<Pacman />}>
+                                </Route>
+                                <Route
+                                    path='*'
+                                    element={<Terminal reset={reset} on={on} bootReady={!bootActive} />}>
                                 </Route>
                             </Routes>
                             {/* <Terminal /> */}

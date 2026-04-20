@@ -104,7 +104,9 @@ const Base = ({on, setOn, setReset }) => {
                 } else {
                     try {
                         localStorage.setItem('tuiPalette', palette);
-                    } catch (e) {}
+                    } catch (e) {
+                        console.debug('Storage unavailable for tuiPalette', e);
+                    }
                     const terminalContainer = document.getElementById('terminal-container');
                     if (terminalContainer) {
                         terminalContainer.classList.toggle(
@@ -242,7 +244,7 @@ const Base = ({on, setOn, setReset }) => {
         return (
             <label key={index}  className='checkboxControl right-part'>
                 <input type='checkbox' defaultChecked={defaultChecked} onClick={handleSwitch} id={index} className='checkbox right-part'/>
-                <div className={(index % 2 == 0) ? 'blue-button' : 'red-button'}></div>
+                <div className={(index % 2 === 0) ? 'blue-button' : 'red-button'}></div>
                 <span className={`indicator down ${passiveDown?'passive':''}`}></span>
             </label>
         );
@@ -274,7 +276,9 @@ const Base = ({on, setOn, setReset }) => {
             } else {
                 try {
                     localStorage.setItem('tuiPalette', palette);
-                } catch (e) {}
+                } catch (e) {
+                    console.debug('Storage unavailable for tuiPalette', e);
+                }
                 const terminalContainer = document.getElementById('terminal-container');
                 if (terminalContainer) {
                     terminalContainer.classList.toggle(

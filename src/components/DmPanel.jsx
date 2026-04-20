@@ -171,23 +171,11 @@ const NODE_TYPE_OPTIONS = [
   { value: 'leaf', label: 'Hoja (solo info)' },
 ];
 
-const CATEGORY_OPTIONS = {
-  cases: [{ value: 'cases', label: 'Casos' }],
-  pois: [{ value: 'map', label: 'Mapa' }],
-  villains: [{ value: 'villains', label: 'Villanos' }],
-};
-
-const MODE_OPTIONS = [
-  { value: 'operation', label: 'Modo operativo' },
-  { value: 'authoring', label: 'Modo autoria' },
-];
-
 const STORAGE_KEYS = {
   mode: 'dmPanelMode',
   activeView: 'dmPanelActiveView',
   selections: 'dmPanelSelections',
   preview: 'dmPanelPreview',
-  selector: 'dmPanelSelector',
   help: 'dmPanelHelp',
   tree: 'dmPanelTree',
 };
@@ -208,6 +196,14 @@ const readJsonStorage = (key, fallback) => {
     return JSON.parse(value);
   } catch (error) {
     return fallback;
+  }
+};
+
+const persistStorage = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    console.debug(`Storage unavailable for ${key}`, error);
   }
 };
 
@@ -554,17 +550,6 @@ const buildNavigationTree = (items, scope = 'cases') => {
   return build();
 };
 
-const getNodeStatusVariant = (item) => {
-  const visibility = item?.unlockConditions?.visibility || 'listed';
-  if (visibility === 'hidden') return 'hidden';
-  const unlockMode = item?.unlockConditions?.unlockMode || 'none';
-  const initialStatus = item?.unlockConditions?.initialAccessStatus || 'locked';
-  if (unlockMode !== 'none' && initialStatus !== 'unlocked') {
-    return 'locked';
-  }
-  return 'active';
-};
-
 const DmPanel = () => {
   const [passwordInput, setPasswordInput] = useState('');
   const [authorized, setAuthorized] = useState(false);
@@ -577,20 +562,13 @@ const DmPanel = () => {
   const [activeView, setActiveView] = useState(
     () => readStorage(STORAGE_KEYS.activeView, 'cases')
   );
-  const [editorMode, setEditorMode] = useState(
-    () => readStorage(STORAGE_KEYS.mode, 'operation')
-  );
+  const [editorMode] = useState(() => readStorage(STORAGE_KEYS.mode, 'operation'));
   const [openSections, setOpenSections] = useState({});
   const [previewByView, setPreviewByView] = useState(
     () => readJsonStorage(STORAGE_KEYS.preview, {})
   );
   const [advancedByView, setAdvancedByView] = useState({});
-  const [selectorByView, setSelectorByView] = useState(
-    () => readJsonStorage(STORAGE_KEYS.selector, {})
-  );
-  const [helpMode, setHelpMode] = useState(
-    () => readStorage(STORAGE_KEYS.help, 'off') === 'on'
-  );
+  const [helpMode] = useState(() => readStorage(STORAGE_KEYS.help, 'off') === 'on');
   const [viewportWidth, setViewportWidth] = useState(
     () => (typeof window !== 'undefined' ? window.innerWidth : 1280)
   );
@@ -700,10 +678,7 @@ const DmPanel = () => {
   const [tracerHotspotForm, setTracerHotspotForm] = useState(initialTracerHotspotForm);
   const [tracerLoading, setTracerLoading] = useState(false);
   const [tracerMessage, setTracerMessage] = useState('');
-  const [tracerWsState, setTracerWsState] = useState('offline');
-  const [tracerLiveCalls, setTracerLiveCalls] = useState([]);
   const [tracerMapExpanded, setTracerMapExpanded] = useState(false);
-  const tracerSocketRef = useRef(null);
   const evidencePreviewRef = useRef(null);
   const evidenceViewerRef = useRef(null);
   const evidenceMeshRef = useRef(null);
@@ -761,16 +736,6 @@ const DmPanel = () => {
   const [treeState, setTreeState] = useState(
     () => readJsonStorage(STORAGE_KEYS.tree, { cases: {}, pois: {}, villains: {} })
   );
-
-  const toggleTreeNode = useCallback((scope, nodeId) => {
-    setTreeState((prev) => ({
-      ...prev,
-      [scope]: {
-        ...prev[scope],
-        [nodeId]: !(prev[scope]?.[nodeId] ?? true),
-      },
-    }));
-  }, []);
 
   const caseParentOptions = useMemo(
     () =>
@@ -1394,7 +1359,9 @@ const DmPanel = () => {
         method: 'POST',
         headers: { Authorization: `Bearer ${sessionToken}` },
       });
-    } catch (error) {}
+    } catch (error) {
+      console.debug('Logout cleanup failed', error);
+    }
     persistToken('');
     setAuthorized(false);
     setSessionInfo(null);
@@ -1837,7 +1804,6 @@ const DmPanel = () => {
   const buildPoiCroppedBlob = useCallback(async () => {
     if (!poiImagePreview || !cropFrameRef.current || !cropImageRef.current) return null;
     const img = cropImageRef.current;
-    const frame = cropFrameRef.current.getBoundingClientRect();
     const canvas = document.createElement('canvas');
     const targetW = 720;
     const targetH = Math.round(targetW / POI_IMAGE_ASPECT);
@@ -2086,45 +2052,27 @@ const DmPanel = () => {
   };
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.activeView, activeView);
-    } catch (error) {}
+    persistStorage(STORAGE_KEYS.activeView, activeView);
   }, [activeView]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.mode, editorMode);
-    } catch (error) {}
+    persistStorage(STORAGE_KEYS.mode, editorMode);
   }, [editorMode]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.preview, JSON.stringify(previewByView));
-    } catch (error) {}
+    persistStorage(STORAGE_KEYS.preview, JSON.stringify(previewByView));
   }, [previewByView]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.selector, JSON.stringify(selectorByView));
-    } catch (error) {}
-  }, [selectorByView]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.help, helpMode ? 'on' : 'off');
-    } catch (error) {}
+    persistStorage(STORAGE_KEYS.help, helpMode ? 'on' : 'off');
   }, [helpMode]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.selections, JSON.stringify(selectionState));
-    } catch (error) {}
+    persistStorage(STORAGE_KEYS.selections, JSON.stringify(selectionState));
   }, [selectionState]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.tree, JSON.stringify(treeState));
-    } catch (error) {}
+    persistStorage(STORAGE_KEYS.tree, JSON.stringify(treeState));
   }, [treeState]);
 
   useEffect(() => {
@@ -2134,18 +2082,11 @@ const DmPanel = () => {
   }, []);
 
   const getDefaultPreviewOpen = () => viewportWidth >= 980;
-  const getDefaultSelectorOpen = () => viewportWidth >= 640;
-
   const previewOpen = previewByView[activeView] ?? getDefaultPreviewOpen();
-  const selectorOpen = selectorByView[activeView] ?? getDefaultSelectorOpen();
   const advancedOpen = advancedByView[activeView] ?? false;
 
   const togglePreview = () => {
     setPreviewByView((prev) => ({ ...prev, [activeView]: !previewOpen }));
-  };
-
-  const toggleSelector = () => {
-    setSelectorByView((prev) => ({ ...prev, [activeView]: !selectorOpen }));
   };
 
   const toggleAdvanced = () => {
@@ -3038,92 +2979,6 @@ const DmPanel = () => {
   }, [authorized, activeView, loadTracerConfig]);
 
   useEffect(() => {
-    if (!authorized || !sessionToken) {
-      if (tracerSocketRef.current) {
-        tracerSocketRef.current.close(1000, 'logout');
-        tracerSocketRef.current = null;
-      }
-      setTracerWsState('offline');
-      setTracerLiveCalls([]);
-      return;
-    }
-
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${protocol}://${window.location.host}/ws/tracer?role=dm&token=${encodeURIComponent(
-      sessionToken
-    )}`;
-    const socket = new WebSocket(wsUrl);
-    tracerSocketRef.current = socket;
-    setTracerWsState('connecting');
-
-    socket.onopen = () => {
-      setTracerWsState('online');
-    };
-
-    socket.onclose = () => {
-      if (tracerSocketRef.current === socket) {
-        tracerSocketRef.current = null;
-      }
-      setTracerWsState('offline');
-    };
-
-    socket.onerror = () => {
-      setTracerWsState('error');
-    };
-
-    socket.onmessage = (event) => {
-      let payload;
-      try {
-        payload = JSON.parse(String(event.data || '{}'));
-      } catch (error) {
-        return;
-      }
-      if (payload.type === 'tracer:snapshot') {
-        const calls = Array.isArray(payload.calls) ? payload.calls : [];
-        setTracerLiveCalls(calls);
-        return;
-      }
-      if (payload.type === 'tracer:incoming') {
-        const call = payload.call;
-        if (!call?.callId) return;
-        setTracerLiveCalls((prev) => [
-          { ...call, state: 'incoming' },
-          ...prev.filter((entry) => entry.callId !== call.callId),
-        ]);
-        return;
-      }
-      if (payload.type === 'tracer:answered') {
-        const callId = payload.callId;
-        if (!callId) return;
-        setTracerLiveCalls((prev) =>
-          prev.map((entry) =>
-            entry.callId === callId
-              ? { ...entry, state: 'answered', answeredAt: payload.answeredAt || Date.now() }
-              : entry
-          )
-        );
-        return;
-      }
-      if (payload.type === 'tracer:ended') {
-        const callId = payload.callId;
-        if (!callId) return;
-        setTracerLiveCalls((prev) => prev.filter((entry) => entry.callId !== callId));
-        return;
-      }
-      if (payload.type === 'tracer:error' && payload.message) {
-        setTracerMessage(payload.message);
-      }
-    };
-
-    return () => {
-      if (tracerSocketRef.current === socket) {
-        tracerSocketRef.current = null;
-      }
-      socket.close(1000, 'cleanup');
-    };
-  }, [authorized, sessionToken]);
-
-  useEffect(() => {
     const leftCanvas = ballisticsPreviewLeftRef.current;
     const rightCanvas = ballisticsPreviewRightRef.current;
     const pngPath = ballisticsForm.pngPath?.trim();
@@ -3244,82 +3099,6 @@ const DmPanel = () => {
     }, 4200);
     return () => window.clearTimeout(timeoutId);
   }, [transientNotice?.id]);
-
-  const renderTree = (nodes, selectedId, onSelect, scope, level = 0, options = {}) => (
-    <ul className="dm-panel__tree">
-      {nodes.map(({ item, children }, index) => {
-        const hasChildren = children.length > 0;
-        const expanded = treeState[scope]?.[item.id] ?? true;
-        const updated = isRecentlyUpdated(item.updatedAt);
-        const isCaseTree = scope === 'cases';
-        const isRoot = level === 0;
-        const isDraftNode = item.id === '__draft__';
-        const nodeLabel = isDraftNode
-          ? `${getNodeLabel(item)} (borrador)`
-          : getNodeLabel(item);
-        const isAncestor = options?.highlightIds?.has(item.id);
-        const isLast = index === nodes.length - 1;
-        const showToggle = hasChildren && (!isCaseTree || isRoot);
-        return (
-          <li key={item.id}>
-            <div
-              className="dm-panel__tree-row"
-              style={{ paddingLeft: `calc(var(--dm-tree-indent, 16px) * ${level})` }}
-            >
-              {showToggle ? (
-                <button
-                  type="button"
-                  className="dm-panel__tree-toggle"
-                  onClick={() => toggleTreeNode(scope, item.id)}
-                  aria-label={expanded ? 'Colapsar' : 'Expandir'}
-                >
-                  {expanded ? '▾' : '▸'}
-                </button>
-              ) : (
-                <span className="dm-panel__tree-placeholder" />
-              )}
-              <button
-                type="button"
-                className={`dm-panel__tree-node ${
-                  selectedId === item.id ? 'active' : ''
-                } ${isAncestor ? 'ancestor' : ''}`}
-                onClick={() => onSelect(item)}
-              >
-                {isCaseTree && (
-                  <span
-                    className={`dm-panel__tree-badge dm-panel__tree-badge--${
-                      isRoot ? 'root' : 'subcase'
-                    }`}
-                  >
-                    {isRoot ? 'R' : 'S'}
-                  </span>
-                )}
-                <span
-                  className={`dm-panel__tree-status wopr-tooltip-anchor dm-panel__tree-status--${getNodeStatusVariant(item)}`}
-                  data-tooltip={`Visibilidad: ${item.unlockConditions?.visibility || 'listed'}`}
-                />
-                {isCaseTree && level > 0 && (
-                  <span className="dm-panel__tree-connector">
-                    {isLast ? '└─' : '├─'}
-                  </span>
-                )}
-                {updated && <span className="dm-panel__tree-update">~</span>}
-                <span
-                  className={`dm-panel__tree-label ${
-                    isDraftNode ? 'dm-panel__tree-label--draft' : ''
-                  }`}
-                >
-                  {nodeLabel}
-                </span>
-              </button>
-            </div>
-            {hasChildren && expanded &&
-              renderTree(children, selectedId, onSelect, scope, level + 1, options)}
-          </li>
-        );
-      })}
-    </ul>
-  );
 
   const flattenTree = (nodes, level = 0, acc = []) => {
     nodes.forEach(({ item, children }) => {
@@ -3491,12 +3270,6 @@ const DmPanel = () => {
     return { label: `✓ Guardado ${formatUpdatedAt(updatedAt)}`, status: 'saved' };
   };
 
-  const isRecentlyUpdated = (timestamp) => {
-    if (!timestamp) return false;
-    const now = Date.now();
-    return now - Number(timestamp) < 1000 * 60 * 60 * 24;
-  };
-
   const caseMap = useMemo(() => {
     const map = new Map();
     cases.forEach((item) => map.set(item.id, item));
@@ -3546,17 +3319,6 @@ const DmPanel = () => {
     },
     [caseMap]
   );
-
-  const resolvePreviewAccess = (form, scope) => {
-    if (form.accessUnlockMode === 'none' || form.accessInitialStatus === 'unlocked') {
-      return { unlocked: true, reason: 'default' };
-    }
-    const unlocked = campaignSnapshot?.unlocked?.[scope] || [];
-    if (form.id && unlocked.includes(form.id)) {
-      return { unlocked: true, reason: 'campaign' };
-    }
-    return { unlocked: false, reason: 'conditions' };
-  };
 
   const buildCasePreview = () => {
     const parentId =
@@ -3647,9 +3409,9 @@ const DmPanel = () => {
                   <button
                     key={item.id}
                     type="button"
-                    className={`dm-panel__case-item wopr-tooltip-anchor ${isActive ? 'active' : ''}`}
+                    className={`dm-panel__case-item ${isActive ? 'active' : ''}`}
                     style={level ? { paddingLeft: '12px' } : undefined}
-                    data-tooltip={`${isSubcase ? '› ' : ''}${getNodeLabel(item)}`}
+                    title={`${isSubcase ? '› ' : ''}${getNodeLabel(item)}`}
                     onClick={() => {
                       setCaseDraftActive(false);
                       setSelectedCase(item);
@@ -4288,9 +4050,9 @@ const DmPanel = () => {
                   <button
                     key={item.id}
                     type="button"
-                    className={`dm-panel__case-item wopr-tooltip-anchor ${isActive ? 'active' : ''}`}
+                    className={`dm-panel__case-item ${isActive ? 'active' : ''}`}
                     style={level ? { paddingLeft: '12px' } : undefined}
-                    data-tooltip={`${isSubcase ? '› ' : ''}${getNodeLabel(item)}`}
+                    title={`${isSubcase ? '› ' : ''}${getNodeLabel(item)}`}
                     onClick={() => {
                       setSelectedVillain(item);
                       setSelection('villains', item.id);
@@ -5510,10 +5272,14 @@ const DmPanel = () => {
         <div className="dm-panel__tracer-head">
           <div className="dm-panel__panel-title">Lineas DM y hotspots de traza</div>
           <p className="dm-panel__hint">
-            {tracerLines.length} lineas DM / {tracerHotspots.length} hotspots / operador{' '}
-            {tracerWsState.toUpperCase()}
+            {tracerLines.length} lineas DM / {tracerHotspots.length} hotspots / operador en vivo
+            {' '}delegado a <code>/phone</code>
           </p>
         </div>
+        <p className="dm-panel__hint">
+          Este panel configura y monitoriza TRACER. La atencion de llamadas en vivo se realiza
+          desde <code>/phone</code>.
+        </p>
         {tracerLoading && <p className="dm-panel__hint">Cargando tracer...</p>}
         {!tracerLoading && !tracerLines.length && (
           <p className="dm-panel__hint">Sin lineas tracer. Crea una linea y asignale hotspot.</p>
@@ -5954,7 +5720,7 @@ const DmPanel = () => {
             <h1>DM Control / Brother-MK0</h1>
           </div>
           {!authorized ? (
-            <form onSubmit={handleAuthorize} className="dm-panel__card">
+            <form onSubmit={handleAuthorize} className="dm-panel__card dm-panel__card--auth">
               <label>
                 Introduce la contraseña de operador:
                 <input
@@ -5965,7 +5731,7 @@ const DmPanel = () => {
                 />
               </label>
               {authError && <p className="dm-panel__error">{authError}</p>}
-              <button type="submit" disabled={authLoading}>
+              <button type="submit" className="dm-panel__primary" disabled={authLoading}>
                 {authLoading ? 'Verificando...' : 'Desbloquear panel'}
               </button>
               <p className="dm-panel__hint">

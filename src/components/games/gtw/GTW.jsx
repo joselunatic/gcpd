@@ -5,7 +5,7 @@ let sirenSound = new Audio("/assets/sounds/siren.mp3");
 let explosionSound = new Audio("/assets/sounds/explosion.mp3");
 
 import { fill_async, delay } from '/src/js/game-output-handling.js'
-import { button, success, loose, blip, mistake, stopAllGameSounds } from '/src/js/game-sounds.js'
+import { blip } from '/src/js/game-sounds.js'
 import './GTW.styles.css'
 
 const world_maps = [

@@ -24,7 +24,9 @@ function setTuiPalette(palette = "") {
   }
   try {
     localStorage.setItem("tuiPalette", next);
-  } catch (e) {}
+  } catch (e) {
+    console.debug("Storage unavailable for tuiPalette", e);
+  }
   window.dispatchEvent(
     new CustomEvent("wopr-theme-change", { detail: { palette: next } })
   );
@@ -37,7 +39,9 @@ try {
   if (storedPalette) {
     setTuiPalette(storedPalette);
   }
-} catch (e) {}
+} catch (e) {
+  console.debug("Storage unavailable for tuiPalette", e);
+}
 
 window.addEventListener("playwoprsound", (event) => {
   console.log("Terminal event listener playwoprsound: ", event);
@@ -92,34 +96,6 @@ async function main_with_info() {
   if (module) {
     console.log("[Terminal]", new Date().toISOString(), "main_with_info()");
     module.main_with_info();
-  }
-}
-
-async function main() {
-  const module = await import(
-    `${import.meta.env.BASE_URL}utils/screens.js` /* @vite-ignore */
-  );
-  if (module) {
-    console.log("[Terminal]", new Date().toISOString(), "main()");
-    module.main();
-  }
-}
-
-async function type(...args) {
-  const module = await import(
-    `${import.meta.env.BASE_URL}utils/io.js` /* @vite-ignore */
-  );
-  if (module) {
-    module.type(args);
-  }
-}
-
-async function parse(...args) {
-  const module = await import(
-    `${import.meta.env.BASE_URL}utils/io.js` /* @vite-ignore */
-  );
-  if (module) {
-    module.parse(args);
   }
 }
 
@@ -202,44 +178,7 @@ async function loadingTerminal() {
   }
 }
 
-function handleClick(event) {
-  if (event) {
-    event.preventDefault();
-  }
-  if (document.body.classList.contains("touch-mode")) {
-    return;
-  }
-  let input = document.querySelector("[contenteditable='true']");
-  if (input) {
-    input.focus();
-  }
-}
-
-function fly(event) {
-  event.target.classList.toggle("fly");
-}
-
-async function click() {
-  const module = await import(
-    `${import.meta.env.BASE_URL}utils/sounds.js` /* @vite-ignore */
-  );
-  if (module) {
-    module.click();
-  }
-}
-
-function theme(event) {
-  click();
-  let theme = event.target.dataset.theme;
-  [...document.getElementsByClassName("theme")].forEach((b) =>
-    b.classList.toggle("active", false)
-  );
-  event.target.classList.add("active");
-  document.body.classList = "theme-" + theme;
-  handleClick();
-}
-
-function globalListener({ keyCode }) {
+function globalListener() {
   const element = document.querySelector("#input");
   if (!element) return;
   if (document.body.classList.contains("dialer-mode")) return;
@@ -252,7 +191,6 @@ function handleSelectableKeys(event) {
   const key = event.key;
   if (key !== "ArrowUp" && key !== "ArrowDown") return;
   if (event.__woprHandled) return;
-  const input = document.querySelector("[contenteditable='true']");
   const hasSelectables = document.querySelector("[data-selectable='true']");
   if (!hasSelectables) return;
   event.preventDefault();
