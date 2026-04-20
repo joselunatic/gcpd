@@ -104,10 +104,16 @@ const escapeHtml = (value = "") =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const getPoiHierarchy = (poi = {}) => poi?.poiV2?.hierarchy || {};
+
+const getPoiGeo = (poi = {}) => poi?.poiV2?.geo || null;
+
+const getPoiContent = (poi = {}) => poi?.poiV2?.content || {};
+
 function buildHotspotsFromPois(pois = []) {
   return pois
     .map((poi) => {
-      const meta = poi?.commands?.mapMeta || {};
+      const meta = getPoiGeo(poi) || {};
       const x = Number(meta.x);
       const y = Number(meta.y);
       if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
@@ -699,10 +705,12 @@ async function showMapOverlay({ pois, hotspotsData }) {
     const status = poi.status ? String(poi.status).toUpperCase() : "UNKNOWN";
     const access = statusLabel(evaluation);
     const summary = poi.summary || "SIN RESUMEN.";
-    const imageSrc = poi.commands?.mapMeta?.image || "";
-    const details = Array.isArray(poi.details) && poi.details.length ? poi.details : ["SIN DATOS."];
-    const contacts = Array.isArray(poi.contacts) && poi.contacts.length ? poi.contacts : ["SIN DATOS."];
-    const notes = Array.isArray(poi.notes) && poi.notes.length ? poi.notes : ["SIN DATOS."];
+    const geo = getPoiGeo(poi) || {};
+    const content = getPoiContent(poi);
+    const imageSrc = geo.image || "";
+    const details = Array.isArray(content.details) && content.details.length ? content.details : ["SIN DATOS."];
+    const contacts = Array.isArray(content.contacts) && content.contacts.length ? content.contacts : ["SIN DATOS."];
+    const notes = Array.isArray(content.notes) && content.notes.length ? content.notes : ["SIN DATOS."];
     panel.querySelector(".terminal-map-panel__title").textContent =
       `SECTOR :: ${(poi.name || poi.id || "UNKNOWN").toUpperCase()}`;
     const meta = panel.querySelectorAll(".terminal-map-panel__meta div");
@@ -987,7 +995,7 @@ const statusLabel = (evaluation) => {
 
 const formatNodeLine = (node, evaluation, index, campaignState) => {
   const label = getNodeLabel(node);
-  const parentId = node.commands?.parentId || "";
+  const parentId = getPoiHierarchy(node).parentId || "";
   const isSub = parentId && parentId !== node.id;
   const line1 = {
     parts: [
@@ -1067,9 +1075,11 @@ const buildPreviewLines = (poi, evaluation, campaignState, allPois = [], breadcr
       });
     });
   }
-  if (poi.details?.length) {
+  const content = getPoiContent(poi);
+  const previewDetails = Array.isArray(content.details) ? content.details : [];
+  if (previewDetails?.length) {
     lines.push({ parts: [{ text: "FEED:", className: "tui-system" }] });
-    poi.details.slice(0, 2).forEach((entry) => {
+    previewDetails.slice(0, 2).forEach((entry) => {
       wrapLine(entry, COLUMN.right - 4).forEach((line) => {
         lines.push({
           parts: [
@@ -1118,6 +1128,10 @@ const mergeItemsWithPreview = (items, previewLines) => {
 };
 
 const renderDetails = async (poi, evaluation) => {
+  const content = getPoiContent(poi);
+  const details = Array.isArray(content.details) ? content.details : [];
+  const contacts = Array.isArray(content.contacts) ? content.contacts : [];
+  const notes = Array.isArray(content.notes) ? content.notes : [];
   const detailLine = (text) => wrapLine(text, 80);
   const lines = [
     " ",
@@ -1131,25 +1145,25 @@ const renderDetails = async (poi, evaluation) => {
   lines.push(" ");
   await type(lines, { stopBlinking: true });
 
-  if (poi.details?.length) {
+  if (details?.length) {
     await type(["INTEL"], { stopBlinking: true });
     const intelLines = [];
-    poi.details.forEach((entry) => {
+    details.forEach((entry) => {
       wrapLine(`> ${entry}`, 80).forEach((line, idx) => {
         intelLines.push(idx === 0 ? line : `  ${line}`);
       });
     });
     await type(intelLines, { stopBlinking: true });
   }
-  if (poi.contacts?.length) {
+  if (contacts?.length) {
     await type(["CONTACTOS"], { stopBlinking: true });
-    await type(poi.contacts.map((entry) => `> ${entry}`), {
+    await type(contacts.map((entry) => `> ${entry}`), {
       stopBlinking: true,
     });
   }
-  if (poi.notes?.length) {
+  if (notes?.length) {
     await type(["NOTAS"], { stopBlinking: true });
-    await type(poi.notes.map((entry) => `> ${entry}`), {
+    await type(notes.map((entry) => `> ${entry}`), {
       stopBlinking: true,
     });
   }
@@ -1158,7 +1172,7 @@ const renderDetails = async (poi, evaluation) => {
 };
 
 const hasChildren = (pois, id) =>
-  pois.some((poi) => (poi.commands?.parentId || "") === id);
+  pois.some((poi) => (getPoiHierarchy(poi).parentId || "") === id);
 
 async function attemptUnlock(node, evaluation) {
   const { config, prerequisitesMet, flagsMet } = evaluation;
@@ -1249,7 +1263,7 @@ async function browsePois(pois) {
     campaignState = loadCampaignState();
     const statusContext = await getStatusContext();
     const nodes = pois
-      .filter((poi) => (poi.commands?.parentId || "") === parentId)
+      .filter((poi) => (getPoiHierarchy(poi).parentId || "") === parentId)
       .map((poi) => ({
         poi,
         evaluation: evaluateAccess(poi, campaignState),

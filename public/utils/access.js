@@ -25,18 +25,19 @@ const SCOPE_MAP = {
 };
 
 function getScope(entity) {
-  const category = entity?.commands?.category;
+  const category = entity?.poiV2?.hierarchy?.category || entity?.commands?.category;
   return SCOPE_MAP[category] || "cases";
 }
 
 function getAccessConfig(entity) {
-  if (!entity || !entity.unlockConditions) {
+  const rawConfig = entity?.poiV2?.access || entity?.unlockConditions;
+  if (!entity || !rawConfig) {
     return { ...DEFAULT_ACCESS };
   }
   const config = {
     ...DEFAULT_ACCESS,
-    ...(typeof entity.unlockConditions === "object"
-      ? entity.unlockConditions
+    ...(typeof rawConfig === "object"
+      ? rawConfig
       : {}),
   };
   config.prerequisites = Array.isArray(config.prerequisites)
@@ -142,11 +143,12 @@ function unlockEntity(entity) {
 }
 
 function getNodeType(entity) {
-  return entity?.commands?.nodeType || "mixed";
+  return entity?.poiV2?.hierarchy?.nodeType || entity?.commands?.nodeType || "mixed";
 }
 
 function getNodeLabel(entity) {
   return (
+    entity?.poiV2?.hierarchy?.menuAlias ||
     entity?.commands?.menuAlias ||
     entity.title ||
     entity.name ||
@@ -156,6 +158,7 @@ function getNodeLabel(entity) {
 }
 
 function resolveAutoParent(entity) {
+  if (entity?.poiV2?.hierarchy?.parentId) return entity.poiV2.hierarchy.parentId;
   if (entity?.commands?.parentId) return entity.commands.parentId;
   const scope = getScope(entity);
   const prefixMap = {

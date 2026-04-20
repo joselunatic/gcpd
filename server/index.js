@@ -320,6 +320,8 @@ function getBallisticsModels() {
   const models = Array.isArray(parsed) ? parsed : [];
   return models.map((entry) => {
     if (!entry || typeof entry !== 'object') return entry;
+    const poiId = String(entry.poiId || '').trim();
+    const locator = poiId ? getPoiLocatorById(poiId) : null;
     return {
       id: String(entry.id || '').trim(),
       label: String(entry.label || '').trim(),
@@ -330,8 +332,9 @@ function getBallisticsModels() {
       bulletId: String(entry.bulletId || '').trim(),
       caseId: String(entry.caseId || entry.caseNumber || '').trim(),
       caseCode: String(entry.caseCode || '').trim(),
+      poiId,
       crime: String(entry.crime || '').trim(),
-      location: String(entry.location || '').trim(),
+      location: locator?.name || locator?.label || '',
       status: String(entry.status || '').trim(),
       closedBy: String(entry.closedBy || '').trim(),
       updatedAt: Number(entry.updatedAt) || 0,
@@ -344,6 +347,7 @@ function setBallisticsModels(models = []) {
     ? models
         .map((entry) => {
           if (!entry || typeof entry !== 'object') return null;
+          const poiId = String(entry.poiId || '').trim();
           return {
             id: String(entry.id || '').trim(),
             label: String(entry.label || '').trim(),
@@ -354,17 +358,17 @@ function setBallisticsModels(models = []) {
             bulletId: String(entry.bulletId || '').trim(),
             caseId: String(entry.caseId || entry.caseNumber || '').trim(),
             caseCode: String(entry.caseCode || '').trim(),
+            poiId,
             crime: String(entry.crime || '').trim(),
-            location: String(entry.location || '').trim(),
             status: String(entry.status || '').trim(),
             closedBy: String(entry.closedBy || '').trim(),
             updatedAt: Date.now(),
           };
         })
-        .filter((entry) => entry && entry.id && entry.pngPath)
+        .filter((entry) => entry && entry.id && entry.pngPath && entry.poiId)
     : [];
   setSetting('ballistics_models', stringify(cleaned));
-  return cleaned;
+  return getBallisticsModels();
 }
 
 function getAudioModels() {
@@ -445,18 +449,37 @@ function setPhoneLines(lines = []) {
   return cleaned;
 }
 
+function getPoiLocatorById(poiId = '') {
+  const id = String(poiId || '').trim();
+  if (!id) return null;
+  const row = db.prepare('SELECT id, name, commands FROM pois_data WHERE id = ?').get(id);
+  if (!row) return null;
+  const commands = parseJSON(row.commands, {});
+  const mapMeta = normalizeMapMeta(commands?.mapMeta);
+  if (!mapMeta || !Number.isFinite(mapMeta.x) || !Number.isFinite(mapMeta.y)) return null;
+  return {
+    id: row.id,
+    name: row.name || row.id,
+    label: mapMeta.label || row.name || row.id,
+    x: mapMeta.x,
+    y: mapMeta.y,
+  };
+}
+
 function normalizeTracerHotspot(entry = {}) {
   if (!entry || typeof entry !== 'object') return null;
   const id = String(entry.id || '').trim();
-  const label = String(entry.label || id).trim();
-  const x = Number(entry.x);
-  const y = Number(entry.y);
-  if (!id || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+  const poiId = String(entry.poiId || '').trim();
+  if (!id || !poiId) return null;
+  const locator = getPoiLocatorById(poiId);
+  if (!locator) return null;
+  const label = String(entry.label || locator.label || locator.name || id).trim();
   return {
     id,
-    label: label || id,
-    x: Math.max(0, Math.min(100, x)),
-    y: Math.max(0, Math.min(100, y)),
+    label: label || locator.label || id,
+    poiId,
+    x: locator.x,
+    y: locator.y,
     updatedAt: Date.now(),
   };
 }
@@ -511,9 +534,17 @@ function setTracerConfig(config = {}) {
     .map((entry) => normalizeTracerLine(entry, hotspots))
     .filter(Boolean)
     .filter((entry, index, list) => list.findIndex((item) => item.id === entry.id) === index);
-  const payload = { lines, hotspots };
+  const payload = {
+    lines,
+    hotspots: hotspots.map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      poiId: entry.poiId,
+      updatedAt: entry.updatedAt,
+    })),
+  };
   setSetting(TRACER_CONFIG_KEY, stringify(payload));
-  return payload;
+  return { lines, hotspots };
 }
 
 let tracerDmSocket = null;
@@ -1074,6 +1105,103 @@ const normalizePuzzle = (value) => {
   };
 };
 
+const normalizePoiHierarchy = (value, defaults = {}) => {
+  if (!value || typeof value !== 'object') {
+    return {
+      nodeType: defaults.nodeType || 'mixed',
+      parentId: defaults.parentId || '',
+      menuAlias: defaults.menuAlias || '',
+      category: defaults.category || 'map',
+    };
+  }
+  return {
+    nodeType: typeof value.nodeType === 'string' ? value.nodeType : defaults.nodeType || 'mixed',
+    parentId: typeof value.parentId === 'string' ? value.parentId : defaults.parentId || '',
+    menuAlias: typeof value.menuAlias === 'string' ? value.menuAlias : defaults.menuAlias || '',
+    category: typeof value.category === 'string' ? value.category : defaults.category || 'map',
+  };
+};
+
+const normalizePoiContent = (value, defaults = {}) => {
+  if (!value || typeof value !== 'object') {
+    return {
+      details: toArray(defaults.details),
+      contacts: toArray(defaults.contacts),
+      notes: toArray(defaults.notes),
+      brief: toArray(defaults.brief),
+      intel: toArray(defaults.intel),
+    };
+  }
+  return {
+    details: toArray(value.details ?? defaults.details),
+    contacts: toArray(value.contacts ?? defaults.contacts),
+    notes: toArray(value.notes ?? defaults.notes),
+    brief: toArray(value.brief ?? defaults.brief),
+    intel: toArray(value.intel ?? defaults.intel),
+  };
+};
+
+const normalizePoiGeo = (value, fallbackMapMeta = null) => {
+  const source = value && typeof value === 'object' ? value : {};
+  const meta = normalizeMapMeta(value || fallbackMapMeta);
+  if (!meta) return null;
+  return {
+    mapId: typeof source.mapId === 'string' && source.mapId.trim() ? source.mapId.trim() : 'gotham',
+    x: meta.x,
+    y: meta.y,
+    radius: meta.radius,
+    label: meta.label,
+    image: meta.image,
+  };
+};
+
+const normalizePoiV2 = (value, legacy = {}) => {
+  const source = value && typeof value === 'object' ? value : {};
+  const legacyCommands =
+    legacy.commands && typeof legacy.commands === 'object' ? legacy.commands : {};
+  return {
+    hierarchy: normalizePoiHierarchy(source.hierarchy, {
+      nodeType: legacyCommands.nodeType,
+      parentId: legacyCommands.parentId,
+      menuAlias: legacyCommands.menuAlias,
+      category: legacyCommands.category || 'map',
+    }),
+    geo: normalizePoiGeo(source.geo, legacyCommands.mapMeta),
+    content: normalizePoiContent(source.content, {
+      details: legacy.details,
+      contacts: legacy.contacts,
+      notes: legacy.notes,
+      brief: legacyCommands.brief,
+      intel: legacyCommands.intel,
+    }),
+    access: normalizeUnlockConditions(source.access || legacy.unlockConditions, legacy.accessCode || ''),
+    dm: normalizeDmNotes(source.dm || legacy.dm),
+  };
+};
+
+const serializePoiV2ToCommands = (poiV2, existing = {}) =>
+  normalizeCommands(
+    {
+      ...(existing && typeof existing === 'object' ? existing : {}),
+      brief: poiV2.content.brief,
+      intel: poiV2.content.intel,
+      menuAlias: poiV2.hierarchy.menuAlias,
+      category: poiV2.hierarchy.category || 'map',
+      nodeType: poiV2.hierarchy.nodeType,
+      parentId: poiV2.hierarchy.parentId,
+      mapMeta: poiV2.geo
+        ? {
+            x: poiV2.geo.x,
+            y: poiV2.geo.y,
+            radius: poiV2.geo.radius,
+            label: poiV2.geo.label,
+            image: poiV2.geo.image,
+          }
+        : null,
+    },
+    { category: 'map' }
+  );
+
 const normalizeCommands = (value, defaults = {}) => {
   if (!value || typeof value !== 'object') {
     return {
@@ -1084,9 +1212,13 @@ const normalizeCommands = (value, defaults = {}) => {
       category: defaults.category || '',
       nodeType: defaults.nodeType || 'mixed',
       parentId: defaults.parentId || '',
+      locationRef: null,
+      locationRefs: [],
       mapMeta: null,
     };
   }
+  const locationRef = normalizeLocationRef(value.locationRef);
+  const locationRefs = normalizeLocationRefs(value.locationRefs, locationRef);
   return {
     brief: toArray(value.brief),
     intel: toArray(value.intel),
@@ -1095,9 +1227,47 @@ const normalizeCommands = (value, defaults = {}) => {
     category: typeof value.category === 'string' ? value.category : defaults.category || '',
     nodeType: typeof value.nodeType === 'string' ? value.nodeType : defaults.nodeType || 'mixed',
     parentId: typeof value.parentId === 'string' ? value.parentId : defaults.parentId || '',
+    locationRef,
+    locationRefs,
     mapMeta: normalizeMapMeta(value.mapMeta),
   };
 };
+
+function normalizeLocationRef(value) {
+  if (!value || typeof value !== 'object') return null;
+  const type = String(value.type || '').trim();
+  const poiId = String(value.poiId || '').trim();
+  if (type !== 'poi' || !poiId) return null;
+  return {
+    type: 'poi',
+    poiId,
+  };
+}
+
+function normalizeLocationRefs(values, fallback = null) {
+  const list = Array.isArray(values) ? values : [];
+  const normalized = list
+    .map((value) => {
+      const ref = normalizeLocationRef(value);
+      if (!ref) return null;
+      const role = typeof value?.role === 'string' ? value.role.trim() : '';
+      return {
+        ...ref,
+        role: role || 'related',
+      };
+    })
+    .filter(Boolean);
+  if (!normalized.length && fallback) {
+    return [{ ...fallback, role: 'primary' }];
+  }
+  const seen = new Set();
+  return normalized.filter((entry) => {
+    const key = `${entry.type}:${entry.poiId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 function normalizeMapMeta(value) {
   if (!value || typeof value !== 'object') return null;
@@ -1948,20 +2118,26 @@ const mapPoiRow = (row) => {
   const unlockConfig = normalizeUnlockConditions(parseJSON(row.unlock_conditions, null), row.access_code || '');
   const dmNotes = normalizeDmNotes(parseJSON(row.dm, {}));
   const commands = normalizeCommands(parseJSON(row.commands, {}), { category: 'map' });
+  const details = parseJSON(row.details, []);
+  const contacts = parseJSON(row.contacts, []);
+  const notes = parseJSON(row.notes, []);
+  const poiV2 = normalizePoiV2(null, {
+    details,
+    contacts,
+    notes,
+    unlockConditions: unlockConfig,
+    accessCode: row.access_code || '',
+    dm: dmNotes,
+    commands,
+  });
   return {
     id: row.id,
     name: row.name,
     district: row.district,
     status: row.status,
     summary: row.summary,
-    accessCode: row.access_code || undefined,
-    details: parseJSON(row.details, []),
-    contacts: parseJSON(row.contacts, []),
-    notes: parseJSON(row.notes, []),
     updatedAt: Number(row.updated_at) || 0,
-    unlockConditions: unlockConfig,
-    dm: dmNotes,
-    commands,
+    poiV2,
   };
 };
 
@@ -1979,9 +2155,17 @@ app.post('/api/pois-data', authMiddleware, (req, res) => {
   if (!payload.id) {
     return res.status(400).json({ message: 'ID del POI obligatorio.' });
   }
-  const unlockConfig = normalizeUnlockConditions(payload.unlockConditions, payload.accessCode || '');
-  const dmNotes = normalizeDmNotes(payload.dm);
-  const commands = normalizeCommands(payload.commands, { category: 'map' });
+  const poiV2 = normalizePoiV2(payload.poiV2, {
+    details: payload.poiV2?.content?.details,
+    contacts: payload.poiV2?.content?.contacts,
+    notes: payload.poiV2?.content?.notes,
+    unlockConditions: payload.poiV2?.access,
+    dm: payload.poiV2?.dm,
+    commands: payload.poiV2?.hierarchy,
+  });
+  const commands = serializePoiV2ToCommands(poiV2);
+  const unlockConfig = poiV2.access;
+  const dmNotes = poiV2.dm;
   db.prepare(
     `INSERT INTO pois_data (
       id, name, district, status, summary, access_code, details, contacts, notes, updated_at,
@@ -2009,10 +2193,10 @@ app.post('/api/pois-data', authMiddleware, (req, res) => {
     district: payload.district || '',
     status: payload.status || '',
     summary: payload.summary || '',
-    access_code: payload.accessCode || null,
-    details: stringify(payload.details || []),
-    contacts: stringify(payload.contacts || []),
-    notes: stringify(payload.notes || []),
+    access_code: unlockConfig.password || null,
+    details: stringify(poiV2.content.details),
+    contacts: stringify(poiV2.content.contacts),
+    notes: stringify(poiV2.content.notes),
     updated_at: Date.now(),
     unlock_conditions: stringify(unlockConfig),
     dm: stringify(dmNotes),

@@ -36,6 +36,41 @@ import {
 
 const fastRender = { wait: false, initialWait: false, finalWait: false };
 const COLUMN = { left: 38, right: 51, divider: "│" };
+const POIS_URL = "/api/pois-data";
+
+let poisCachePromise;
+
+async function loadPoisIndex() {
+  if (!poisCachePromise) {
+    poisCachePromise = fetch(POIS_URL, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { pois: [] }))
+      .then((data) => {
+        const pois = Array.isArray(data?.pois) ? data.pois : [];
+        return new Map(pois.map((entry) => [entry.id, entry]));
+      })
+      .catch(() => new Map());
+  }
+  return poisCachePromise;
+}
+
+function getCaseLocationRefs(item = {}) {
+  return Array.isArray(item?.commands?.locationRefs) ? item.commands.locationRefs : [];
+}
+
+function resolveCaseLocations(item = {}, poisIndex = new Map()) {
+  return getCaseLocationRefs(item)
+    .map((entry) => {
+      const poi = poisIndex.get(entry.poiId);
+      if (!poi) return null;
+      return {
+        poiId: entry.poiId,
+        role: entry.role || "related",
+        label: poi.name || poi.id,
+        district: poi.district || "",
+      };
+    })
+    .filter(Boolean);
+}
 
 const wrapLine = (text = "", limit = 80) => {
   const adjustedLimit = getWrapLimit(limit);
@@ -65,7 +100,8 @@ const mergeLine = (left = "", right = "") =>
   });
 
 
-const renderCaseDetails = async (item) => {
+const renderCaseDetails = async (item, poisIndex = new Map()) => {
+  const locations = resolveCaseLocations(item, poisIndex);
   const detailLine = (text) => wrapLine(text, 80);
   const lines = [
     " ",
@@ -77,6 +113,17 @@ const renderCaseDetails = async (item) => {
 
   lines.push(" ");
   await type(lines, { stopBlinking: true });
+
+  if (locations.length) {
+    await print(["LOCALIZACIONES:"], { semantic: "log", stopBlinking: true });
+    const locationLines = [];
+    locations.forEach((entry) => {
+      const roleLabel = (entry.role || "related").replace(/_/g, " ").toUpperCase();
+      const suffix = entry.district ? ` · ${entry.district}` : "";
+      locationLines.push(`> ${roleLabel}: ${entry.label}${suffix}`);
+    });
+    await print(locationLines, { semantic: "intel", stopBlinking: true });
+  }
 
   if (item.commands?.brief?.length) {
     await print(["BRIEF:"], { semantic: "log", stopBlinking: true });
@@ -133,7 +180,7 @@ const formatNodeLine = (item, _evaluation, index) => {
   return [line];
 };
 
-const buildPreviewLines = (item, _evaluation, _campaignState, _breadcrumb = []) => {
+const buildPreviewLines = (item, _evaluation, _campaignState, _breadcrumb = [], poisIndex = new Map()) => {
   if (!item) {
     return [
       { parts: [{ text: "SIN CASO SELECCIONADO.", className: "tui-muted" }] },
@@ -142,6 +189,9 @@ const buildPreviewLines = (item, _evaluation, _campaignState, _breadcrumb = []) 
   }
   const parentId = item.commands?.parentId || "";
   const isSubcase = parentId && parentId !== item.id;
+  const locations = resolveCaseLocations(item, poisIndex);
+  const primaryLocation =
+    locations.find((entry) => entry.role === "primary") || locations[0] || null;
   const focus = `${SYMBOLS.selected} ${item.title || item.id}`;
   const lines = [
     {
@@ -162,6 +212,22 @@ const buildPreviewLines = (item, _evaluation, _campaignState, _breadcrumb = []) 
           { text: line, className: "tui-primary" },
         ],
       });
+    });
+  }
+  if (primaryLocation) {
+    lines.push({
+      parts: [
+        { text: "POI: ", className: "tui-system" },
+        { text: primaryLocation.label, className: "tui-primary" },
+      ],
+    });
+  }
+  if (locations.length > 1) {
+    lines.push({
+      parts: [
+        { text: "RED: ", className: "tui-system" },
+        { text: `${locations.length} POIS`, className: "tui-muted" },
+      ],
     });
   }
   return lines;
@@ -285,6 +351,7 @@ async function attemptUnlock(item, evaluation) {
 async function browseCases(cases) {
   let campaignState = loadCampaignState();
   const stack = [{ parentId: "", crumbs: ["CASES"], pageIndex: 0 }];
+  const poisIndex = await loadPoisIndex();
 
   while (stack.length) {
     campaignState = loadCampaignState();
@@ -407,7 +474,8 @@ async function browseCases(cases) {
       focusItem?._item,
       focusItem?._evaluation,
       campaignState,
-      crumbs
+      crumbs,
+      poisIndex
     );
     const pageItemsMerged = mergeItemsWithPreview(pageItems, previewLines);
     const footerLines =
@@ -497,7 +565,7 @@ async function browseCases(cases) {
     }
 
     clear();
-    await renderCaseDetails(item);
+    await renderCaseDetails(item, poisIndex);
 
     const nodeType = getNodeType(item);
     if (

@@ -342,7 +342,10 @@ function makeDataset(models = []) {
           `gcpd-${String(index + 1).padStart(4, "0")}`,
         caseCode: normalizeCaseCode(entry.caseCode),
         crime: entry.crime || "SIN CRIMEN",
-        location: entry.location || "SIN UBICACION",
+        location:
+          String(entry.location || "").trim() ||
+          String(entry.poiId || "").trim() ||
+          "SIN UBICACION",
         status: entry.status || "ABIERTO",
         closedBy: entry.closedBy || "",
         assetId: deriveAssetId(entry) || `b${String(index + 1).padStart(2, "0")}`,

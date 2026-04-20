@@ -29,8 +29,10 @@ import {
 
 const API_URL = "/api/villains-data";
 const FALLBACK_URL = "/data/villains/gallery.json";
+const POIS_URL = "/api/pois-data";
 let cache;
 let dataSource = "api";
+let poisCachePromise;
 
 async function fetchJson(url) {
   const response = await fetch(url, { cache: "no-store" });
@@ -57,6 +59,37 @@ const wrapLine = (text = "", limit = 80) => {
   if (current) segments.push(current);
   return segments.length ? segments : [text];
 };
+
+async function loadPoisIndex() {
+  if (!poisCachePromise) {
+    poisCachePromise = fetchJson(POIS_URL)
+      .then((data) => {
+        const pois = Array.isArray(data?.pois) ? data.pois : [];
+        return new Map(pois.map((entry) => [entry.id, entry]));
+      })
+      .catch(() => new Map());
+  }
+  return poisCachePromise;
+}
+
+function getVillainLocationRefs(villain = {}) {
+  return Array.isArray(villain?.commands?.locationRefs) ? villain.commands.locationRefs : [];
+}
+
+function resolveVillainLocations(villain = {}, poisIndex = new Map()) {
+  return getVillainLocationRefs(villain)
+    .map((entry) => {
+      const poi = poisIndex.get(entry.poiId);
+      if (!poi) return null;
+      return {
+        poiId: entry.poiId,
+        role: entry.role || "related",
+        label: poi.name || poi.id,
+        district: poi.district || "",
+      };
+    })
+    .filter(Boolean);
+}
 
 const fetchGallery = async () => {
   if (!cache) {
@@ -96,7 +129,8 @@ const labelValueLine = (label, value, valueClass = "tui-primary") => ({
   ],
 });
 
-const renderDetails = async (villain, evaluation) => {
+const renderDetails = async (villain, evaluation, poisIndex = new Map()) => {
+  const locations = resolveVillainLocations(villain, poisIndex);
   const detailLine = (text) => wrapLine(text, 80);
   const hasValue = (value) =>
     value !== null && value !== undefined && String(value).trim() !== "";
@@ -136,6 +170,17 @@ const renderDetails = async (villain, evaluation) => {
   if (profileLines.length) {
     await type(["PERFIL", " "], { stopBlinking: true });
     await type(profileLines, { stopBlinking: true });
+  }
+
+  if (locations.length) {
+    await type(["RED OPERATIVA"], { stopBlinking: true });
+    const locationLines = [];
+    locations.forEach((entry) => {
+      const roleLabel = (entry.role || "related").replace(/_/g, " ").toUpperCase();
+      const suffix = entry.district ? ` · ${entry.district}` : "";
+      locationLines.push(`> ${roleLabel}: ${entry.label}${suffix}`);
+    });
+    await type(locationLines, { stopBlinking: true });
   }
 
   if (villain.patterns?.length) {
@@ -248,7 +293,7 @@ const formatNodeLine = (villain, evaluation, index, campaignState) => {
   return [line1, line2];
 };
 
-const buildPreviewLines = (villain, evaluation, campaignState, breadcrumb = []) => {
+const buildPreviewLines = (villain, evaluation, campaignState, breadcrumb = [], poisIndex = new Map()) => {
   if (!villain) {
     return [
       { parts: [{ text: "SIN PERFIL SELECCIONADO.", className: "tui-muted" }] },
@@ -260,6 +305,9 @@ const buildPreviewLines = (villain, evaluation, campaignState, breadcrumb = []) 
     ? String(villain.threatLevel).toUpperCase()
     : "UNKNOWN";
   const status = statusLabel(evaluation);
+  const locations = resolveVillainLocations(villain, poisIndex);
+  const primaryLocation =
+    locations.find((entry) => entry.role === "primary") || locations[0] || null;
   const lines = [
     {
       parts: [
@@ -284,6 +332,12 @@ const buildPreviewLines = (villain, evaluation, campaignState, breadcrumb = []) 
   }
   if (villain.lastSeen) {
     lines.push(labelValueLine("LAST SEEN", villain.lastSeen, "tui-muted"));
+  }
+  if (primaryLocation) {
+    lines.push(labelValueLine("POI", primaryLocation.label, "tui-muted"));
+  }
+  if (locations.length > 1) {
+    lines.push(labelValueLine("NETWORK", `${locations.length} POIS`, "tui-muted"));
   }
   if (villain.summary) {
     lines.push({ parts: [{ text: "SUMMARY:", className: "tui-system" }] });
@@ -441,6 +495,7 @@ async function attemptUnlock(villain, evaluation) {
 async function browseVillains(villains) {
   let campaignState = loadCampaignState();
   const stack = [{ parentId: "", crumbs: ["VILLAINS"], pageIndex: 0 }];
+  const poisIndex = await loadPoisIndex();
 
   while (stack.length) {
     campaignState = loadCampaignState();
@@ -553,7 +608,8 @@ async function browseVillains(villains) {
       focusItem?._villain,
       focusItem?._evaluation,
       campaignState,
-      crumbs
+      crumbs,
+      poisIndex
     );
     const pageItemsMerged = mergeItemsWithPreview(pageItems, previewLines);
     const footerLines =
@@ -641,7 +697,7 @@ async function browseVillains(villains) {
     }
 
     clear();
-    await renderDetails(villain, evaluation);
+    await renderDetails(villain, evaluation, poisIndex);
 
     const nodeType = getNodeType(villain);
     if (

@@ -4,6 +4,9 @@ import PoiSelector from './dm/PoiList';
 import PoiPreview from './dm/PoiPreview';
 import PoiEditor from './dm/PoiEditor';
 import PoiMapPicker from './dm/PoiMapPicker';
+import PoiPicker from './dm/PoiPicker';
+import PoiQuickCreateModal from './dm/PoiQuickCreateModal';
+import PoiRelationEditor from './dm/PoiRelationEditor';
 
 const CASES_ENDPOINT = '/api/cases-data';
 const POIS_ENDPOINT = '/api/pois-data';
@@ -39,6 +42,8 @@ const initialCaseForm = {
   menuAlias: '',
   nodeType: 'mixed',
   parentId: '',
+  locationPoiId: '',
+  relatedLocationPois: '',
   category: 'cases',
   brief: '',
   intel: '',
@@ -46,6 +51,15 @@ const initialCaseForm = {
   puzzleConfig: '{\n  "seed": 12345\n}',
   dmNotes: '',
   dmSpoilers: '',
+};
+
+const initialPoiQuickDraft = {
+  name: '',
+  district: '',
+  mapX: '',
+  mapY: '',
+  mapRadius: '1.6',
+  mapLabel: '',
 };
 
 const defaultAccessConfig = {
@@ -171,6 +185,24 @@ const NODE_TYPE_OPTIONS = [
   { value: 'leaf', label: 'Hoja (solo info)' },
 ];
 
+const CASE_LOCATION_ROLE_OPTIONS = [
+  { value: 'related', label: 'Relacionado' },
+  { value: 'crime_scene', label: 'Escena del crimen' },
+  { value: 'analysis', label: 'Análisis' },
+  { value: 'last_seen', label: 'Último avistamiento' },
+  { value: 'suspect_hideout', label: 'Refugio sospechoso' },
+  { value: 'operation', label: 'Operación' },
+];
+
+const VILLAIN_LOCATION_ROLE_OPTIONS = [
+  { value: 'related', label: 'Relacionado' },
+  { value: 'hideout', label: 'Refugio' },
+  { value: 'territory', label: 'Territorio' },
+  { value: 'last_seen', label: 'Último avistamiento' },
+  { value: 'operation', label: 'Operación' },
+  { value: 'contact_point', label: 'Punto de contacto' },
+];
+
 const STORAGE_KEYS = {
   mode: 'dmPanelMode',
   activeView: 'dmPanelActiveView',
@@ -240,6 +272,7 @@ const initialBallisticsForm = {
   bulletId: '',
   caseId: '',
   caseCode: '',
+  poiId: '',
   crime: '',
   location: '',
   status: '',
@@ -267,6 +300,7 @@ const initialPhoneForm = {
 const initialTracerHotspotForm = {
   id: '',
   label: '',
+  poiId: '',
   x: '50',
   y: '50',
 };
@@ -296,6 +330,8 @@ const initialVillainForm = {
   notes: '',
   nodeType: 'mixed',
   parentId: '',
+  locationPoiId: '',
+  relatedLocationPois: '',
   category: 'villains',
   attributeAccess: buildAttributeAccessForm(),
 };
@@ -411,20 +447,73 @@ const formFieldsToAccess = (form) => ({
   initialAccessStatus: form.accessInitialStatus,
 });
 
+const parseLocationRefsText = (value = '') =>
+  String(value || '')
+    .split('\n')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [rawPoiId, rawRole] = entry.split('|').map((part) => part.trim());
+      if (!rawPoiId) return null;
+      return {
+        type: 'poi',
+        poiId: rawPoiId,
+        role: rawRole || 'related',
+      };
+    })
+    .filter(Boolean);
+
+const formatLocationRefsText = (refs = []) =>
+  refs
+    .filter((entry) => entry?.poiId && entry.role !== 'primary')
+    .map((entry) => `${entry.poiId}${entry.role ? ` | ${entry.role}` : ''}`)
+    .join('\n');
+
 const commandsToFormFields = (commands = {}, defaults = { category: '' }) => ({
   brief: (commands?.brief || []).join('\n'),
   nodeType: commands?.nodeType || 'mixed',
   parentId: commands?.parentId || '',
+  locationPoiId:
+    (commands?.locationRefs || []).find((entry) => entry?.type === 'poi' && entry?.role === 'primary')
+      ?.poiId ||
+    (commands?.locationRefs || []).find((entry) => entry?.type === 'poi')?.poiId ||
+    (commands?.locationRef?.type === 'poi' ? commands.locationRef.poiId || '' : ''),
+  relatedLocationPois: formatLocationRefsText(commands?.locationRefs || []),
   category: commands?.category || defaults.category,
 });
 
-const formFieldsToCommands = (form, defaults = { category: '' }, existing = {}) => ({
-  ...existing,
-  brief: splitLines(form.brief),
-  nodeType: form.nodeType,
-  parentId: form.parentId,
-  category: form.category || defaults.category,
-});
+const formFieldsToCommands = (form, defaults = { category: '' }, existing = {}) => {
+  const next = {
+    ...existing,
+    brief: splitLines(form.brief),
+    nodeType: form.nodeType,
+    parentId: form.parentId,
+    category: form.category || defaults.category,
+  };
+  if ((form.category || defaults.category) === 'cases' || (form.category || defaults.category) === 'villains') {
+    const primary = form.locationPoiId
+      ? [{ type: 'poi', poiId: form.locationPoiId, role: 'primary' }]
+      : [];
+    const related = parseLocationRefsText(form.relatedLocationPois);
+    const locationRefs = [...primary, ...related].filter(Boolean);
+    const seen = new Set();
+    next.locationRefs = locationRefs.filter((entry) => {
+      const key = `${entry.type}:${entry.poiId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    next.locationRef = null;
+    return next;
+  }
+  next.locationRef = form.locationPoiId
+    ? {
+        type: 'poi',
+        poiId: form.locationPoiId,
+      }
+    : null;
+  return next;
+};
 
 const stateToFormFields = (state) => ({
   flags: (state?.flags || []).join('\n'),
@@ -446,6 +535,72 @@ const formFieldsToState = (form, baseState = {}) => ({
   alertLevel: form.alertLevel || 'low',
   activeCaseId: form.activeCaseId || '',
 });
+
+const getPoiHierarchy = (poi = {}) => poi?.poiV2?.hierarchy || {};
+
+const getPoiGeo = (poi = {}) => poi?.poiV2?.geo || null;
+
+const getPoiContent = (poi = {}) => poi?.poiV2?.content || {};
+
+const poiToFormFields = (data) => {
+  const hierarchy = getPoiHierarchy(data);
+  const geo = getPoiGeo(data) || {};
+  const content = getPoiContent(data);
+  return {
+    id: data?.id || '',
+    name: data?.name || '',
+    district: data?.district || '',
+    status: data?.status || 'activo',
+    summary: data?.summary || '',
+    details: (content.details || []).join('\n'),
+    nodeType: hierarchy.nodeType || 'mixed',
+    parentId: hierarchy.parentId || '',
+    category: hierarchy.category || 'map',
+    mapX: geo.x != null ? String(geo.x) : '',
+    mapY: geo.y != null ? String(geo.y) : '',
+    mapRadius: geo.radius != null ? String(geo.radius) : '1.6',
+    mapLabel: geo.label || '',
+    mapImage: geo.image || '',
+  };
+};
+
+const formFieldsToPoiV2 = (form, existing = null) => {
+  const previous = existing && typeof existing === 'object' ? existing : {};
+  const previousContent =
+    previous.content && typeof previous.content === 'object' ? previous.content : {};
+  return {
+    hierarchy: {
+      ...(previous.hierarchy && typeof previous.hierarchy === 'object' ? previous.hierarchy : {}),
+      nodeType: form.nodeType,
+      parentId: form.parentId,
+      category: form.category || 'map',
+    },
+    geo:
+      form.mapX !== '' || form.mapY !== '' || form.mapLabel || form.mapImage
+        ? {
+            mapId:
+              previous.geo && typeof previous.geo === 'object' && previous.geo?.mapId
+                ? previous.geo.mapId
+                : 'gotham',
+            x: form.mapX !== '' ? Number(form.mapX) : null,
+            y: form.mapY !== '' ? Number(form.mapY) : null,
+            radius: form.mapRadius !== '' ? Number(form.mapRadius) : 1.6,
+            label: form.mapLabel || form.name || '',
+            image: form.mapImage || '',
+          }
+        : null,
+    content: {
+      details: splitLines(form.details),
+      contacts: Array.isArray(previousContent.contacts) ? previousContent.contacts : [],
+      notes: Array.isArray(previousContent.notes) ? previousContent.notes : [],
+      brief: Array.isArray(previousContent.brief) ? previousContent.brief : [],
+      intel: Array.isArray(previousContent.intel) ? previousContent.intel : [],
+    },
+    access:
+      previous.access && typeof previous.access === 'object' ? previous.access : null,
+    dm: previous.dm && typeof previous.dm === 'object' ? previous.dm : null,
+  };
+};
 
 const normalizeUnlockedAttributes = (state = {}) => {
   const unlockedAttributes = state?.unlockedAttributes || {};
@@ -504,10 +659,14 @@ const renderSection = ({ id, title, open, onToggle, help, children }) => (
 );
 
 const getNodeLabel = (item) =>
-  item?.commands?.menuAlias || item.title || item.name || item.alias || item.id;
+  item?.poiV2?.hierarchy?.menuAlias ||
+  item.title ||
+  item.name ||
+  item.alias ||
+  item.id;
 
 const resolveParentId = (item, scope) => {
-  const explicit = item?.commands?.parentId;
+  const explicit = item?.poiV2?.hierarchy?.parentId;
   if (explicit) return explicit;
   const prefixMap = {
     cases: 'case:',
@@ -603,6 +762,10 @@ const DmPanel = () => {
   const [poiCropOffset, setPoiCropOffset] = useState({ x: 0, y: 0 });
   const [poiCropDragging, setPoiCropDragging] = useState(false);
   const [poiCropOpen, setPoiCropOpen] = useState(false);
+  const [poiQuickCreateOpen, setPoiQuickCreateOpen] = useState(false);
+  const [poiQuickCreateDraft, setPoiQuickCreateDraft] = useState(initialPoiQuickDraft);
+  const [poiQuickCreateSaving, setPoiQuickCreateSaving] = useState(false);
+  const [poiQuickCreateError, setPoiQuickCreateError] = useState('');
   const poiImageInputRef = useRef(null);
   const cropFrameRef = useRef(null);
   const cropImageRef = useRef(null);
@@ -753,6 +916,33 @@ const DmPanel = () => {
       })),
     [pois]
   );
+  const poiLocationOptions = useMemo(
+    () =>
+      pois.map((item) => ({
+        id: item.id,
+        label: `${getNodeLabel(item)}${item.district ? ` · ${item.district}` : ''}`,
+      })),
+    [pois]
+  );
+  const poiIndex = useMemo(() => new Map(pois.map((item) => [item.id, item])), [pois]);
+
+  const buildPoiIdFromName = useCallback((name = '') => {
+    const base = String(name || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 40);
+    const candidateBase = base || `poi_${Date.now().toString(36)}`;
+    let candidate = candidateBase;
+    let counter = 2;
+    while (poiIndex.has(candidate)) {
+      candidate = `${candidateBase}_${counter}`;
+      counter += 1;
+    }
+    return candidate;
+  }, [poiIndex]);
 
   const buildPoiRow = useCallback(
     (item) => ({
@@ -772,6 +962,16 @@ const DmPanel = () => {
       return next.slice(0, 6);
     });
   }, [buildPoiRow]);
+
+  const openPoiQuickCreate = useCallback((draft = {}) => {
+    setPoiQuickCreateDraft({
+      ...initialPoiQuickDraft,
+      ...draft,
+      mapRadius: draft.mapRadius || initialPoiQuickDraft.mapRadius,
+    });
+    setPoiQuickCreateError('');
+    setPoiQuickCreateOpen(true);
+  }, []);
   const villainParentOptions = useMemo(
     () =>
       villains.map((item) => ({
@@ -1416,31 +1616,7 @@ const DmPanel = () => {
       setPoiBaseline(JSON.stringify(initialPoiForm));
       return;
     }
-    const nextForm = {
-      id: data.id || '',
-      name: data.name || '',
-      district: data.district || '',
-      status: data.status || '',
-      summary: data.summary || '',
-      nodeType: data.commands?.nodeType || 'mixed',
-      parentId: data.commands?.parentId || '',
-      category: data.commands?.category || 'map',
-      details: (data.details || []).join('\n'),
-      mapX:
-        data.commands?.mapMeta?.x != null
-          ? String(data.commands.mapMeta.x)
-          : '',
-      mapY:
-        data.commands?.mapMeta?.y != null
-          ? String(data.commands.mapMeta.y)
-          : '',
-      mapRadius:
-        data.commands?.mapMeta?.radius != null
-          ? String(data.commands.mapMeta.radius)
-          : '1.6',
-      mapLabel: data.commands?.mapMeta?.label || '',
-      mapImage: data.commands?.mapMeta?.image || '',
-    };
+    const nextForm = poiToFormFields(data);
     setPoiForm(nextForm);
     setPoiImageFile(null);
     setPoiImagePreview('');
@@ -1450,6 +1626,105 @@ const DmPanel = () => {
     setPoiCropOpen(false);
     setPoiBaseline(JSON.stringify(nextForm));
   };
+
+  const handlePoiQuickCreateSave = useCallback(async () => {
+    const name = poiQuickCreateDraft.name.trim();
+    if (!name) {
+      setPoiQuickCreateError('El nombre del POI es obligatorio.');
+      return null;
+    }
+    const x = Number(poiQuickCreateDraft.mapX);
+    const y = Number(poiQuickCreateDraft.mapY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      setPoiQuickCreateError('Selecciona una posición válida en el mapa.');
+      return null;
+    }
+    setPoiQuickCreateSaving(true);
+    setPoiQuickCreateError('');
+    const payload = {
+      id: buildPoiIdFromName(name),
+      name,
+      district: poiQuickCreateDraft.district.trim(),
+      status: 'draft',
+      summary: '',
+      poiV2: {
+        hierarchy: {
+          nodeType: 'leaf',
+          parentId: '',
+          menuAlias: '',
+          category: 'map',
+        },
+        geo: {
+          mapId: 'gotham',
+          x,
+          y,
+          radius: poiQuickCreateDraft.mapRadius !== '' ? Number(poiQuickCreateDraft.mapRadius) : 1.6,
+          label: poiQuickCreateDraft.mapLabel.trim() || name,
+          image: '',
+        },
+        content: {
+          details: [],
+          contacts: [],
+          notes: [],
+          brief: [],
+          intel: [],
+        },
+        access: { ...defaultAccessConfig },
+        dm: { notes: '', spoilers: [] },
+      },
+    };
+    try {
+      const res = await fetch(POIS_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('No se pudo crear el POI.');
+      const saved = await res.json();
+      setPois((prev) => {
+        const others = prev.filter((item) => item.id !== saved.id);
+        return [...others, saved];
+      });
+      setSelectedPoi(saved);
+      setSelection('pois', saved.id);
+      addPoiRecent(saved);
+      setPoiQuickCreateOpen(false);
+      setPoiQuickCreateDraft(initialPoiQuickDraft);
+      return saved;
+    } catch (error) {
+      setPoiQuickCreateError(error.message || 'No se pudo crear el POI.');
+      return null;
+    } finally {
+      setPoiQuickCreateSaving(false);
+    }
+  }, [
+    addPoiRecent,
+    buildPoiIdFromName,
+    poiQuickCreateDraft,
+    sessionToken,
+    setSelection,
+  ]);
+
+  const openPoiFullEditorFromDraft = useCallback((draft = initialPoiQuickDraft) => {
+    setPoiQuickCreateOpen(false);
+    setActiveView('pois');
+    setSelectedPoi(null);
+    setSelection('pois', '');
+    const nextForm = {
+      ...initialPoiForm,
+      name: draft.name || '',
+      district: draft.district || '',
+      mapX: draft.mapX || '',
+      mapY: draft.mapY || '',
+      mapRadius: draft.mapRadius || '1.6',
+      mapLabel: draft.mapLabel || '',
+    };
+    setPoiForm(nextForm);
+    setPoiBaseline(JSON.stringify(nextForm));
+  }, [setSelection]);
 
   const resetVillainForm = (data) => {
     if (!data) {
@@ -1473,9 +1748,7 @@ const DmPanel = () => {
       patterns: (data.patterns || []).join('\n'),
       knownAssociates: (data.knownAssociates || []).join('\n'),
       notes: (data.notes || []).join('\n'),
-      nodeType: data.commands?.nodeType || 'mixed',
-      parentId: data.commands?.parentId || '',
-      category: data.commands?.category || 'villains',
+      ...commandsToFormFields(data.commands, { category: 'villains' }),
       attributeAccess: buildAttributeAccessForm(data.unlockConditions?.attributes || {}),
     };
     setVillainForm(nextForm);
@@ -1586,43 +1859,24 @@ const DmPanel = () => {
   const savePoi = async (event) => {
     event.preventDefault();
     setPoiMessage('');
-    const existingAccessCode = selectedPoi?.accessCode || undefined;
-    const existingUnlock = selectedPoi?.unlockConditions || { ...defaultAccessConfig };
-    const existingContacts = Array.isArray(selectedPoi?.contacts) ? selectedPoi.contacts : [];
-    const existingNotes = Array.isArray(selectedPoi?.notes) ? selectedPoi.notes : [];
-    const existingDm =
-      selectedPoi?.dm && typeof selectedPoi.dm === 'object'
-        ? selectedPoi.dm
-        : { notes: '', spoilers: [] };
-    const existingCommands =
-      selectedPoi?.commands && typeof selectedPoi.commands === 'object'
-        ? selectedPoi.commands
-        : {};
+    const existingPoiV2 =
+      selectedPoi?.poiV2 && typeof selectedPoi.poiV2 === 'object'
+        ? selectedPoi.poiV2
+        : {
+            hierarchy: { nodeType: 'mixed', parentId: '', category: 'map' },
+            geo: null,
+            content: { details: [], contacts: [], notes: [], brief: [], intel: [] },
+            access: { ...defaultAccessConfig },
+            dm: { notes: '', spoilers: [] },
+          };
+    const poiV2 = formFieldsToPoiV2(poiForm, existingPoiV2);
     const payload = {
       id: poiForm.id.trim() || `poi_${Date.now().toString(36)}`,
       name: poiForm.name,
       district: poiForm.district,
       status: poiForm.status,
       summary: poiForm.summary,
-      accessCode: existingAccessCode,
-      unlockConditions: existingUnlock,
-      details: splitLines(poiForm.details),
-      contacts: existingContacts,
-      notes: existingNotes,
-      dm: existingDm,
-      commands: {
-        ...existingCommands,
-        nodeType: poiForm.nodeType,
-        parentId: poiForm.parentId,
-        category: poiForm.category || 'map',
-        mapMeta: {
-          x: poiForm.mapX !== '' ? Number(poiForm.mapX) : null,
-          y: poiForm.mapY !== '' ? Number(poiForm.mapY) : null,
-          radius: poiForm.mapRadius !== '' ? Number(poiForm.mapRadius) : 1.6,
-          label: poiForm.mapLabel || poiForm.name || '',
-          image: poiForm.mapImage || '',
-        },
-      },
+      poiV2,
     };
     try {
       const res = await fetch(POIS_ENDPOINT, {
@@ -1729,6 +1983,55 @@ const DmPanel = () => {
     );
   }, [poiForm.mapLabel, poiForm.name, poiForm.id]);
 
+  const resolvePoiMapMeta = useCallback(
+    (poiId = '') => {
+      if (!poiId) return null;
+      return getPoiGeo(poiIndex.get(poiId)) || null;
+    },
+    [poiIndex]
+  );
+
+  const openPoiEditorById = useCallback((poiId = '') => {
+    const poi = poiIndex.get(poiId);
+    if (!poi) return;
+    setActiveView('pois');
+    setSelectedPoi(poi);
+    setSelection('pois', poi.id);
+    resetPoiForm(poi);
+  }, [poiIndex, setSelection]);
+
+  const applyPoiLocationToBallistics = useCallback(
+    (poiId = '') => {
+      const poi = poiIndex.get(poiId);
+      setBallisticsForm((prev) => ({
+        ...prev,
+        poiId,
+        location: poiId ? poi?.name || poi?.id || '' : '',
+      }));
+    },
+    [poiIndex]
+  );
+
+  const applyPoiLocationToTracerHotspot = useCallback(
+    (poiId = '') => {
+      const poi = poiIndex.get(poiId);
+      const mapMeta = resolvePoiMapMeta(poiId);
+      setTracerHotspotForm((prev) => ({
+        ...prev,
+        poiId,
+        label:
+          poiId && mapMeta?.label
+            ? mapMeta.label
+            : poiId && poi?.name
+              ? poi.name
+              : prev.label,
+        x: poiId && mapMeta?.x != null ? String(mapMeta.x) : prev.x,
+        y: poiId && mapMeta?.y != null ? String(mapMeta.y) : prev.y,
+      }));
+    },
+    [poiIndex, resolvePoiMapMeta]
+  );
+
   const tracerMarkerStyle = useMemo(() => {
     const x = Number(tracerHotspotForm.x);
     const y = Number(tracerHotspotForm.y);
@@ -1747,6 +2050,38 @@ const DmPanel = () => {
     () => tracerHotspotForm.label?.trim() || tracerHotspotForm.id?.trim() || '',
     [tracerHotspotForm.label, tracerHotspotForm.id]
   );
+
+  const resetTracerHotspotForm = useCallback(() => {
+    setTracerHotspotForm({ ...initialTracerHotspotForm });
+  }, []);
+
+  const fillTracerHotspotForm = useCallback((spot) => {
+    if (!spot) {
+      setTracerHotspotForm({ ...initialTracerHotspotForm });
+      return;
+    }
+    setTracerHotspotForm({
+      id: spot.id || '',
+      label: spot.label || '',
+      poiId: spot.poiId || '',
+      x: String(spot.x ?? ''),
+      y: String(spot.y ?? ''),
+    });
+  }, []);
+
+  const fillTracerLineForm = useCallback((line) => {
+    if (!line) {
+      setTracerLineForm({ ...initialTracerLineForm });
+      return;
+    }
+    setTracerLineForm({
+      id: line.id || '',
+      number: line.number || '',
+      label: line.label || '',
+      hotspotId: line.hotspotId || '',
+      enabled: line.enabled !== false,
+    });
+  }, []);
 
   const handlePoiImageUpload = useCallback(async () => {
     if (!poiImageFile) return;
@@ -1879,12 +2214,7 @@ const DmPanel = () => {
       notes: splitLines(villainForm.notes),
       unlockConditions: mergedUnlock,
       dm: existingDm,
-      commands: {
-        ...existingCommands,
-        nodeType: villainForm.nodeType,
-        parentId: villainForm.parentId,
-        category: villainForm.category || 'villains',
-      },
+      commands: formFieldsToCommands(villainForm, { category: 'villains' }, existingCommands),
     };
     try {
       const res = await fetch(VILLAINS_ENDPOINT, {
@@ -2669,6 +2999,10 @@ const DmPanel = () => {
       setBallisticsMessage('ID y PNG son obligatorios.');
       return;
     }
+    if (!ballisticsForm.poiId.trim()) {
+      setBallisticsMessage('Balística requiere un POI vinculado.');
+      return;
+    }
     if (!/\.png(\?.*)?$/i.test(pngPath)) {
       setBallisticsMessage('La ruta del PNG debe terminar en .png.');
       return;
@@ -2691,8 +3025,9 @@ const DmPanel = () => {
       bulletId: ballisticsForm.bulletId.trim(),
       caseId: ballisticsForm.caseId.trim(),
       caseCode: ballisticsForm.caseCode.trim(),
+      poiId: ballisticsForm.poiId.trim(),
       crime: ballisticsForm.crime.trim(),
-      location: ballisticsForm.location.trim(),
+      location: '',
       status: statusValue,
       closedBy: ballisticsForm.closedBy.trim(),
     };
@@ -2852,17 +3187,20 @@ const DmPanel = () => {
         setTracerMessage('Hotspot ID obligatorio.');
         return;
       }
-      const x = Number(tracerHotspotForm.x);
-      const y = Number(tracerHotspotForm.y);
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        setTracerMessage('Coordenadas invalidas.');
+      const poiId = tracerHotspotForm.poiId.trim();
+      if (!poiId) {
+        setTracerMessage('Selecciona un POI base para el hotspot.');
+        return;
+      }
+      const poiGeo = resolvePoiMapMeta(poiId);
+      if (!poiGeo || poiGeo.x == null || poiGeo.y == null) {
+        setTracerMessage('El POI seleccionado no tiene coordenadas de mapa validas.');
         return;
       }
       const nextHotspot = {
         id,
         label: tracerHotspotForm.label.trim() || id,
-        x: Math.max(0, Math.min(100, x)),
-        y: Math.max(0, Math.min(100, y)),
+        poiId,
       };
       const nextHotspots = [
         nextHotspot,
@@ -2871,7 +3209,7 @@ const DmPanel = () => {
       await saveTracerConfig({ lines: tracerLines, hotspots: nextHotspots });
       setTracerHotspotForm({ ...initialTracerHotspotForm });
     },
-    [tracerHotspotForm, tracerHotspots, tracerLines, saveTracerConfig]
+    [resolvePoiMapMeta, saveTracerConfig, tracerHotspotForm, tracerHotspots, tracerLines]
   );
 
   const handleTracerHotspotDelete = useCallback(
@@ -2883,10 +3221,20 @@ const DmPanel = () => {
       );
       await saveTracerConfig({ lines: nextLines, hotspots: nextHotspots });
       if (tracerHotspotForm.id === id) {
-        setTracerHotspotForm({ ...initialTracerHotspotForm });
+        resetTracerHotspotForm();
+      }
+      if (tracerLineForm.hotspotId === id) {
+        setTracerLineForm((prev) => ({ ...prev, hotspotId: '' }));
       }
     },
-    [tracerHotspotForm.id, tracerHotspots, tracerLines, saveTracerConfig]
+    [
+      resetTracerHotspotForm,
+      saveTracerConfig,
+      tracerHotspotForm.id,
+      tracerHotspots,
+      tracerLineForm.hotspotId,
+      tracerLines,
+    ]
   );
 
   const handleTracerLineSave = useCallback(
@@ -3323,11 +3671,17 @@ const DmPanel = () => {
   const buildCasePreview = () => {
     const parentId =
       caseForm.parentId || (selectedCase ? resolveParentId(selectedCase, 'cases') : '');
+    const primaryPoiLabel = caseForm.locationPoiId
+      ? poiLocationOptions.find((option) => option.id === caseForm.locationPoiId)?.label || caseForm.locationPoiId
+      : '';
+    const relatedCount = parseLocationRefsText(caseForm.relatedLocationPois).length;
     return {
       title: caseForm.title?.trim() || 'Sin titulo',
       summary: caseForm.summary?.trim() || 'Sin resumen.',
       parentLabel: parentId ? getCaseLabel(parentId) : '',
       brief: caseForm.brief?.trim() || '',
+      meta: primaryPoiLabel,
+      state: relatedCount ? `${relatedCount} POIs relacionados` : '',
     };
   };
 
@@ -3342,9 +3696,15 @@ const DmPanel = () => {
   };
 
   const buildVillainPreview = () => {
+    const primaryPoiLabel = villainForm.locationPoiId
+      ? poiLocationOptions.find((option) => option.id === villainForm.locationPoiId)?.label || villainForm.locationPoiId
+      : '';
+    const relatedCount = parseLocationRefsText(villainForm.relatedLocationPois).length;
     return {
       title: villainForm.alias?.trim() || 'Sin alias',
       summary: villainForm.summary?.trim() || 'Sin resumen.',
+      meta: primaryPoiLabel,
+      state: relatedCount ? `${relatedCount} POIs relacionados` : '',
     };
   };
 
@@ -3540,6 +3900,31 @@ const DmPanel = () => {
                         </select>
                       </label>
                     )}
+
+                    <PoiPicker
+                      label="POI principal"
+                      value={caseForm.locationPoiId}
+                      pois={pois}
+                      onChange={(poiId) => setCaseForm({ ...caseForm, locationPoiId: poiId })}
+                      onCreate={() => openPoiQuickCreate()}
+                      onEdit={openPoiEditorById}
+                      emptyLabel="Sin POI principal"
+                    />
+
+                    <PoiRelationEditor
+                      label="POIs relacionados"
+                      value={parseLocationRefsText(caseForm.relatedLocationPois)}
+                      pois={pois}
+                      roleOptions={CASE_LOCATION_ROLE_OPTIONS}
+                      onCreatePoi={() => openPoiQuickCreate()}
+                      onEditPoi={openPoiEditorById}
+                      onChange={(refs) =>
+                        setCaseForm({
+                          ...caseForm,
+                          relatedLocationPois: formatLocationRefsText(refs),
+                        })
+                      }
+                    />
 
                     <label>
                       {basicLabel('Titulo')}
@@ -4290,7 +4675,35 @@ const DmPanel = () => {
                               }
                             />
                           </label>
+                          <PoiPicker
+                            label="POI principal"
+                            value={villainForm.locationPoiId}
+                            pois={pois}
+                            onChange={(poiId) =>
+                              setVillainForm({
+                                ...villainForm,
+                                locationPoiId: poiId,
+                              })
+                            }
+                            onCreate={() => openPoiQuickCreate()}
+                            onEdit={openPoiEditorById}
+                            emptyLabel="Sin POI principal"
+                          />
                         </div>
+                        <PoiRelationEditor
+                          label="POIs relacionados"
+                          value={parseLocationRefsText(villainForm.relatedLocationPois)}
+                          pois={pois}
+                          roleOptions={VILLAIN_LOCATION_ROLE_OPTIONS}
+                          onCreatePoi={() => openPoiQuickCreate()}
+                          onEditPoi={openPoiEditorById}
+                          onChange={(refs) =>
+                            setVillainForm({
+                              ...villainForm,
+                              relatedLocationPois: formatLocationRefsText(refs),
+                            })
+                          }
+                        />
                         <label>
                           {labelRow('Patrones', 'Una linea por item.')}
                           <textarea
@@ -4740,6 +5153,7 @@ const DmPanel = () => {
                       bulletId: model.bulletId || '',
                       caseId: model.caseId || model.caseNumber || '',
                       caseCode: model.caseCode || '',
+                      poiId: model.poiId || '',
                       crime: model.crime || '',
                       location: model.location || '',
                       status: model.status || '',
@@ -4862,14 +5276,23 @@ const DmPanel = () => {
                 </label>
               </div>
               <div className="dm-panel__form-group">
+                <PoiPicker
+                  label="POI"
+                  value={ballisticsForm.poiId}
+                  pois={pois}
+                  onChange={applyPoiLocationToBallistics}
+                  onCreate={() => openPoiQuickCreate()}
+                  onEdit={openPoiEditorById}
+                  emptyLabel="Sin POI vinculado"
+                />
+              </div>
+              <div className="dm-panel__form-group">
                 <label>
-                  {labelRow('Localizacion', 'Ubicacion mostrada en el terminal.')}
+                  {labelRow('Localizacion', 'Derivada del POI vinculado.')}
                   <input
                     type="text"
                     value={ballisticsForm.location}
-                    onChange={(e) =>
-                      setBallisticsForm((prev) => ({ ...prev, location: e.target.value }))
-                    }
+                    readOnly
                   />
                 </label>
               </div>
@@ -5270,16 +5693,34 @@ const DmPanel = () => {
       <h2 className="dm-panel__section-title">Tracer</h2>
       <div className="dm-panel__card dm-panel__tracer-shell">
         <div className="dm-panel__tracer-head">
-          <div className="dm-panel__panel-title">Lineas DM y hotspots de traza</div>
-          <p className="dm-panel__hint">
-            {tracerLines.length} lineas DM / {tracerHotspots.length} hotspots / operador en vivo
-            {' '}delegado a <code>/phone</code>
-          </p>
+          <div>
+            <div className="dm-panel__panel-title">Lineas DM y hotspots de traza</div>
+            <p className="dm-panel__hint dm-panel__tracer-headline">
+              {tracerLines.length} lineas DM / {tracerHotspots.length} hotspots / operador en vivo
+              {' '}delegado a <code>/phone</code>
+            </p>
+          </div>
+          <div className="dm-panel__form-actions dm-panel__tracer-quick-actions">
+            <button
+              type="button"
+              onClick={() => {
+                fillTracerLineForm();
+                setTracerMessage('');
+              }}
+            >
+              Nueva linea
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                resetTracerHotspotForm();
+                setTracerMessage('');
+              }}
+            >
+              Nuevo hotspot
+            </button>
+          </div>
         </div>
-        <p className="dm-panel__hint">
-          Este panel configura y monitoriza TRACER. La atencion de llamadas en vivo se realiza
-          desde <code>/phone</code>.
-        </p>
         {tracerLoading && <p className="dm-panel__hint">Cargando tracer...</p>}
         {!tracerLoading && !tracerLines.length && (
           <p className="dm-panel__hint">Sin lineas tracer. Crea una linea y asignale hotspot.</p>
@@ -5295,52 +5736,31 @@ const DmPanel = () => {
                   tracerLineForm.id === line.id ? ' active' : ''
                 }`}
                 onClick={() => {
-                  setTracerLineForm({
-                    id: line.id || '',
-                    number: line.number || '',
-                    label: line.label || '',
-                    hotspotId: line.hotspotId || '',
-                    enabled: line.enabled !== false,
-                  });
-                  if (linkedSpot) {
-                    setTracerHotspotForm({
-                      id: linkedSpot.id || '',
-                      label: linkedSpot.label || '',
-                      x: String(linkedSpot.x ?? ''),
-                      y: String(linkedSpot.y ?? ''),
-                    });
-                  }
+                  fillTracerLineForm(line);
+                  fillTracerHotspotForm(linkedSpot);
                 }}
               >
-                <strong>{line.number || line.id}</strong>
-                <span>Linea (DM): {line.label || 'Sin etiqueta'}</span>
-                <span>
-                  hotspot (Agente): {linkedSpot?.label || line.hotspotId || 'sin hotspot'} /{' '}
-                  {line.enabled === false ? 'OFF' : 'ON'}
-                </span>
+                <div className="dm-panel__tracer-line-top">
+                  <strong>{line.label || line.number || line.id}</strong>
+                  <span
+                    className={`dm-panel__tracer-state ${
+                      line.enabled === false ? 'dm-panel__tracer-state--off' : ''
+                    }`}
+                  >
+                    {line.enabled === false ? 'OFF' : 'ON'}
+                  </span>
+                </div>
+                <div className="dm-panel__tracer-line-meta">
+                  <span className="dm-panel__tracer-line-label">Numero</span>
+                  <span>{line.number || line.id}</span>
+                </div>
+                <div className="dm-panel__tracer-line-meta">
+                  <span className="dm-panel__tracer-line-label">Hotspot agente</span>
+                  <span>{linkedSpot?.label || line.hotspotId || 'Sin hotspot'}</span>
+                </div>
               </button>
             );
           })}
-        </div>
-        <div className="dm-panel__form-actions">
-          <button
-            type="button"
-            onClick={() => {
-              setTracerLineForm({ ...initialTracerLineForm });
-              setTracerMessage('');
-            }}
-          >
-            Nueva linea
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTracerHotspotForm({ ...initialTracerHotspotForm });
-              setTracerMessage('');
-            }}
-          >
-            Nuevo hotspot
-          </button>
         </div>
 
         <div className="dm-panel__tracer-workspace">
@@ -5357,14 +5777,7 @@ const DmPanel = () => {
                   className={`dm-panel__pill${
                     tracerHotspotForm.id === spot.id ? ' active' : ''
                   }`}
-                  onClick={() =>
-                    setTracerHotspotForm({
-                      id: spot.id || '',
-                      label: spot.label || '',
-                      x: String(spot.x ?? ''),
-                      y: String(spot.y ?? ''),
-                    })
-                  }
+                  onClick={() => fillTracerHotspotForm(spot)}
                 >
                   {spot.label || spot.id}
                 </button>
@@ -5398,6 +5811,24 @@ const DmPanel = () => {
                   />
                 </label>
               </div>
+              <div className="dm-panel__form-group">
+                <PoiPicker
+                  label="POI base"
+                  value={tracerHotspotForm.poiId}
+                  pois={pois}
+                  onChange={applyPoiLocationToTracerHotspot}
+                  onCreate={() =>
+                    openPoiQuickCreate({
+                      name: tracerHotspotForm.label || tracerHotspotForm.id || '',
+                      mapLabel: tracerHotspotForm.label || tracerHotspotForm.id || '',
+                      mapX: tracerHotspotForm.x || '',
+                      mapY: tracerHotspotForm.y || '',
+                    })
+                  }
+                  onEdit={openPoiEditorById}
+                  emptyLabel="Sin POI vinculado"
+                />
+              </div>
               <div className="dm-panel__map-picker dm-panel__map-picker--compact">
                 <PoiMapPicker
                   aspectRatio={MAP_ASPECT_RATIO}
@@ -5413,8 +5844,6 @@ const DmPanel = () => {
                   onValueChange={(next = {}) =>
                     setTracerHotspotForm((prev) => ({
                       ...prev,
-                      x: next.mapX !== undefined ? next.mapX : prev.x,
-                      y: next.mapY !== undefined ? next.mapY : prev.y,
                       label: next.mapLabel !== undefined ? next.mapLabel : prev.label,
                     }))
                   }
@@ -5452,14 +5881,15 @@ const DmPanel = () => {
                   onClearCoords={() =>
                     setTracerHotspotForm((prev) => ({
                       ...prev,
+                      poiId: '',
                       x: '',
                       y: '',
                     }))
                   }
-                  onPick={handleTracerMapPick}
+                  onPick={() => {}}
                 />
                 <p className="dm-panel__hint">
-                  Click en el mapa para fijar coordenadas (snap {MAP_GRID_STEP}%).
+                  El hotspot usa siempre las coordenadas del POI base. El mapa aquí es solo preview.
                 </p>
               </div>
             </form>
@@ -5516,13 +5946,16 @@ const DmPanel = () => {
               <div className="dm-panel__form-group">
                 <label>
                   {labelRow('Activa', 'Si esta OFF, TRACER devolvera linea no valida.')}
-                  <input
-                    type="checkbox"
-                    checked={Boolean(tracerLineForm.enabled)}
-                    onChange={(e) =>
-                      setTracerLineForm((prev) => ({ ...prev, enabled: e.target.checked }))
-                    }
-                  />
+                  <span className="dm-panel__tracer-toggle">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(tracerLineForm.enabled)}
+                      onChange={(e) =>
+                        setTracerLineForm((prev) => ({ ...prev, enabled: e.target.checked }))
+                      }
+                    />
+                    <span>{tracerLineForm.enabled ? 'Linea activa' : 'Linea invalida para TRACER'}</span>
+                  </span>
                 </label>
               </div>
               <div className="dm-panel__form-actions">
@@ -5884,6 +6317,50 @@ const DmPanel = () => {
             {activeView === 'tracer' && renderTracerView()}
             {activeView === 'access' && renderAccessView()}
             {activeView === 'campaign' && renderCampaignView()}
+            <PoiQuickCreateModal
+              open={poiQuickCreateOpen}
+              draft={poiQuickCreateDraft}
+              setDraft={setPoiQuickCreateDraft}
+              onClose={() => {
+                setPoiQuickCreateOpen(false);
+                setPoiQuickCreateError('');
+              }}
+              onSave={handlePoiQuickCreateSave}
+              onOpenFullEditor={openPoiFullEditorFromDraft}
+              saving={poiQuickCreateSaving}
+              error={poiQuickCreateError}
+              mapProps={{
+                aspectRatio: MAP_ASPECT_RATIO,
+                imageUrl: MAP_IMAGE,
+                markerStyle: {
+                  left: poiQuickCreateDraft.mapX ? `${poiQuickCreateDraft.mapX}%` : '-9999px',
+                  top: poiQuickCreateDraft.mapY ? `${poiQuickCreateDraft.mapY}%` : '-9999px',
+                  width: `${(Number(poiQuickCreateDraft.mapRadius) || 1.6) * 2}%`,
+                  height: `${(Number(poiQuickCreateDraft.mapRadius) || 1.6) * 2}%`,
+                  display:
+                    Number.isFinite(Number(poiQuickCreateDraft.mapX)) &&
+                    Number.isFinite(Number(poiQuickCreateDraft.mapY))
+                      ? undefined
+                      : 'none',
+                },
+                markerLabel: poiQuickCreateDraft.mapLabel || poiQuickCreateDraft.name || '',
+                onPick: (rawX, rawY) => {
+                  const x = Number(rawX);
+                  const y = Number(rawY);
+                  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+                  const snappedX = (Math.round(x / MAP_GRID_STEP) * MAP_GRID_STEP).toFixed(2);
+                  const snappedY = (Math.round(y / MAP_GRID_STEP) * MAP_GRID_STEP).toFixed(2);
+                  setPoiQuickCreateDraft((prev) => ({
+                    ...prev,
+                    mapX: snappedX,
+                    mapY: snappedY,
+                  }));
+                },
+              }}
+              labelRow={labelRow}
+              onClamp={clampNumber}
+              mapGridStep={MAP_GRID_STEP}
+            />
           </>
         )}
       </div>
