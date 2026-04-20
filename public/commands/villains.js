@@ -26,6 +26,7 @@ import {
   trimParts,
   padParts,
 } from "/utils/tui.js";
+import { normalizePoisClient, getPoiName } from "/utils/poiContract.js";
 
 const API_URL = "/api/villains-data";
 const FALLBACK_URL = "/data/villains/gallery.json";
@@ -64,7 +65,7 @@ async function loadPoisIndex() {
   if (!poisCachePromise) {
     poisCachePromise = fetchJson(POIS_URL)
       .then((data) => {
-        const pois = Array.isArray(data?.pois) ? data.pois : [];
+        const pois = normalizePoisClient(data?.pois);
         return new Map(pois.map((entry) => [entry.id, entry]));
       })
       .catch(() => new Map());
@@ -84,7 +85,7 @@ function resolveVillainLocations(villain = {}, poisIndex = new Map()) {
       return {
         poiId: entry.poiId,
         role: entry.role || "related",
-        label: poi.name || poi.id,
+        label: getPoiName(poi),
         district: poi.district || "",
       };
     })

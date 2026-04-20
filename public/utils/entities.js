@@ -1,4 +1,5 @@
 import { listCases, getCaseById } from "/utils/cases.js";
+import { normalizePoisClient } from "/utils/poiContract.js";
 
 const POIS_URL = "/api/pois-data";
 const VILLAINS_URL = "/api/villains-data";
@@ -23,11 +24,11 @@ async function listPois({ force = false } = {}) {
   if (!poisCache) {
     try {
       const data = await fetchJson(POIS_URL);
-      poisCache = data.pois || [];
+      poisCache = normalizePoisClient(data.pois);
     } catch (error) {
       console.error("Error loading POIs", error);
       const fallback = await fetchJson(FALLBACK_POIS).catch(() => ({ pois: [] }));
-      poisCache = fallback.pois || [];
+      poisCache = normalizePoisClient(fallback.pois);
     }
   }
   return poisCache;

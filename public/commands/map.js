@@ -34,6 +34,12 @@ import {
   padParts,
 } from "/utils/tui.js";
 import { pushKeymap } from "/utils/keymap.js";
+import {
+  normalizePoisClient,
+  getPoiHierarchy,
+  getPoiGeo,
+  getPoiContent,
+} from "/utils/poiContract.js";
 
 const API_URL = "/api/pois-data";
 const FALLBACK_URL = "/data/map/pois.json";
@@ -74,15 +80,19 @@ const fetchPois = async () => {
       .then((data) => {
         if (Array.isArray(data.pois) && data.pois.length) {
           dataSource = "api";
-          return data;
+          return { ...data, pois: normalizePoisClient(data.pois) };
         }
         dataSource = "fallback";
-        return fetchJson(FALLBACK_URL).catch(() => ({ pois: [] }));
+        return fetchJson(FALLBACK_URL)
+          .then((fallback) => ({ ...fallback, pois: normalizePoisClient(fallback.pois) }))
+          .catch(() => ({ pois: [] }));
       })
       .catch((error) => {
         console.error("Map data error", error);
         dataSource = "fallback";
-        return fetchJson(FALLBACK_URL).catch(() => ({ pois: [] }));
+        return fetchJson(FALLBACK_URL)
+          .then((fallback) => ({ ...fallback, pois: normalizePoisClient(fallback.pois) }))
+          .catch(() => ({ pois: [] }));
       });
   }
   return cache;
@@ -103,12 +113,6 @@ const escapeHtml = (value = "") =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-
-const getPoiHierarchy = (poi = {}) => poi?.poiV2?.hierarchy || {};
-
-const getPoiGeo = (poi = {}) => poi?.poiV2?.geo || null;
-
-const getPoiContent = (poi = {}) => poi?.poiV2?.content || {};
 
 function buildHotspotsFromPois(pois = []) {
   return pois

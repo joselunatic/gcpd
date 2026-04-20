@@ -2,6 +2,7 @@ import { print } from "/utils/io.js";
 import { renderStatusHeader } from "/utils/status.js";
 import { loadCampaignState } from "/utils/campaignState.js";
 import { getDeltaMarker } from "/utils/delta.js";
+import { normalizePoisClient, getPoiName } from "/utils/poiContract.js";
 
 const CAMPAIGN_URL = "/api/campaign-state";
 const CASES_URL = "/api/cases-data";
@@ -31,11 +32,19 @@ async function fetchCampaignState() {
 async function fetchWithFallback(apiUrl, fallbackUrl, key) {
   try {
     const data = await fetchJson(apiUrl);
-    return { items: data[key] || (key === "cases" ? data.modules || [] : []) || [], unsynced: false };
+    const items = data[key] || (key === "cases" ? data.modules || [] : []) || [];
+    return {
+      items: key === "pois" ? normalizePoisClient(items) : items,
+      unsynced: false,
+    };
   } catch (error) {
     try {
       const fallback = await fetchJson(fallbackUrl);
-      return { items: fallback[key] || (key === "cases" ? fallback.modules || [] : []) || [], unsynced: true };
+      const items = fallback[key] || (key === "cases" ? fallback.modules || [] : []) || [];
+      return {
+        items: key === "pois" ? normalizePoisClient(items) : items,
+        unsynced: true,
+      };
     } catch (fallbackError) {
       return { items: [], unsynced: true };
     }
@@ -87,7 +96,7 @@ export default async () => {
     const marker = getDeltaMarker(entry, "map", state);
     if (!marker) return;
     changes.push({
-      label: entry.name || entry.id,
+      label: getPoiName(entry),
       scope: "POI",
       updatedAt: Number(entry.updatedAt || 0),
       marker,

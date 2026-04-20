@@ -5,6 +5,11 @@ import {
   hasFlag,
   isAttributeUnlocked as isAttributeUnlockedInState,
 } from "/utils/campaignState.js";
+import {
+  normalizePoiClient,
+  getPoiAccess,
+  getPoiHierarchy,
+} from "/utils/poiContract.js";
 
 const DEFAULT_ACCESS = {
   visibility: "listed",
@@ -25,12 +30,14 @@ const SCOPE_MAP = {
 };
 
 function getScope(entity) {
-  const category = entity?.poiV2?.hierarchy?.category || entity?.commands?.category;
+  const category = entity?.poiV2
+    ? getPoiHierarchy(entity).category
+    : entity?.commands?.category;
   return SCOPE_MAP[category] || "cases";
 }
 
 function getAccessConfig(entity) {
-  const rawConfig = entity?.poiV2?.access || entity?.unlockConditions;
+  const rawConfig = entity?.poiV2 ? getPoiAccess(normalizePoiClient(entity)) : entity?.unlockConditions;
   if (!entity || !rawConfig) {
     return { ...DEFAULT_ACCESS };
   }
@@ -143,12 +150,12 @@ function unlockEntity(entity) {
 }
 
 function getNodeType(entity) {
-  return entity?.poiV2?.hierarchy?.nodeType || entity?.commands?.nodeType || "mixed";
+  return entity?.poiV2 ? getPoiHierarchy(entity).nodeType : entity?.commands?.nodeType || "mixed";
 }
 
 function getNodeLabel(entity) {
   return (
-    entity?.poiV2?.hierarchy?.menuAlias ||
+    (entity?.poiV2 ? getPoiHierarchy(entity).menuAlias : "") ||
     entity?.commands?.menuAlias ||
     entity.title ||
     entity.name ||
@@ -158,7 +165,7 @@ function getNodeLabel(entity) {
 }
 
 function resolveAutoParent(entity) {
-  if (entity?.poiV2?.hierarchy?.parentId) return entity.poiV2.hierarchy.parentId;
+  if (entity?.poiV2) return getPoiHierarchy(entity).parentId;
   if (entity?.commands?.parentId) return entity.commands.parentId;
   const scope = getScope(entity);
   const prefixMap = {

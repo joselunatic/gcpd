@@ -33,6 +33,7 @@ import {
   trimParts,
   padParts,
 } from "/utils/tui.js";
+import { normalizePoisClient, getPoiName } from "/utils/poiContract.js";
 
 const fastRender = { wait: false, initialWait: false, finalWait: false };
 const COLUMN = { left: 38, right: 51, divider: "│" };
@@ -45,7 +46,7 @@ async function loadPoisIndex() {
     poisCachePromise = fetch(POIS_URL, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : { pois: [] }))
       .then((data) => {
-        const pois = Array.isArray(data?.pois) ? data.pois : [];
+        const pois = normalizePoisClient(data?.pois);
         return new Map(pois.map((entry) => [entry.id, entry]));
       })
       .catch(() => new Map());
@@ -65,7 +66,7 @@ function resolveCaseLocations(item = {}, poisIndex = new Map()) {
       return {
         poiId: entry.poiId,
         role: entry.role || "related",
-        label: poi.name || poi.id,
+        label: getPoiName(poi),
         district: poi.district || "",
       };
     })
