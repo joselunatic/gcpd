@@ -132,6 +132,17 @@ function buildHotspotsFromPois(pois = []) {
     .filter(Boolean);
 }
 
+function parseMapArgs(args = "") {
+  const tokens = String(args || "")
+    .split(/\s+/)
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  return {
+    forceEmptyState: tokens.includes("sininfo"),
+    poiIds: tokens.filter((entry) => entry !== "sininfo"),
+  };
+}
+
 function ensureMapStyles() {
   if (document.getElementById("terminal-map-styles")) return;
   const style = document.createElement("style");
@@ -586,8 +597,16 @@ async function showMapOverlay({ pois, hotspotsData }) {
 
   const panel = document.createElement("div");
   panel.className = "terminal-map-panel";
+  const emptyState = hotspotsData?.emptyState || {};
+  const scopedLabel = hotspotsData?.scopedLabel || "";
+  const emptyTitle = String(emptyState.title || "SECTOR :: SIN SELECCION").toUpperCase();
+  const emptyImageText = emptyState.imageText || "SELECCIONA UN POI PARA CARGAR EVIDENCIA.";
+  const emptySummary = emptyState.summary || "Esperando seleccion de POI.";
+  const emptyDetails = emptyState.details || "SIN DATOS.";
+  const emptyContacts = emptyState.contacts || "SIN DATOS.";
+  const emptyNotes = emptyState.notes || "SIN DATOS.";
   panel.innerHTML = `
-    <div class="terminal-map-panel__title">SECTOR :: SIN SELECCION</div>
+    <div class="terminal-map-panel__title">${escapeHtml(emptyTitle)}</div>
     <div class="terminal-map-panel__meta">
       <div class="terminal-map-panel__label">ID</div>
       <div>--</div>
@@ -600,24 +619,24 @@ async function showMapOverlay({ pois, hotspotsData }) {
     </div>
     <div class="terminal-map-panel__image" role="button" tabindex="-1" aria-disabled="true" aria-label="Sin evidencia disponible">
       <img class="terminal-map-panel__image-el" alt="POI" />
-      <span class="terminal-map-panel__image-placeholder">SELECCIONA UN POI PARA CARGAR EVIDENCIA.</span>
+      <span class="terminal-map-panel__image-placeholder">${escapeHtml(emptyImageText)}</span>
       <span class="terminal-map-panel__image-caption"></span>
     </div>
     <div class="terminal-map-panel__block" data-panel="summary">
       <span>RESUMEN</span>
-      <div class="terminal-map-panel__copy">Esperando seleccion de POI.</div>
+      <div class="terminal-map-panel__copy">${escapeHtml(emptySummary)}</div>
     </div>
     <div class="terminal-map-panel__block" data-panel="details">
       <span>INTEL</span>
-      <div class="terminal-map-panel__list">SIN DATOS.</div>
+      <div class="terminal-map-panel__list">${escapeHtml(emptyDetails)}</div>
     </div>
     <div class="terminal-map-panel__block" data-panel="contacts">
       <span>CONTACTOS</span>
-      <div class="terminal-map-panel__list">SIN DATOS.</div>
+      <div class="terminal-map-panel__list">${escapeHtml(emptyContacts)}</div>
     </div>
     <div class="terminal-map-panel__block" data-panel="notes">
       <span>NOTAS</span>
-      <div class="terminal-map-panel__list">SIN DATOS.</div>
+      <div class="terminal-map-panel__list">${escapeHtml(emptyNotes)}</div>
     </div>
   `;
   shell.appendChild(panel);
@@ -631,7 +650,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
   const ui = document.createElement("div");
   ui.className = "terminal-map-ui";
   ui.innerHTML = `
-    <div>MAPA :: SECTORES</div>
+    <div>${escapeHtml(scopedLabel || "MAPA :: SECTORES")}</div>
     <button class="terminal-map-ui__button" type="button" data-action="exit">SALIR</button>
   `;
   overlay.appendChild(ui);
@@ -1503,8 +1522,10 @@ async function browsePois(pois) {
   }
 }
 
-export default async () => {
+export default async (args = "") => {
   await refreshCampaignState();
+  const mapArgs = parseMapArgs(args);
+  const hasCaseScopedMap = mapArgs.forceEmptyState || mapArgs.poiIds.length > 0;
   const data = await fetchPois();
   if (dataSource !== "api") {
     await print(["FALLBACK DATA IN USE."], {
@@ -1513,25 +1534,49 @@ export default async () => {
       ...fastRender,
     });
   }
-  const pois = data.pois || [];
+  const allPois = data.pois || [];
+  const pois =
+    mapArgs.poiIds.length && !mapArgs.forceEmptyState
+      ? allPois.filter((poi) => mapArgs.poiIds.includes(String(poi.id || "").toLowerCase()))
+      : allPois;
   if (!pois.length) {
-    await print(["NO HAY POIs CONFIGURADOS.", " "], {
-      semantic: "system",
-      stopBlinking: true,
+    await showMapOverlay({
+      pois: [],
+      hotspotsData: {
+        image: "/mapa.png",
+        aspectRatio: 1,
+        hotspots: [],
+        scopedLabel: "MAPA :: CONTEXTO DE CASO",
+        emptyState: {
+          title: "SECTOR :: SIN INFORMACION",
+          imageText: "SIN INFORMACION GEOGRAFICA DEL CASO.",
+          summary: "Este caso no tiene POIs asignados.",
+          details: "SIN INFORMACION.",
+          contacts: "SIN INFORMACION.",
+          notes: "ASIGNA UN POI AL CASO DESDE DM PARA ACTIVAR EL MAPA.",
+        },
+      },
     });
     return;
   }
   const hotspotsData = await fetchHotspots();
   const derivedHotspots = buildHotspotsFromPois(pois);
   const overlayPayload =
-    derivedHotspots.length
+    hasCaseScopedMap
+      ? {
+          image: hotspotsData?.image || "/mapa.png",
+          aspectRatio: Number(hotspotsData?.aspectRatio) || 1,
+          hotspots: derivedHotspots,
+          scopedLabel: "MAPA :: CONTEXTO DE CASO",
+        }
+      : derivedHotspots.length
       ? {
           image: hotspotsData?.image || "/mapa.png",
           aspectRatio: Number(hotspotsData?.aspectRatio) || 1,
           hotspots: derivedHotspots,
         }
       : hotspotsData;
-  if (overlayPayload && Array.isArray(overlayPayload.hotspots) && overlayPayload.hotspots.length) {
+  if (overlayPayload && Array.isArray(overlayPayload.hotspots)) {
     await showMapOverlay({ pois, hotspotsData: overlayPayload });
     return;
   }

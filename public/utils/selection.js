@@ -15,6 +15,20 @@ function updateSelectionStyles() {
   state.items[state.index].classList.add("is-selected");
 }
 
+function notifySelectionChange() {
+  const handler = state.context?.onSelectionChange;
+  if (typeof handler !== "function") return;
+  const selected =
+    state.index >= 0 && state.index < state.items.length
+      ? state.items[state.index]
+      : null;
+  handler({
+    index: state.index,
+    selected,
+    context: state.context || {},
+  });
+}
+
 function setSelectables(items, { defaultIndex = 0, context = {} } = {}) {
   clearSelectables();
   state.items = (items || []).filter(Boolean);
@@ -25,6 +39,7 @@ function setSelectables(items, { defaultIndex = 0, context = {} } = {}) {
   }
   state.index = Math.max(0, Math.min(defaultIndex, state.items.length - 1));
   updateSelectionStyles();
+  notifySelectionChange();
 }
 
 function clearSelectables() {
@@ -41,6 +56,7 @@ function moveSelection(delta) {
   const next = (state.index + delta + total) % total;
   state.index = next;
   updateSelectionStyles();
+  notifySelectionChange();
   return true;
 }
 
@@ -50,6 +66,7 @@ function setSelectedElement(element) {
   if (index === -1) return false;
   state.index = index;
   updateSelectionStyles();
+  notifySelectionChange();
   return true;
 }
 

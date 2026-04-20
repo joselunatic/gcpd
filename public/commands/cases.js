@@ -281,6 +281,112 @@ function mergeItemsWithPreview(items, previewLines) {
   });
 }
 
+function countRenderedItemLines(items = []) {
+  return items.reduce(
+    (sum, item) => sum + (Array.isArray(item.lines) ? item.lines.length : 1),
+    0
+  );
+}
+
+function fillLineNode(node, lineInput = "") {
+  if (!node) return;
+  const existingClasses = Array.from(node.classList);
+  node.textContent = "";
+  existingClasses.forEach((cls) => {
+    if (cls.startsWith("tui-")) node.classList.remove(cls);
+  });
+  let plainText = "";
+  if (typeof lineInput === "string" || typeof lineInput === "number") {
+    plainText = String(lineInput ?? "");
+    node.textContent = plainText;
+  } else if (lineInput && typeof lineInput === "object") {
+    if (lineInput.className) {
+      String(lineInput.className)
+        .split(" ")
+        .filter(Boolean)
+        .forEach((cls) => node.classList.add(cls));
+    }
+    if (lineInput.semantic) {
+      node.classList.add(`tui-${String(lineInput.semantic)}`);
+    }
+    if (Array.isArray(lineInput.parts)) {
+      lineInput.parts.forEach((part) => {
+        const span = document.createElement("span");
+        const text = String(part?.text || "");
+        plainText += text;
+        span.textContent = text;
+        if (part?.className) {
+          String(part.className)
+            .split(" ")
+            .filter(Boolean)
+            .forEach((cls) => span.classList.add(cls));
+        }
+        node.appendChild(span);
+      });
+    } else {
+      plainText = String(lineInput.text || "");
+      node.textContent = plainText;
+    }
+  }
+  node.dataset.text = plainText;
+}
+
+function installCasesLivePreview({
+  headerLines,
+  pageItems,
+  footerLines,
+  chips,
+  terminal,
+  cases,
+  campaignState,
+  poisIndex,
+}) {
+  if (!terminal) return () => {};
+
+  const itemLineCount = countRenderedItemLines(pageItems);
+  const chipsOffset = chips.length ? 1 : 0;
+  const headerCount = headerLines.length;
+  const footerStart = headerCount + itemLineCount + chipsOffset;
+  const itemNodes = Array.from(terminal.querySelectorAll(".terminal-line")).slice(
+    headerCount,
+    headerCount + itemLineCount
+  );
+  const footerNodes = Array.from(terminal.querySelectorAll(".terminal-line")).slice(
+    footerStart,
+    footerStart + footerLines.length
+  );
+
+  return ({ index }) => {
+    const selected = pageItems[index] || pageItems[0] || null;
+    if (!selected) return;
+    const mergedItems = mergeItemsWithPreview(
+      pageItems,
+      buildPreviewLines(selected._item, selected._evaluation, campaignState, cases, poisIndex)
+    );
+    const nextFooterLines = [
+      ...footerLines.slice(0, Math.max(0, footerLines.length - 3)),
+      ...buildWorkspaceLines(selected._item, selected._evaluation, cases, poisIndex),
+      ...footerLines.slice(-2),
+    ];
+    while (nextFooterLines.length < footerNodes.length) nextFooterLines.push("");
+    if (nextFooterLines.length > footerNodes.length) {
+      nextFooterLines.length = footerNodes.length;
+    }
+
+    let itemCursor = 0;
+    mergedItems.forEach((item) => {
+      const lines = Array.isArray(item.lines) ? item.lines : [item.lines];
+      lines.forEach((line) => {
+        fillLineNode(itemNodes[itemCursor], line);
+        itemCursor += 1;
+      });
+    });
+    nextFooterLines.forEach((line, footerIndex) => {
+      fillLineNode(footerNodes[footerIndex], line);
+    });
+  };
+}
+
 function buildDetailBody(item, evaluation, cases, poisIndex) {
   const locations = resolveCaseLocations(item, poisIndex);
   const primary = locations.find((entry) => entry.role === "primary") || locations[0] || null;
@@ -341,7 +447,8 @@ async function renderCaseDetails(item, evaluation, cases, poisIndex) {
     const normalized = String(choice || "").trim().toUpperCase();
     if (!normalized || normalized === "B" || normalized === "X") return { action: "back" };
     if (normalized === "M" || normalized === "MAP" || normalized === "MAPA") {
-      await parse("map");
+      const relatedPoiIds = resolveCaseLocations(item, poisIndex).map((entry) => entry.poiId);
+      await parse(relatedPoiIds.length ? `map ${relatedPoiIds.join(" ")}` : "map sininfo");
       continue;
     }
     if (canDescend && (normalized === "S" || normalized === "SUBCASOS")) return { action: "descend" };
@@ -488,7 +595,23 @@ async function browseCases(cases) {
         items: mergeItemsWithPreview(pageItems, buildPreviewLines(focusItem?._item, focusItem?._evaluation, campaignState, cases, poisIndex)),
         footerLines,
         chips: pageCount > 1 && isPortraitNarrow() ? [...baseChips, { label: "PREV", action: "select", value: "P" }, { label: "NEXT", action: "select", value: "N" }] : baseChips,
-        context: { backValue: "B", backAction: "input" },
+        context: {
+          backValue: "B",
+          backAction: "input",
+          onSelectionChange: installCasesLivePreview({
+            headerLines,
+            pageItems,
+            footerLines,
+            chips:
+              pageCount > 1 && isPortraitNarrow()
+                ? [...baseChips, { label: "PREV", action: "select", value: "P" }, { label: "NEXT", action: "select", value: "N" }]
+                : baseChips,
+            terminal: document.querySelector(".terminal"),
+            cases,
+            campaignState,
+            poisIndex,
+          }),
+        },
         defaultIndex: pageDefaultIndex,
       },
       fastRender
