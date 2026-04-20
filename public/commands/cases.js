@@ -331,43 +331,60 @@ function fillLineNode(node, lineInput = "") {
   node.dataset.text = plainText;
 }
 
+function flashPanelNode(node) {
+  if (!node) return;
+  node.classList.remove("cases-live-refresh");
+  void node.offsetWidth;
+  node.classList.add("cases-live-refresh");
+}
+
 function installCasesLivePreview({
   headerLines,
   pageItems,
-  footerLines,
+  footerPrefixLines,
+  footerSuffixLines,
   chips,
   terminal,
   cases,
   campaignState,
   poisIndex,
 }) {
-  if (!terminal) return () => {};
-
   const itemLineCount = countRenderedItemLines(pageItems);
   const chipsOffset = chips.length ? 1 : 0;
   const headerCount = headerLines.length;
   const footerStart = headerCount + itemLineCount + chipsOffset;
-  const itemNodes = Array.from(terminal.querySelectorAll(".terminal-line")).slice(
-    headerCount,
-    headerCount + itemLineCount
-  );
-  const footerNodes = Array.from(terminal.querySelectorAll(".terminal-line")).slice(
-    footerStart,
-    footerStart + footerLines.length
-  );
 
   return ({ index }) => {
+    const liveTerminal = terminal || document.querySelector(".terminal");
+    if (!liveTerminal) return;
+
+    const terminalLines = Array.from(
+      liveTerminal.querySelectorAll(".terminal-line")
+    );
+    const itemNodes = terminalLines.slice(
+      headerCount,
+      headerCount + itemLineCount
+    );
     const selected = pageItems[index] || pageItems[0] || null;
     if (!selected) return;
+    const footerLines = [
+      ...footerPrefixLines,
+      ...buildWorkspaceLines(
+        selected?._item,
+        selected?._evaluation,
+        cases,
+        poisIndex
+      ),
+      ...footerSuffixLines,
+    ];
+    const footerNodes = terminalLines.slice(footerStart);
+
+    if (!itemNodes.length || !footerNodes.length) return;
     const mergedItems = mergeItemsWithPreview(
       pageItems,
       buildPreviewLines(selected._item, selected._evaluation, campaignState, cases, poisIndex)
     );
-    const nextFooterLines = [
-      ...footerLines.slice(0, Math.max(0, footerLines.length - 3)),
-      ...buildWorkspaceLines(selected._item, selected._evaluation, cases, poisIndex),
-      ...footerLines.slice(-2),
-    ];
+    const nextFooterLines = footerLines.slice();
     while (nextFooterLines.length < footerNodes.length) nextFooterLines.push("");
     if (nextFooterLines.length > footerNodes.length) {
       nextFooterLines.length = footerNodes.length;
@@ -378,11 +395,13 @@ function installCasesLivePreview({
       const lines = Array.isArray(item.lines) ? item.lines : [item.lines];
       lines.forEach((line) => {
         fillLineNode(itemNodes[itemCursor], line);
+        flashPanelNode(itemNodes[itemCursor]);
         itemCursor += 1;
       });
     });
     nextFooterLines.forEach((line, footerIndex) => {
       fillLineNode(footerNodes[footerIndex], line);
+      flashPanelNode(footerNodes[footerIndex]);
     });
   };
 }
@@ -588,6 +607,8 @@ async function browseCases(cases) {
       ...buildWorkspaceLines(focusItem?._item, focusItem?._evaluation, cases, poisIndex),
       ...baseFooterLines.slice(baseFooterLines.length - 2),
     ];
+    const footerPrefixLines = pageCount > 1 ? [mergeLine(`PAGINA ${pageIndex + 1}/${pageCount} (N/P)`, "")] : [];
+    const footerSuffixLines = baseFooterLines.slice(baseFooterLines.length - 2);
     clear();
     await renderSelectableLines(
       {
@@ -601,7 +622,8 @@ async function browseCases(cases) {
           onSelectionChange: installCasesLivePreview({
             headerLines,
             pageItems,
-            footerLines,
+            footerPrefixLines,
+            footerSuffixLines,
             chips:
               pageCount > 1 && isPortraitNarrow()
                 ? [...baseChips, { label: "PREV", action: "select", value: "P" }, { label: "NEXT", action: "select", value: "N" }]
