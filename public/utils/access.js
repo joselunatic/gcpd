@@ -29,11 +29,21 @@ const SCOPE_MAP = {
   villains: "villains",
 };
 
+function normalizeScopeName(value = "") {
+  return String(value || "").trim().toLowerCase();
+}
+
+function resolveScope(category = "") {
+  const normalized = normalizeScopeName(category);
+  if (!normalized) return "cases";
+  return SCOPE_MAP[normalized] || normalized;
+}
+
 function getScope(entity) {
   const category = entity?.poiV2
     ? getPoiHierarchy(entity).category
-    : entity?.commands?.category;
-  return SCOPE_MAP[category] || "cases";
+    : entity?.commands?.category || entity?.scope || entity?.entityType;
+  return resolveScope(category);
 }
 
 function getAccessConfig(entity) {
@@ -149,6 +159,45 @@ function unlockEntity(entity) {
   return markUnlocked(scope, entity.id);
 }
 
+function getAccessLabel(
+  evaluation = {},
+  { hiddenLabel = "HIDDEN", unlockedLabel = "OPEN", lockedLabel = "LOCKED" } = {}
+) {
+  if (!evaluation.visible) return hiddenLabel;
+  return evaluation.unlocked || evaluation.config?.unlockMode === "none"
+    ? unlockedLabel
+    : lockedLabel;
+}
+
+function getEntityStateLabel(
+  entity = {},
+  evaluation = {},
+  { hiddenLabel = "HIDDEN", lockedLabel = "LOCKED" } = {}
+) {
+  if (!evaluation.visible) return hiddenLabel;
+  if (!evaluation.unlocked && evaluation.config?.unlockMode !== "none") {
+    return lockedLabel;
+  }
+  return String(entity.status || "active").toUpperCase();
+}
+
+function getStateTone(label = "") {
+  const value = String(label || "").toUpperCase();
+  if (value === "ACTIVE" || value === "OPEN" || value === "ONLINE") {
+    return "tui-ok";
+  }
+  if (value === "LOCKED" || value === "HIDDEN" || value === "OCULTO") {
+    return "tui-warn";
+  }
+  if (value === "RESOLVED" || value === "ARCHIVED") {
+    return "tui-muted";
+  }
+  if (value === "CRITICAL" || value === "HIGH") {
+    return "tui-alert";
+  }
+  return "tui-primary";
+}
+
 function getNodeType(entity) {
   return entity?.poiV2 ? getPoiHierarchy(entity).nodeType : entity?.commands?.nodeType || "mixed";
 }
@@ -219,5 +268,9 @@ export {
   getNodeLabel,
   buildNavigationTree,
   getScope,
+  resolveScope,
+  getAccessLabel,
+  getEntityStateLabel,
+  getStateTone,
   DEFAULT_ACCESS,
 };

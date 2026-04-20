@@ -1,11 +1,11 @@
 import { prompt, type, parse } from "/utils/io.js";
 import {
-  evaluateAccess,
-  evaluateAttributeAccess,
-  unlockEntity,
   getScope,
 } from "/utils/access.js";
-import { markAttributeUnlocked } from "/utils/campaignState.js";
+import {
+  ensureEntityAccess as ensureRuntimeEntityAccess,
+  ensureAttributeAccess as ensureRuntimeAttributeAccess,
+} from "/utils/accessFlow.js";
 import { listGlobalCommands } from "/utils/globalCommands.js";
 import { resolveEntity, normalizeKey } from "/utils/entities.js";
 
@@ -100,58 +100,25 @@ function formatValue(value) {
 }
 
 async function ensureEntityAccess(entity) {
-  const access = evaluateAccess(entity);
-  if (!access.unlocked && access.config.unlockMode === "password") {
-    const token = await prompt("TOKEN: ", true);
-    const expected = String(access.config.password || "").toLowerCase();
-    if (token !== expected) {
-      await type("ACCESO DENEGADO.");
-      return false;
-    }
-    unlockEntity(entity);
-    return true;
-  }
-  if (!access.unlocked || !access.visible || !access.prerequisitesMet || !access.flagsMet) {
-    await type("ACCESO RESTRINGIDO.");
-    return false;
-  }
-  return true;
+  return ensureRuntimeEntityAccess(entity, {
+    passwordPrompt: "TOKEN: ",
+    passwordMask: true,
+    passwordFailureLines: ["ACCESO DENEGADO."],
+    prerequisiteIntroLines: ["ACCESO RESTRINGIDO."],
+    flagsIntroLines: ["ACCESO RESTRINGIDO."],
+    puzzleLines: ["ACCESO RESTRINGIDO."],
+  });
 }
 
 async function ensureAttributeAccess(entity, fieldKey) {
-  const access = evaluateAttributeAccess(entity, fieldKey);
-  const isHidden = access.config.visibility === "hidden";
-  const expected = String(access.config.password || "").toLowerCase();
-  if (isHidden && !access.unlocked) {
-    if (!access.config.phrase) {
-      await type("NO HAY INFORMACION DISPONIBLE.");
-      return false;
-    }
-    await type(access.config.phrase);
-    const token = await prompt("TOKEN: ", true);
-    if (!expected || token !== expected) {
-      await type("TOKEN INVALIDO.");
-      return false;
-    }
-    const scope = getScope(entity);
-    markAttributeUnlocked(scope, entity.id, fieldKey);
-    return true;
-  }
-  if (!access.unlocked && access.config.unlockMode === "password") {
-    const token = await prompt("TOKEN: ", true);
-    if (!expected || token !== expected) {
-      await type("TOKEN INVALIDO.");
-      return false;
-    }
-    const scope = getScope(entity);
-    markAttributeUnlocked(scope, entity.id, fieldKey);
-    return true;
-  }
-  if (!access.unlocked || !access.visible || !access.prerequisitesMet || !access.flagsMet) {
-    await type("ATRIBUTO BLOQUEADO.");
-    return false;
-  }
-  return true;
+  return ensureRuntimeAttributeAccess(entity, fieldKey, {
+    tokenPrompt: "TOKEN: ",
+    invalidTokenLines: ["TOKEN INVALIDO."],
+    hiddenFailureLines: ["NO HAY INFORMACION DISPONIBLE."],
+    attributePrerequisiteIntroLines: ["ATRIBUTO BLOQUEADO."],
+    attributeFlagsIntroLines: ["ATRIBUTO BLOQUEADO."],
+    blockedLines: ["ATRIBUTO BLOQUEADO."],
+  });
 }
 
 function parseScopeToken(token = "") {

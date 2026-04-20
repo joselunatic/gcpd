@@ -1,8 +1,16 @@
-import { prompt, type, print, renderSelectableLines, parse, input } from "/utils/io.js";
+import { type, print, renderSelectableLines, parse, input } from "/utils/io.js";
 import { listCases, getCasesSource } from "/utils/cases.js";
 import { loadCampaignState, markSeen, refreshCampaignState } from "/utils/campaignState.js";
 import clear from "/commands/clear.js";
-import { evaluateAccess, unlockEntity, getNodeType, getNodeLabel } from "/utils/access.js";
+import {
+  evaluateAccess,
+  getNodeType,
+  getNodeLabel,
+  getAccessLabel,
+  getEntityStateLabel,
+  getStateTone,
+} from "/utils/access.js";
+import { attemptEntityUnlock } from "/utils/accessFlow.js";
 import { getStatusContext } from "/utils/status.js";
 import { isPortraitNarrow, getWrapLimit } from "/utils/portrait.js";
 import { waitForSelection } from "/utils/selection.js";
@@ -84,23 +92,6 @@ function resolveCaseLocations(item = {}, poisIndex = new Map()) {
 const hasChildren = (cases, id) =>
   cases.some((entry) => (entry.commands?.parentId || "") === id);
 
-const accessLabel = (evaluation = {}) =>
-  !evaluation.visible ? "HIDDEN" : evaluation.unlocked || evaluation.config?.unlockMode === "none" ? "OPEN" : "LOCKED";
-
-const stateLabel = (item = {}, evaluation = {}) => {
-  if (!evaluation.visible) return "HIDDEN";
-  if (!evaluation.unlocked && evaluation.config?.unlockMode !== "none") return "LOCKED";
-  return String(item.status || "active").toUpperCase();
-};
-
-const stateClass = (label = "") => {
-  const value = String(label || "").toUpperCase();
-  if (value === "ACTIVE" || value === "OPEN") return "tui-ok";
-  if (value === "LOCKED" || value === "HIDDEN") return "tui-warn";
-  if (value === "RESOLVED" || value === "ARCHIVED") return "tui-muted";
-  return "tui-primary";
-};
-
 function indicatorsFor(item = {}, evaluation = {}, locations = [], withChildren = false) {
   const out = [];
   if (withChildren) out.push("TREE");
@@ -133,9 +124,9 @@ function buildPath(item = {}, cases = []) {
 function formatNodeLine(item, evaluation, index, campaignState, cases, poisIndex) {
   const locations = resolveCaseLocations(item, poisIndex);
   const primary = locations.find((entry) => entry.role === "primary") || locations[0] || null;
-  const status = stateLabel(item, evaluation);
+  const status = getEntityStateLabel(item, evaluation);
   const meta = [
-    accessLabel(evaluation),
+    getAccessLabel(evaluation),
     primary?.label || "",
     indicatorsFor(item, evaluation, locations, hasChildren(cases, item.id)).join(" · "),
   ]
@@ -149,7 +140,7 @@ function formatNodeLine(item, evaluation, index, campaignState, cases, poisIndex
         ...(item.commands?.parentId ? [{ text: `${SYMBOLS.relation} `, className: "tui-muted" }] : []),
         { text: trimInline(getNodeLabel(item), 23), className: "tui-primary" },
         { text: " ", className: "tui-muted" },
-        { text: `[${status}]`, className: stateClass(status) },
+        { text: `[${status}]`, className: getStateTone(status) },
         ...(isFresh ? [{ text: " NEW", className: "tui-accent" }] : []),
       ],
     },
@@ -167,26 +158,49 @@ function buildPreviewLines(item, evaluation, campaignState, cases, poisIndex) {
   if (!item) return [{ parts: [{ text: "SIN CASO SELECCIONADO.", className: "tui-muted" }] }];
   const locations = resolveCaseLocations(item, poisIndex);
   const primary = locations.find((entry) => entry.role === "primary") || locations[0] || null;
-  const status = stateLabel(item, evaluation);
+  const status = getEntityStateLabel(item, evaluation);
+  const tools = indicatorsFor(item, evaluation, locations, hasChildren(cases, item.id));
   const lines = [
     { parts: [{ text: `${SYMBOLS.selected} ${trimInline(item.title || item.id, 42)}`, className: "tui-accent" }] },
-    labelValueLine("STATE", status, stateClass(status)),
-    labelValueLine("ACCESS", accessLabel(evaluation), accessLabel(evaluation) === "OPEN" ? "tui-ok" : "tui-warn"),
-    labelValueLine("NODE", String(getNodeType(item) || "mixed").toUpperCase(), "tui-muted"),
+    mergeLine(
+      {
+        parts: [
+          { text: "STATE ", className: "tui-system" },
+          { text: status, className: getStateTone(status) },
+          { text: " | ", className: "tui-muted" },
+          { text: getAccessLabel(evaluation), className: getStateTone(getAccessLabel(evaluation)) },
+        ],
+      },
+      {
+        parts: [{ text: trimInline(String(getNodeType(item) || "mixed").toUpperCase(), 18), className: "tui-muted tui-panel-right" }],
+      }
+    ),
   ];
-  if (buildPath(item, cases).length > 1) lines.push(labelValueLine("PATH", trimInline(buildPath(item, cases).join(" > "), 40), "tui-muted"));
-  if (primary) lines.push(labelValueLine("POI", trimInline(primary.district ? `${primary.label} · ${primary.district}` : primary.label, 40), "tui-primary"));
-  if (locations.length > 1) lines.push(labelValueLine("NETWORK", `${locations.length} POIS`, "tui-muted"));
-  const tools = indicatorsFor(item, evaluation, locations, hasChildren(cases, item.id));
-  if (tools.length) lines.push(labelValueLine("TOOLS", trimInline(tools.join(" · "), 40), "tui-system"));
-  wrapLine(item.summary || "", COLUMN.right - 9).slice(0, 3).forEach((line, idx) => {
+  if (primary || tools.length) {
+    lines.push(
+      mergeLine(
+        {
+          parts: primary
+            ? [
+                { text: "POI ", className: "tui-system" },
+                {
+                  text: trimInline(primary.district ? `${primary.label} · ${primary.district}` : primary.label, 26),
+                  className: "tui-primary",
+                },
+              ]
+            : [{ text: "POI SIN INFORMACION", className: "tui-muted" }],
+        },
+        {
+          parts: tools.length
+            ? [{ text: trimInline(tools.join(" · "), 28), className: "tui-system tui-panel-right" }]
+            : [{ text: "NO TOOLING", className: "tui-muted tui-panel-right" }],
+        }
+      )
+    );
+  }
+  wrapLine(item.summary || "", COLUMN.right - 9).slice(0, 2).forEach((line, idx) => {
     lines.push({ parts: [{ text: idx === 0 ? "SUMMARY: " : "         ", className: "tui-system" }, { text: line, className: "tui-primary" }] });
   });
-  if (item.commands?.brief?.[0]) {
-    wrapLine(item.commands.brief[0], COLUMN.right - 9).slice(0, 2).forEach((line, idx) => {
-      lines.push({ parts: [{ text: idx === 0 ? "BRIEF:   " : "         ", className: "tui-system" }, { text: line, className: "tui-muted" }] });
-    });
-  }
   if (Number(item.updatedAt || 0) > Number(campaignState?.lastSeen?.cases?.[item.id] || 0)) {
     lines.push(labelValueLine("DELTA", "UNREAD UPDATE", "tui-accent"));
   }
@@ -194,52 +208,55 @@ function buildPreviewLines(item, evaluation, campaignState, cases, poisIndex) {
 }
 
 function buildWorkspaceLines(item, evaluation, cases, poisIndex) {
-  if (!item) return [mergeLine("DOSSIER", "SIN FOCO")];
+  if (!item) return [mergeLine("FOCO", "SIN CASO")];
   const locations = resolveCaseLocations(item, poisIndex);
   const primary = locations.find((entry) => entry.role === "primary") || locations[0] || null;
-  const status = stateLabel(item, evaluation);
-  const tools = indicatorsFor(item, evaluation, locations, hasChildren(cases, item.id)).join(" · ");
+  const markers = indicatorsFor(item, evaluation, locations, hasChildren(cases, item.id)).join(" · ");
+  const leadText = item.commands?.intel?.[0] || item.commands?.brief?.[0] || item.summary || "";
+  const pathText = trimInline(buildPath(item, cases).join(" > "), 48);
+  const poiText = primary
+    ? trimInline(primary.district ? `${primary.label} · ${primary.district}` : primary.label, 48)
+    : locations.length
+      ? `${locations.length} POIS RELACIONADOS`
+      : "SIN INFORMACION";
+  const status = getEntityStateLabel(item, evaluation);
   const lines = [
     mergeLine(
-      { parts: [{ text: "DOSSIER / SNAPSHOT", className: "tui-system" }] },
+      { parts: [{ text: trimInline(item.title || item.id, 36), className: "tui-primary" }] },
       {
         parts: [
-          { text: status, className: stateClass(status) },
+          { text: status, className: getStateTone(status) },
           { text: " | ", className: "tui-muted" },
-          { text: accessLabel(evaluation), className: accessLabel(evaluation) === "OPEN" ? "tui-ok" : "tui-warn" },
+          { text: item.id || "NO ID", className: "tui-muted" },
         ],
       }
     ),
     mergeLine(
-      { parts: [{ text: trimInline(item.title || item.id, 36), className: "tui-primary" }] },
-      { parts: [{ text: trimInline(buildPath(item, cases).join(" > "), 48), className: "tui-muted tui-panel-right" }] }
+      { parts: [{ text: "RUTA", className: "tui-system" }] },
+      { parts: [{ text: pathText || "ROOT", className: "tui-muted tui-panel-right" }] }
     ),
+    mergeLine(
+      { parts: [{ text: "POI", className: "tui-system" }] },
+      { parts: [{ text: poiText, className: primary ? "tui-primary tui-panel-right" : "tui-muted tui-panel-right" }] }
+    )
   ];
-  if (item.summary) {
-    wrapLine(item.summary, 82).slice(0, 2).forEach((line, idx) => {
+  if (leadText) {
+    wrapLine(leadText, 82).slice(0, 2).forEach((line, idx) => {
       lines.push(
         mergeLine(
-          { parts: [{ text: idx === 0 ? "SUMMARY" : "", className: "tui-system" }] },
+          { parts: [{ text: idx === 0 ? "CLAVE" : "", className: "tui-system" }] },
           { parts: [{ text: line, className: "tui-primary tui-panel-right" }] }
         )
       );
     });
   }
-  lines.push(
-    mergeLine(
-      { parts: [{ text: "MAP/POI", className: "tui-system" }, { text: primary ? ` ${trimInline(primary.label, 22)}` : " NONE", className: "tui-muted" }] },
-      { parts: [{ text: trimInline(tools || "NO TOOLING", 48), className: "tui-system tui-panel-right" }] }
-    )
-  );
-  if (item.commands?.brief?.[0]) {
-    wrapLine(item.commands.brief[0], 82).slice(0, 2).forEach((line, idx) => {
-      lines.push(
-        mergeLine(
-          { parts: [{ text: idx === 0 ? "BRIEF" : "", className: "tui-system" }] },
-          { parts: [{ text: line, className: "tui-muted tui-panel-right" }] }
-        )
-      );
-    });
+  if (markers) {
+    lines.push(
+      mergeLine(
+        { parts: [{ text: "TIPOS", className: "tui-system" }] },
+        { parts: [{ text: trimInline(markers, 48), className: "tui-muted tui-panel-right" }] }
+      )
+    );
   }
   if (!evaluation.unlocked && evaluation.config?.unlockMode !== "none") {
     const blockers = [
@@ -249,7 +266,7 @@ function buildWorkspaceLines(item, evaluation, cases, poisIndex) {
     blockers.slice(0, 2).forEach((entry, idx) => {
       lines.push(
         mergeLine(
-          { parts: [{ text: idx === 0 ? "BLOCK" : "", className: "tui-warn" }] },
+          { parts: [{ text: idx === 0 ? "BLOQUEO" : "", className: "tui-warn" }] },
           { parts: [{ text: trimInline(entry, 48), className: "tui-warn tui-panel-right" }] }
         )
       );
@@ -409,13 +426,13 @@ function installCasesLivePreview({
 function buildDetailBody(item, evaluation, cases, poisIndex) {
   const locations = resolveCaseLocations(item, poisIndex);
   const primary = locations.find((entry) => entry.role === "primary") || locations[0] || null;
-  const status = stateLabel(item, evaluation);
+  const status = getEntityStateLabel(item, evaluation);
   const lines = [
     { parts: [{ text: titleLine("CASE DOSSIER :: RAPID VIEW"), className: "tui-system" }] },
     labelValueLine("CASE FILE", item.title || item.id, "tui-accent"),
     labelValueLine("ID", item.id, "tui-muted"),
-    labelValueLine("STATE", status, stateClass(status)),
-    labelValueLine("ACCESS", accessLabel(evaluation), accessLabel(evaluation) === "OPEN" ? "tui-ok" : "tui-warn"),
+    labelValueLine("STATE", status, getStateTone(status)),
+    labelValueLine("ACCESS", getAccessLabel(evaluation), getStateTone(getAccessLabel(evaluation))),
     labelValueLine("NODE", String(getNodeType(item) || "mixed").toUpperCase(), "tui-muted"),
     labelValueLine("PATH", trimInline(buildPath(item, cases).join(" > "), 68), "tui-muted"),
   ];
@@ -476,42 +493,18 @@ async function renderCaseDetails(item, evaluation, cases, poisIndex) {
 }
 
 async function attemptUnlock(item, evaluation) {
-  const { config, prerequisitesMet, flagsMet } = evaluation;
-  if (evaluation.unlocked) return true;
-  if (config.unlockMode === "password") {
-    const code = await prompt("CLAVE DE CASO: ", false, false, { hint: "INPUT REQUIRED" });
-    if (code && config.password && code.trim().toLowerCase() === config.password.trim().toLowerCase()) {
-      unlockEntity(item);
-      await type(["ACCESO A CASO AUTORIZADO.", " "], { stopBlinking: true });
-      return true;
-    }
-    await type(["CLAVE INCORRECTA.", " "], { stopBlinking: true });
-    return false;
-  }
-  if (config.unlockMode === "chain") {
-    if (!prerequisitesMet) {
-      await type([" ", "CADENA INCOMPLETA.", ...(config.prerequisites || []).map((id) => `> Necesario: ${id}`), " "], { stopBlinking: true });
-      return false;
-    }
-    unlockEntity(item);
-    await type(["SECUENCIA COMPUESTA. CASO ABIERTO.", " "], { stopBlinking: true });
-    return true;
-  }
-  if (config.unlockMode === "conditional") {
-    if (!flagsMet) {
-      await type([" ", "FALTAN BANDERAS DE OPERACION:", ...(config.requiredFlags || []).map((flag) => `> ${flag}`), " "], { stopBlinking: true });
-      return false;
-    }
-    unlockEntity(item);
-    await type(["FLAGS ACTIVADAS. CASO ABIERTO.", " "], { stopBlinking: true });
-    return true;
-  }
-  if (config.unlockMode === "puzzle") {
-    await type([" ", "ACTIVA EL PUZZLE DESDE EL PANEL DM.", "Modo puzzle no disponible aun en la TUI.", " "], { stopBlinking: true });
-    return false;
-  }
-  unlockEntity(item);
-  return true;
+  return attemptEntityUnlock(item, evaluation, {
+    passwordPrompt: "CLAVE DE CASO: ",
+    passwordHint: "INPUT REQUIRED",
+    passwordSuccessLines: ["ACCESO A CASO AUTORIZADO.", " "],
+    passwordFailureLines: ["CLAVE INCORRECTA.", " "],
+    prerequisiteIntroLines: ["CADENA INCOMPLETA."],
+    prerequisiteFormatter: (id) => `> Necesario: ${id}`,
+    chainSuccessLines: ["SECUENCIA COMPUESTA. CASO ABIERTO.", " "],
+    flagsIntroLines: ["FALTAN BANDERAS DE OPERACION:"],
+    conditionalSuccessLines: ["FLAGS ACTIVADAS. CASO ABIERTO.", " "],
+    puzzleLines: [" ", "ACTIVA EL PUZZLE DESDE EL PANEL DM.", "Modo puzzle no disponible aun en la TUI.", " "],
+  });
 }
 
 async function browseCases(cases) {
@@ -579,43 +572,65 @@ async function browseCases(cases) {
       );
     }
 
-    const baseChips = [
-      { label: "MAPA", action: "command", value: "map" },
-      { label: "CASOS", action: "command", value: "cases" },
-      { label: "VILLANOS", action: "command", value: "villains" },
-      { label: "DIALER", action: "command", value: "dialer" },
-    ];
-    const baseFooterLines = [
+    const baseChips = [];
+    const footerHintLine = mergeLine(
+      {
+        parts: [
+          { text: "HINTS: ", className: "tui-system" },
+          { text: "ENTER", className: "tui-accent" },
+          { text: " dossier | ", className: "tui-muted" },
+          { text: "B", className: "tui-accent" },
+          { text: " salir", className: "tui-muted" },
+        ],
+      },
+      { parts: [{ text: "CASESPACE", className: "tui-muted tui-panel-right" }] }
+    );
+
+    const paginationProbeFooter = [
       ...buildWorkspaceLines(nodes[defaultIndex]?.item || nodes[0]?.item, nodes[defaultIndex]?.evaluation || nodes[0]?.evaluation, cases, poisIndex),
-      mergePartsLine(
-        { parts: [{ text: "HINTS: ", className: "tui-system" }, { text: "ENTER", className: "tui-accent" }, { text: " dossier | ", className: "tui-muted" }, { text: "B", className: "tui-accent" }, { text: " back | ", className: "tui-muted" }, { text: "N/P", className: "tui-accent" }, { text: " pagina", className: "tui-muted" }] },
-        "",
-        { leftWidth: COLUMN.left, rightWidth: COLUMN.right, divider: COLUMN.divider, dividerClass: "tui-sep", rightClass: "tui-panel-right" }
-      ),
-      ...buildFooterLines({ mode: "INVESTIGATION", link: "SECURE" }).map((line) => ({ parts: [{ text: line, className: "tui-muted" }] })),
+      footerHintLine,
     ];
 
-    const { pages, pageCount } = paginateSelectableItems({ lines: headerLines, items, footerLines: baseFooterLines, chips: baseChips });
+    const { pages, pageCount } = paginateSelectableItems({ lines: headerLines, items, footerLines: paginationProbeFooter, chips: baseChips });
     const pageIndex = Math.max(0, Math.min(stack[stack.length - 1].pageIndex || 0, pageCount - 1));
     stack[stack.length - 1].pageIndex = pageIndex;
     const pageItems = pages[pageIndex] || [];
     const pageDefaultIndexRaw = pageItems.findIndex((entry) => entry.value === String(defaultIndex + 1));
     const pageDefaultIndex = pageDefaultIndexRaw >= 0 ? pageDefaultIndexRaw : 0;
     const focusItem = pageItems[pageDefaultIndex] || pageItems[0] || null;
+    const finalHintLine = mergeLine(
+      {
+        parts: [
+          { text: "HINTS: ", className: "tui-system" },
+          { text: "ENTER", className: "tui-accent" },
+          { text: " dossier | ", className: "tui-muted" },
+          { text: "B", className: "tui-accent" },
+          { text: " salir", className: "tui-muted" },
+        ],
+      },
+      {
+        parts: pageCount > 1
+          ? [
+              { text: "N/P", className: "tui-accent tui-panel-right" },
+              { text: " pagina", className: "tui-muted tui-panel-right" },
+            ]
+          : [{ text: "CASESPACE", className: "tui-muted tui-panel-right" }],
+      }
+    );
     const footerLines = [
       ...(pageCount > 1 ? [mergeLine(`PAGINA ${pageIndex + 1}/${pageCount} (N/P)`, "")] : []),
       ...buildWorkspaceLines(focusItem?._item, focusItem?._evaluation, cases, poisIndex),
-      ...baseFooterLines.slice(baseFooterLines.length - 2),
+      finalHintLine,
     ];
     const footerPrefixLines = pageCount > 1 ? [mergeLine(`PAGINA ${pageIndex + 1}/${pageCount} (N/P)`, "")] : [];
-    const footerSuffixLines = baseFooterLines.slice(baseFooterLines.length - 2);
+    const footerSuffixLines = [finalHintLine];
     clear();
     await renderSelectableLines(
       {
         lines: headerLines,
         items: mergeItemsWithPreview(pageItems, buildPreviewLines(focusItem?._item, focusItem?._evaluation, campaignState, cases, poisIndex)),
         footerLines,
-        chips: pageCount > 1 && isPortraitNarrow() ? [...baseChips, { label: "PREV", action: "select", value: "P" }, { label: "NEXT", action: "select", value: "N" }] : baseChips,
+        chips: baseChips,
         context: {
           backValue: "B",
           backAction: "input",
@@ -624,10 +639,7 @@ async function browseCases(cases) {
             pageItems,
             footerPrefixLines,
             footerSuffixLines,
-            chips:
-              pageCount > 1 && isPortraitNarrow()
-                ? [...baseChips, { label: "PREV", action: "select", value: "P" }, { label: "NEXT", action: "select", value: "N" }]
-                : baseChips,
+            chips: baseChips,
             terminal: document.querySelector(".terminal"),
             cases,
             campaignState,
@@ -648,14 +660,14 @@ async function browseCases(cases) {
       }
       value = node?.dataset?.value || "";
     } else {
-      value = await input(false, { hint: "AUX-01 > open case 3 | B back | N/P page" });
+      value = await input(false, { hint: "AUX-01 > open case 3 | B exit | N/P page" });
     }
     if (!value) continue;
     const normalized = String(value).trim().toUpperCase();
     if (normalized === "X") return;
     if (normalized === "B") {
       if (stack.length > 1) stack.pop();
-      else await type([" ", "YA ESTAS EN LA RAIZ.", " "], { stopBlinking: true });
+      else return;
       continue;
     }
     if (normalized === "R") {

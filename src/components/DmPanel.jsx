@@ -6182,6 +6182,14 @@ const DmPanel = () => {
                 )}
               </div>
               <div className="dm-panel__session-actions">
+                <a
+                  href="/docs"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="dm-panel__ghost dm-panel__ghost--utility dm-panel__link-button"
+                >
+                  Ayuda / Docs
+                </a>
                 <button
                   type="button"
                   className="dm-panel__ghost dm-panel__ghost--utility"

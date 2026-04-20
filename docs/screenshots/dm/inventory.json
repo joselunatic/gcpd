@@ -1,0 +1,340 @@
+{
+  "capturedAt": "2026-04-20T21:10:24.378Z",
+  "appUrl": "http://127.0.0.1:5174/dm",
+  "views": {
+    "cases": {
+      "label": "Casos",
+      "file": "screenshots/dm/01-cases.png",
+      "meta": {
+        "headings": [
+          "DM Control / Brother-MK0",
+          "Casos Knightfall"
+        ],
+        "buttons": [
+          "Cuenta / Seguridad",
+          "Cerrar sesion",
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña",
+          "01Apagon en Arkham",
+          "02Deriva OMAK",
+          "03Eco de la Corte",
+          "04Protocolo de Bloqueo",
+          "Guardar",
+          "Avanzado ▸",
+          "Vista ▾",
+          "Nuevo caso",
+          "Nuevo subcaso",
+          "Limpiar",
+          "Caso",
+          "Subcaso",
+          "+ Crear POI",
+          "+ Añadir POI"
+        ],
+        "labels": [
+          "Tipo de nodoCasoSubcaso",
+          "Titulo",
+          "Resumen?",
+          "Brief?"
+        ],
+        "sectionTitles": [
+          "Casos Knightfall"
+        ],
+        "nav": [
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña"
+        ]
+      }
+    },
+    "pois": {
+      "label": "POIs",
+      "file": "screenshots/dm/02-pois.png",
+      "meta": {
+        "headings": [
+          "DM Control / Brother-MK0",
+          "Puntos de interes"
+        ],
+        "buttons": [
+          "Cuenta / Seguridad",
+          "Cerrar sesion",
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña",
+          "▾",
+          "Nuevo",
+          "Limpiar",
+          "Vista ▾",
+          "Avanzado ▸",
+          "Guardar",
+          "Identidad▾",
+          "Información Pública▾",
+          "Expandir",
+          "Mapa / Hotspot▸",
+          "Ocultar",
+          "Ver detalle"
+        ],
+        "labels": [
+          "ID?Identificador unico para la TUI.",
+          "Nombre?Nombre visible para agentes.",
+          "Distrito?Zona de Gotham.",
+          "Estado?Estado operativo.",
+          "Resumen?Texto breve visible para agentes."
+        ],
+        "sectionTitles": [
+          "Puntos de interes"
+        ],
+        "nav": [
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña"
+        ]
+      }
+    },
+    "villains": {
+      "label": "Villanos",
+      "file": "screenshots/dm/03-villains.png",
+      "meta": {
+        "headings": [
+          "DM Control / Brother-MK0",
+          "Galeria de villanos"
+        ],
+        "buttons": [
+          "Cuenta / Seguridad",
+          "Cerrar sesion",
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña",
+          "01El Joker",
+          "02El Pinguino",
+          "03Enigma",
+          "Guardar",
+          "Avanzado ▸",
+          "Vista ▾",
+          "Nuevo",
+          "Limpiar",
+          "Identidad▾",
+          "Agent-facing Summary▾",
+          "Detalles de perfil▸"
+        ],
+        "labels": [
+          "ID?Identificador unico.",
+          "Alias?Nombre visible para agentes.",
+          "Resumen?Resumen visible."
+        ],
+        "sectionTitles": [
+          "Galeria de villanos"
+        ],
+        "nav": [
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña"
+        ]
+      }
+    },
+    "evidence": {
+      "label": "Evidencias",
+      "file": "screenshots/dm/04-evidence.png",
+      "meta": {
+        "headings": [
+          "DM Control / Brother-MK0",
+          "Evidencias"
+        ],
+        "buttons": [
+          "Cuenta / Seguridad",
+          "Cerrar sesion",
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña",
+          "STL",
+          "Balistica",
+          "Audio",
+          "Telefonos",
+          "Nuevo",
+          "Subir STL",
+          "Guardar evidencia"
+        ],
+        "labels": [
+          "ID?Identificador interno para la evidencia.",
+          "Etiqueta?Texto mostrado en el visor ASCII.",
+          "Comando SHOW?Alias para invocar el modelo (SHOW <alias>).",
+          "Perfil ASCII?Selecciona el perfil de render en el preview.DefaultWayne 90x30Normal",
+          "Ruta STL?Ruta generada tras subir el archivo.",
+          "Subir STL?Solo .stl (max 20MB)."
+        ],
+        "sectionTitles": [
+          "Evidencias"
+        ],
+        "nav": [
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña"
+        ]
+      }
+    },
+    "tracer": {
+      "label": "Tracer",
+      "file": "screenshots/dm/05-tracer.png",
+      "meta": {
+        "headings": [
+          "DM Control / Brother-MK0",
+          "Tracer"
+        ],
+        "buttons": [
+          "Cuenta / Seguridad",
+          "Cerrar sesion",
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña",
+          "Nueva linea",
+          "Nuevo hotspot",
+          "+ Crear POI",
+          "Expandir mapa",
+          "Guardar hotspot",
+          "Guardar linea"
+        ],
+        "labels": [
+          "ID hotspot?Identificador tracer independiente de POIs.",
+          "Label hotspot?Texto que se mostrara al agente al resolver la traza.",
+          "Numero?Identificador unico de la linea (DB) y usado por TRACER #TELEFONO.",
+          "Label linea (DM)?Alias operativo para el DM (no es ID tecnico).",
+          "Hotspot?Hotspot custom donde trazar.-- Selecciona hotspot --",
+          "Activa?Si esta OFF, TRACER devolvera linea no valida.Linea activa"
+        ],
+        "sectionTitles": [
+          "Tracer"
+        ],
+        "nav": [
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña"
+        ]
+      }
+    },
+    "access": {
+      "label": "Accesos",
+      "file": "screenshots/dm/06-access.png",
+      "meta": {
+        "headings": [
+          "DM Control / Brother-MK0",
+          "Accesos por atributo (Villanos)"
+        ],
+        "buttons": [
+          "Cuenta / Seguridad",
+          "Cerrar sesion",
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña",
+          "Guardar accesos",
+          "Recargar"
+        ],
+        "labels": [
+          "Villano?Selecciona el perfil a editar.El JokerEl PinguinoEnigma"
+        ],
+        "sectionTitles": [
+          "Accesos por atributo (Villanos)"
+        ],
+        "nav": [
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña"
+        ]
+      }
+    },
+    "campaign": {
+      "label": "Campaña",
+      "file": "screenshots/dm/07-campaign.png",
+      "meta": {
+        "headings": [
+          "DM Control / Brother-MK0",
+          "Estado de campaña",
+          "Flags globales",
+          "Contexto operativo",
+          "Desbloqueos",
+          "Comandos globales"
+        ],
+        "buttons": [
+          "Cuenta / Seguridad",
+          "Cerrar sesion",
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña",
+          "Guardar estado",
+          "Recargar",
+          "Guardar comandos",
+          "Recargar"
+        ],
+        "labels": [
+          "Flags (una por linea)",
+          "Nivel de alertaBajoMedioAltoCritico",
+          "Caso activo (ID)",
+          "Casos desbloqueados (IDs)",
+          "POIs desbloqueados (IDs)",
+          "Villanos desbloqueados (IDs)"
+        ],
+        "sectionTitles": [],
+        "nav": [
+          "Casos",
+          "POIs",
+          "Villanos",
+          "Evidencias",
+          "Tracer",
+          "Accesos",
+          "Campaña"
+        ]
+      }
+    }
+  }
+}

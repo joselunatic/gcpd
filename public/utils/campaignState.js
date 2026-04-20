@@ -1,5 +1,6 @@
 const STORAGE_KEY = "campaignState";
 const API_URL = "/api/campaign-state";
+const DEFAULT_SCOPES = ["cases", "map", "villains"];
 
 const DEFAULT_STATE = {
   unlocked: {
@@ -32,25 +33,40 @@ const SAVE_DEBOUNCE_MS = 300;
 const POLL_INTERVAL_MS = 8000;
 
 function cloneState(state = DEFAULT_STATE) {
+  const unlockedScopes = new Set([
+    ...DEFAULT_SCOPES,
+    ...Object.keys(state.unlocked || {}),
+  ]);
+  const attributeScopes = new Set([
+    ...DEFAULT_SCOPES,
+    ...Object.keys(state.unlockedAttributes || {}),
+  ]);
+  const seenScopes = new Set([
+    ...DEFAULT_SCOPES,
+    ...Object.keys(state.lastSeen || {}),
+  ]);
   return {
-    unlocked: {
-      cases: [...(state.unlocked?.cases || [])],
-      map: [...(state.unlocked?.map || [])],
-      villains: [...(state.unlocked?.villains || [])],
-    },
-    unlockedAttributes: {
-      cases: { ...(state.unlockedAttributes?.cases || {}) },
-      map: { ...(state.unlockedAttributes?.map || {}) },
-      villains: { ...(state.unlockedAttributes?.villains || {}) },
-    },
+    unlocked: Object.fromEntries(
+      Array.from(unlockedScopes).map((scope) => [
+        scope,
+        [...(state.unlocked?.[scope] || [])],
+      ])
+    ),
+    unlockedAttributes: Object.fromEntries(
+      Array.from(attributeScopes).map((scope) => [
+        scope,
+        { ...(state.unlockedAttributes?.[scope] || {}) },
+      ])
+    ),
     flags: [...(state.flags || [])],
     alertLevel: state.alertLevel || "low",
     activeCaseId: state.activeCaseId || "",
-    lastSeen: {
-      cases: { ...(state.lastSeen?.cases || {}) },
-      map: { ...(state.lastSeen?.map || {}) },
-      villains: { ...(state.lastSeen?.villains || {}) },
-    },
+    lastSeen: Object.fromEntries(
+      Array.from(seenScopes).map((scope) => [
+        scope,
+        { ...(state.lastSeen?.[scope] || {}) },
+      ])
+    ),
   };
 }
 
@@ -59,51 +75,62 @@ function normalizeState(state) {
   const legacyUnlocked = state?.unlocked?.modules || [];
   const legacyLastSeen = state?.lastSeen?.modules || {};
   const unlockedAttributes = state?.unlockedAttributes || {};
+  const unlockedScopes = new Set([
+    ...DEFAULT_SCOPES,
+    ...Object.keys(unlocked || {}),
+  ]);
+  const attributeScopes = new Set([
+    ...DEFAULT_SCOPES,
+    ...Object.keys(unlockedAttributes || {}),
+  ]);
+  const lastSeenScopes = new Set([
+    ...DEFAULT_SCOPES,
+    ...Object.keys(state?.lastSeen || {}),
+  ]);
+  unlockedScopes.delete("modules");
+  lastSeenScopes.delete("modules");
   return {
-    unlocked: {
-      cases: Array.isArray(unlocked.cases)
-        ? unlocked.cases
-        : Array.isArray(legacyUnlocked)
-          ? legacyUnlocked
-          : [],
-      map: Array.isArray(unlocked.map) ? unlocked.map : [],
-      villains: Array.isArray(unlocked.villains) ? unlocked.villains : [],
-    },
-    unlockedAttributes: {
-      cases:
-        typeof unlockedAttributes?.cases === "object" && unlockedAttributes.cases
-          ? unlockedAttributes.cases
+    unlocked: Object.fromEntries(
+      Array.from(unlockedScopes).map((scope) => [
+        scope,
+        scope === "cases"
+          ? Array.isArray(unlocked.cases)
+            ? unlocked.cases
+            : Array.isArray(legacyUnlocked)
+              ? legacyUnlocked
+              : []
+          : Array.isArray(unlocked?.[scope])
+            ? unlocked[scope]
+            : [],
+      ])
+    ),
+    unlockedAttributes: Object.fromEntries(
+      Array.from(attributeScopes).map((scope) => [
+        scope,
+        typeof unlockedAttributes?.[scope] === "object" &&
+        unlockedAttributes[scope]
+          ? unlockedAttributes[scope]
           : {},
-      map:
-        typeof unlockedAttributes?.map === "object" && unlockedAttributes.map
-          ? unlockedAttributes.map
-          : {},
-      villains:
-        typeof unlockedAttributes?.villains === "object" &&
-        unlockedAttributes.villains
-          ? unlockedAttributes.villains
-          : {},
-    },
+      ])
+    ),
     flags: Array.isArray(state?.flags) ? state.flags : [],
     alertLevel: typeof state?.alertLevel === "string" ? state.alertLevel : "low",
     activeCaseId:
       typeof state?.activeCaseId === "string" ? state.activeCaseId : "",
-    lastSeen: {
-      cases:
-        typeof state?.lastSeen?.cases === "object" && state.lastSeen.cases
-          ? state.lastSeen.cases
-          : typeof legacyLastSeen === "object" && legacyLastSeen
-            ? legacyLastSeen
+    lastSeen: Object.fromEntries(
+      Array.from(lastSeenScopes).map((scope) => [
+        scope,
+        scope === "cases"
+          ? typeof state?.lastSeen?.cases === "object" && state.lastSeen.cases
+            ? state.lastSeen.cases
+            : typeof legacyLastSeen === "object" && legacyLastSeen
+              ? legacyLastSeen
+              : {}
+          : typeof state?.lastSeen?.[scope] === "object" && state.lastSeen[scope]
+            ? state.lastSeen[scope]
             : {},
-      map:
-        typeof state?.lastSeen?.map === "object" && state.lastSeen.map
-          ? state.lastSeen.map
-          : {},
-      villains:
-        typeof state?.lastSeen?.villains === "object" && state.lastSeen.villains
-          ? state.lastSeen.villains
-          : {},
-    },
+      ])
+    ),
   };
 }
 
@@ -185,6 +212,9 @@ async function refreshCampaignState() {
 }
 
 function ensureScopeArray(state, scope) {
+  if (!state.unlocked) {
+    state.unlocked = {};
+  }
   if (!state.unlocked[scope]) {
     state.unlocked[scope] = [];
   }
@@ -225,7 +255,7 @@ function isUnlocked(scope, id, state = loadCampaignState()) {
 
 function ensureAttributeScope(state, scope) {
   if (!state.unlockedAttributes) {
-    state.unlockedAttributes = { cases: {}, map: {}, villains: {} };
+    state.unlockedAttributes = {};
   }
   if (!state.unlockedAttributes[scope]) {
     state.unlockedAttributes[scope] = {};
@@ -270,6 +300,9 @@ function hasFlag(flag, state = loadCampaignState()) {
 function markSeen(scope, id, updatedAt = Date.now()) {
   if (!id) return;
   const state = loadCampaignState();
+  if (!state.lastSeen) {
+    state.lastSeen = {};
+  }
   if (!state.lastSeen[scope]) {
     state.lastSeen[scope] = {};
   }

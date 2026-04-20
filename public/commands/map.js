@@ -14,10 +14,12 @@ import {
 import clear from "/commands/clear.js";
 import {
   evaluateAccess,
-  unlockEntity,
   getNodeType,
   getNodeLabel,
+  getAccessLabel,
+  getStateTone,
 } from "/utils/access.js";
+import { attemptEntityUnlock } from "/utils/accessFlow.js";
 import { getStatusContext } from "/utils/status.js";
 import { getDeltaMarker } from "/utils/delta.js";
 import { isPortraitNarrow, getWrapLimit } from "/utils/portrait.js";
@@ -1011,10 +1013,12 @@ const labelValueLine = (label, value, valueClass = "tui-primary") => ({
   ],
 });
 
-const statusLabel = (evaluation) => {
-  if (!evaluation.visible) return "OCULTO";
-  return evaluation.unlocked ? "ONLINE" : "LOCKED";
-};
+const statusLabel = (evaluation) =>
+  getAccessLabel(evaluation, {
+    hiddenLabel: "OCULTO",
+    unlockedLabel: "ONLINE",
+    lockedLabel: "LOCKED",
+  });
 
 const formatNodeLine = (node, evaluation, index, campaignState) => {
   const label = getNodeLabel(node);
@@ -1068,8 +1072,8 @@ const buildPreviewLines = (poi, evaluation, campaignState, allPois = [], breadcr
       ],
     },
     labelValueLine("ID", poi.id, "tui-muted"),
-    labelValueLine("STATUS", status, status === "CRITICAL" ? "tui-alert" : "tui-muted"),
-    labelValueLine("ACCESS", access, access === "ONLINE" ? "tui-ok" : "tui-warn"),
+    labelValueLine("STATUS", status, getStateTone(status)),
+    labelValueLine("ACCESS", access, getStateTone(access)),
   ];
   if (poi.district) {
     lines.push(labelValueLine("DISTRICT", poi.district, "tui-muted"));
@@ -1198,83 +1202,16 @@ const hasChildren = (pois, id) =>
   pois.some((poi) => (getPoiHierarchy(poi).parentId || "") === id);
 
 async function attemptUnlock(node, evaluation) {
-  const { config, prerequisitesMet, flagsMet } = evaluation;
-  if (evaluation.unlocked) {
-    return true;
-  }
-
-  if (config.unlockMode === "password") {
-    const code = await prompt("CODIGO DE ACCESO: ");
-    if (
-      code &&
-      config.password &&
-      code.trim().toLowerCase() === config.password.trim().toLowerCase()
-    ) {
-      unlockEntity(node);
-      await type(["ACCESO CONCEDIDO", " "], { stopBlinking: true });
-      return true;
-    }
-    await type(["ACCESO DENEGADO", " "], { stopBlinking: true });
-    return false;
-  }
-
-  if (config.unlockMode === "chain") {
-    if (!prerequisitesMet) {
-      await type(
-        [
-          " ",
-          "ACCESO BLOQUEADO.",
-          "PREREQUISITOS PENDIENTES:",
-          ...(config.prerequisites || []).map((id) => `> ${id}`),
-          " ",
-        ],
-        { stopBlinking: true }
-      );
-      return false;
-    }
-    unlockEntity(node);
-    await type(["CADENA COMPLETA. ACCESO HABILITADO.", " "], {
-      stopBlinking: true,
-    });
-    return true;
-  }
-
-  if (config.unlockMode === "conditional") {
-    if (!flagsMet) {
-      await type(
-        [
-          " ",
-          "SE NECESITAN FLAGS ACTIVAS:",
-          ...(config.requiredFlags || []).map((flag) => `> ${flag}`),
-          " ",
-        ],
-        { stopBlinking: true }
-      );
-      return false;
-    }
-    unlockEntity(node);
-    await type(["CONDICIONES SATISFECHAS. ACCESO HABILITADO.", " "], {
-      stopBlinking: true,
-    });
-    return true;
-  }
-
-  if (config.unlockMode === "puzzle") {
-    await type(
-      [
-        " ",
-        "PUZZLE REQUERIDO: EJECUTA EL MODULO DESDE EL PANEL DM.",
-        "El modo puzzle aun no esta operativo en la TUI.",
-        " ",
-      ],
-      { stopBlinking: true }
-    );
-    return false;
-  }
-
-  // Fallback for 'none'
-  unlockEntity(node);
-  return true;
+  return attemptEntityUnlock(node, evaluation, {
+    passwordPrompt: "CODIGO DE ACCESO: ",
+    passwordSuccessLines: ["ACCESO CONCEDIDO", " "],
+    passwordFailureLines: ["ACCESO DENEGADO", " "],
+    prerequisiteIntroLines: ["ACCESO BLOQUEADO.", "PREREQUISITOS PENDIENTES:"],
+    chainSuccessLines: ["CADENA COMPLETA. ACCESO HABILITADO.", " "],
+    flagsIntroLines: ["SE NECESITAN FLAGS ACTIVAS:"],
+    conditionalSuccessLines: ["CONDICIONES SATISFECHAS. ACCESO HABILITADO.", " "],
+    puzzleLines: [" ", "PUZZLE REQUERIDO: EJECUTA EL MODULO DESDE EL PANEL DM.", "El modo puzzle aun no esta operativo en la TUI.", " "],
+  });
 }
 
 async function browsePois(pois) {

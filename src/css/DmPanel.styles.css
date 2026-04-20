@@ -508,6 +508,17 @@
   background: rgba(35, 8, 10, 0.4);
 }
 
+.dm-panel__link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1.6rem;
+  border: 1px solid rgba(125, 182, 195, 0.4);
+  border-radius: 8px;
+  text-decoration: none;
+  min-height: 46px;
+}
+
 .dm-panel__editor-layout {
   display: grid;
   grid-template-columns: 1fr;

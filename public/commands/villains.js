@@ -7,10 +7,12 @@ import {
 import clear from "/commands/clear.js";
 import {
   evaluateAccess,
-  unlockEntity,
   getNodeType,
   getNodeLabel,
+  getAccessLabel,
+  getStateTone,
 } from "/utils/access.js";
+import { attemptEntityUnlock } from "/utils/accessFlow.js";
 import { getStatusContext } from "/utils/status.js";
 import { getDeltaMarker } from "/utils/delta.js";
 import { isPortraitNarrow, getWrapLimit } from "/utils/portrait.js";
@@ -256,10 +258,12 @@ function waitForReturn({ allowTap = false } = {}) {
 const needsChildren = (villains, id) =>
   villains.some((entry) => (entry.commands?.parentId || "") === id);
 
-const statusLabel = (evaluation) => {
-  if (!evaluation.visible) return "OCULTO";
-  return evaluation.unlocked ? "ONLINE" : "LOCKED";
-};
+const statusLabel = (evaluation) =>
+  getAccessLabel(evaluation, {
+    hiddenLabel: "OCULTO",
+    unlockedLabel: "ONLINE",
+    lockedLabel: "LOCKED",
+  });
 
 const formatNodeLine = (villain, evaluation, index, campaignState) => {
   const marker = getDeltaMarker(villain, "villains", campaignState);
@@ -286,9 +290,9 @@ const formatNodeLine = (villain, evaluation, index, campaignState) => {
   const line2 = {
     parts: [
       { text: "  THREAT: ", className: "tui-system" },
-      { text: threat, className: threat === "HIGH" ? "tui-alert" : "tui-warn" },
+      { text: threat, className: getStateTone(threat) },
       { text: " | ", className: "tui-muted" },
-      { text: status, className: status === "ONLINE" ? "tui-ok" : "tui-warn" },
+      { text: status, className: getStateTone(status) },
     ],
   };
   return [line1, line2];
@@ -325,8 +329,8 @@ const buildPreviewLines = (villain, evaluation, campaignState, breadcrumb = [], 
       ],
     },
     labelValueLine("ID", villain.id, "tui-muted"),
-    labelValueLine("STATUS", status, status === "ONLINE" ? "tui-ok" : "tui-warn"),
-    labelValueLine("THREAT", threat, threat === "HIGH" ? "tui-alert" : "tui-warn"),
+    labelValueLine("STATUS", status, getStateTone(status)),
+    labelValueLine("THREAT", threat, getStateTone(threat)),
   ];
   if (breadcrumb.length) {
     lines.push(labelValueLine("PATH", breadcrumb.join(" / "), "tui-muted"));
@@ -416,81 +420,17 @@ const mergeItemsWithPreview = (items, previewLines) => {
 };
 
 async function attemptUnlock(villain, evaluation) {
-  const { config, prerequisitesMet, flagsMet } = evaluation;
-  if (evaluation.unlocked) return true;
-
-  if (config.unlockMode === "password") {
-    const code = await prompt("CLAVE DE ARCHIVO: ", false, false, {
-      hint: "INPUT REQUIRED",
-    });
-    if (
-      code &&
-      config.password &&
-      code.trim().toLowerCase() === config.password.trim().toLowerCase()
-    ) {
-      unlockEntity(villain);
-      await type(["PERFIL DESBLOQUEADO.", " "], { stopBlinking: true });
-      return true;
-    }
-    await type(["CLAVE INCORRECTA.", " "], { stopBlinking: true });
-    return false;
-  }
-
-  if (config.unlockMode === "chain") {
-    if (!prerequisitesMet) {
-      await type(
-        [
-          " ",
-          "FALTAN PERFILES PREVIOS:",
-          ...(config.prerequisites || []).map((id) => `> ${id}`),
-          " ",
-        ],
-        { stopBlinking: true }
-      );
-      return false;
-    }
-    unlockEntity(villain);
-    await type(["CADENA COMPLETA. PERFIL ABIERTO.", " "], {
-      stopBlinking: true,
-    });
-    return true;
-  }
-
-  if (config.unlockMode === "conditional") {
-    if (!flagsMet) {
-      await type(
-        [
-          " ",
-          "ACTIVA ESTOS FLAGS PARA DESBLOQUEAR:",
-          ...(config.requiredFlags || []).map((flag) => `> ${flag}`),
-          " ",
-        ],
-        { stopBlinking: true }
-      );
-      return false;
-    }
-    unlockEntity(villain);
-    await type(["CONDICIONES SATISFECHAS. PERFIL ABIERTO.", " "], {
-      stopBlinking: true,
-    });
-    return true;
-  }
-
-  if (config.unlockMode === "puzzle") {
-    await type(
-      [
-        " ",
-        "RESUELVE EL PUZZLE DESDE EL PANEL DM.",
-        "Modo puzzle aun no disponible aqui.",
-        " ",
-      ],
-      { stopBlinking: true }
-    );
-    return false;
-  }
-
-  unlockEntity(villain);
-  return true;
+  return attemptEntityUnlock(villain, evaluation, {
+    passwordPrompt: "CLAVE DE ARCHIVO: ",
+    passwordHint: "INPUT REQUIRED",
+    passwordSuccessLines: ["PERFIL DESBLOQUEADO.", " "],
+    passwordFailureLines: ["CLAVE INCORRECTA.", " "],
+    prerequisiteIntroLines: ["FALTAN PERFILES PREVIOS:"],
+    chainSuccessLines: ["CADENA COMPLETA. PERFIL ABIERTO.", " "],
+    flagsIntroLines: ["ACTIVA ESTOS FLAGS PARA DESBLOQUEAR:"],
+    conditionalSuccessLines: ["CONDICIONES SATISFECHAS. PERFIL ABIERTO.", " "],
+    puzzleLines: [" ", "RESUELVE EL PUZZLE DESDE EL PANEL DM.", "Modo puzzle aun no disponible aqui.", " "],
+  });
 }
 
 async function browseVillains(villains) {
