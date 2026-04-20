@@ -3369,6 +3369,14 @@ const DmPanel = () => {
           {option.label}
         </button>
       ))}
+      <a
+        href="/docs#panel"
+        target="_blank"
+        rel="noreferrer"
+        className="dm-panel__nav-link"
+      >
+        Ayuda
+      </a>
     </div>
   );
 
