@@ -734,6 +734,12 @@ const DmPanel = () => {
   const [selectionState, setSelectionState] = useState(
     () => readJsonStorage(STORAGE_KEYS.selections, {})
   );
+  const setSelection = (view, id) => {
+    setSelectionState((prev) => ({
+      ...prev,
+      [view]: id || '',
+    }));
+  };
   const [previewBriefOpen, setPreviewBriefOpen] = useState(false);
   const [caseTypeOverride, setCaseTypeOverride] = useState(null);
 
@@ -2462,13 +2468,6 @@ const DmPanel = () => {
         ...prev[view],
         [section]: !prev[view]?.[section],
       },
-    }));
-  };
-
-  const setSelection = (view, id) => {
-    setSelectionState((prev) => ({
-      ...prev,
-      [view]: id || '',
     }));
   };
 
