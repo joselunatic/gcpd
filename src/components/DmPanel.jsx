@@ -4989,7 +4989,7 @@ const DmPanel = () => {
         </button>
       </div>
       {evidenceTab === 'stl' ? (
-        <div className="dm-panel__grid dm-panel__grid--evidence">
+        <div key="evidence-stl" className="dm-panel__grid dm-panel__grid--evidence">
           <div className="dm-panel__card">
             <div className="dm-panel__panel-title">Modelos</div>
             {evidenceLoading && <p className="dm-panel__hint">Cargando evidencias...</p>}
@@ -5126,7 +5126,7 @@ const DmPanel = () => {
           </div>
         </div>
       ) : evidenceTab === 'ballistics' ? (
-        <div className="dm-panel__grid dm-panel__grid--evidence">
+        <div key="evidence-ballistics" className="dm-panel__grid dm-panel__grid--evidence">
           <div className="dm-panel__card">
             <div className="dm-panel__panel-title">PNG Balistica</div>
             {ballisticsLoading && <p className="dm-panel__hint">Cargando balistica...</p>}
@@ -5383,7 +5383,7 @@ const DmPanel = () => {
           </div>
         </div>
       ) : evidenceTab === 'audio' ? (
-        <div className="dm-panel__grid dm-panel__grid--evidence">
+        <div key="evidence-audio" className="dm-panel__grid dm-panel__grid--evidence">
           <div className="dm-panel__card">
             <div className="dm-panel__panel-title">Audios</div>
             {audioLoading && <p className="dm-panel__hint">Cargando audios...</p>}
@@ -5524,7 +5524,7 @@ const DmPanel = () => {
           </div>
         </div>
       ) : (
-        <div className="dm-panel__grid dm-panel__grid--evidence">
+        <div key="evidence-phones" className="dm-panel__grid dm-panel__grid--evidence">
           <div className="dm-panel__card">
             <div className="dm-panel__panel-title">Telefonos</div>
             {phoneLoading && <p className="dm-panel__hint">Cargando lineas...</p>}

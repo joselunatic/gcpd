@@ -755,6 +755,9 @@
 .dm-panel__session-actions button {
   min-height: 36px;
   padding: 0.4rem 0.85rem;
+  min-width: 170px;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .dm-panel__card button {
@@ -1771,6 +1774,12 @@
   word-break: break-word;
 }
 
+.dm-panel__grid--evidence .dm-panel__list-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem 0.7rem;
+}
+
 .dm-panel__list-item.active {
   border-color: rgba(182, 214, 255, 0.55);
   background: rgba(88, 200, 140, 0.1);
@@ -1794,6 +1803,22 @@
 .dm-panel__list-item span {
   min-width: 0;
   display: block;
+}
+
+.dm-panel__grid--evidence .dm-panel__list-item strong,
+.dm-panel__grid--evidence .dm-panel__list-item span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dm-panel__grid--evidence .dm-panel__list-item strong {
+  grid-column: 1;
+}
+
+.dm-panel__grid--evidence .dm-panel__list-item span {
+  grid-column: 2;
+  text-align: right;
 }
 
 .dm-panel__list-actions {
