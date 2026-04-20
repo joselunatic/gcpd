@@ -26,3 +26,9 @@ server/batconsole.db
 *.njsproj
 *.sln
 *.sw?
+.playwright-cli/
+output/
+.tmp/
+.claude/
+STATE.md
+vite.config.js.timestamp-*.mjs

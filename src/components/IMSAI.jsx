@@ -8,7 +8,11 @@ import Base from './IMSAI/Base';
 
 const IMSAI = ({ bootActive = false, onBootDone }) => {
 
-    const [on, setOn] = useState('off');
+    const isDevFast =
+        typeof import.meta !== 'undefined' &&
+        import.meta.env &&
+        import.meta.env.VITE_DEV_MODE === '1';
+    const [on, setOn] = useState(isDevFast ? 'on' : 'off');
     const [reset, setReset] = useState('off');
 
     useEffect(()=>{

@@ -56,11 +56,6 @@ const Monitor = ({on, reset, bootActive = false, onBootDone}) => {
                         <div id="screen-container">
                             <div id="interlace" />
                             <div id="scanline" />
-                            <div className="monitor-debug">
-                              <div>POWER: {on}</div>
-                              <div>BOOT: {bootActive ? 'active' : 'done'}</div>
-                              <div>TIME: {new Date().toLocaleTimeString()}</div>
-                            </div>
                             {bootActive && on === 'on' && (
                                 <Suspense fallback={null}>
                                     <BootAscii onDone={onBootDone} modelUrl="/export.stl" />

@@ -142,63 +142,73 @@ async function showJoker({ returnToMain = true, label = "JOKER", stlPath = "/jok
   const ui = document.createElement("div");
   ui.className = "terminal-ascii-ui";
   ui.innerHTML = `
-    <div class="terminal-ascii-ui__title">${modelLabel} // ASCII VIEWER</div>
-    <label class="terminal-ascii-ui__row">
-      <span>PROFILE</span>
-      <select data-control="profile">
-        <option value="default">Default</option>
-        <option value="normal">Normal</option>
-        <option value="wayne90x30">Wayne 90x30</option>
-      </select>
-    </label>
-    <label class="terminal-ascii-ui__row">
-      <span>LIGHT ROTATION</span>
-      <input type="range" min="0" max="360" step="1" value="45" data-control="light-angle" />
-    </label>
-    <label class="terminal-ascii-ui__row">
-      <span>LIGHT HEIGHT</span>
-      <input type="range" min="-2" max="2" step="0.1" value="1" data-control="light-height" />
-    </label>
-    <label class="terminal-ascii-ui__row">
-      <span>ROTATE X</span>
-      <input type="range" min="-180" max="180" step="1" value="0" data-control="rotate-x" />
-    </label>
-    <label class="terminal-ascii-ui__row">
-      <span>ROTATE Y</span>
-      <input type="range" min="-180" max="180" step="1" value="0" data-control="rotate-y" />
-    </label>
-    <label class="terminal-ascii-ui__row">
-      <span>ROTATE Z</span>
-      <input type="range" min="-180" max="180" step="1" value="0" data-control="rotate-z" />
-    </label>
-    <label class="terminal-ascii-ui__row">
-      <span>SCALE</span>
-      <input type="range" min="0.4" max="2.5" step="0.05" value="1" data-control="scale" />
-    </label>
-    <label class="terminal-ascii-ui__row">
-      <span>LIGHT INT</span>
-      <input type="range" min="0.1" max="3" step="0.1" value="2.4" data-control="light-intensity" />
-    </label>
-    <label class="terminal-ascii-ui__row">
-      <span>AMBIENT</span>
-      <input type="range" min="0.1" max="2" step="0.1" value="0.55" data-control="ambient-intensity" />
-    </label>
-    <label class="terminal-ascii-ui__row">
-      <span>ASCII COLOR</span>
-      <input type="color" value="#ffffff" data-control="ascii-color" />
-    </label>
-    <label class="terminal-ascii-ui__row">
-      <span>LIGHT COLOR</span>
-      <input type="color" value="#ffffff" data-control="light-color" />
-    </label>
-    <label class="terminal-ascii-ui__row">
-      <span>FILL COLOR</span>
-      <input type="color" value="#ffffff" data-control="fill-color" />
-    </label>
-    <label class="terminal-ascii-ui__row">
-      <span>BG COLOR</span>
-      <input type="color" value="#000000" data-control="bg-color" />
-    </label>
+    <div class="terminal-ascii-ui__title-row">
+      <div class="terminal-ascii-ui__title">${modelLabel} // ASCII VIEWER</div>
+      <button class="terminal-ascii-ui__toggle" type="button" data-action="toggle-controls" aria-expanded="true">
+        Ocultar controles
+      </button>
+    </div>
+    <div class="terminal-ascii-ui__collapsed-indicator">
+      CONTROLES OCULTOS · PRESIONA EL BOTÓN PARA MOSTRARLOS
+    </div>
+    <div class="terminal-ascii-ui__panel">
+      <label class="terminal-ascii-ui__row">
+        <span>PROFILE</span>
+        <select data-control="profile">
+          <option value="default">Default</option>
+          <option value="normal">Normal</option>
+          <option value="wayne90x30">Wayne 90x30</option>
+        </select>
+      </label>
+      <label class="terminal-ascii-ui__row">
+        <span>LIGHT ROTATION</span>
+        <input type="range" min="0" max="360" step="1" value="45" data-control="light-angle" />
+      </label>
+      <label class="terminal-ascii-ui__row">
+        <span>LIGHT HEIGHT</span>
+        <input type="range" min="-2" max="2" step="0.1" value="1" data-control="light-height" />
+      </label>
+      <label class="terminal-ascii-ui__row">
+        <span>ROTATE X</span>
+        <input type="range" min="-180" max="180" step="1" value="0" data-control="rotate-x" />
+      </label>
+      <label class="terminal-ascii-ui__row">
+        <span>ROTATE Y</span>
+        <input type="range" min="-180" max="180" step="1" value="0" data-control="rotate-y" />
+      </label>
+      <label class="terminal-ascii-ui__row">
+        <span>ROTATE Z</span>
+        <input type="range" min="-180" max="180" step="1" value="0" data-control="rotate-z" />
+      </label>
+      <label class="terminal-ascii-ui__row">
+        <span>SCALE</span>
+        <input type="range" min="0.4" max="2.5" step="0.05" value="1" data-control="scale" />
+      </label>
+      <label class="terminal-ascii-ui__row">
+        <span>LIGHT INT</span>
+        <input type="range" min="0.1" max="3" step="0.1" value="2.4" data-control="light-intensity" />
+      </label>
+      <label class="terminal-ascii-ui__row">
+        <span>AMBIENT</span>
+        <input type="range" min="0.1" max="2" step="0.1" value="0.55" data-control="ambient-intensity" />
+      </label>
+      <label class="terminal-ascii-ui__row">
+        <span>ASCII COLOR</span>
+        <input type="color" value="#ffffff" data-control="ascii-color" />
+      </label>
+      <label class="terminal-ascii-ui__row">
+        <span>LIGHT COLOR</span>
+        <input type="color" value="#ffffff" data-control="light-color" />
+      </label>
+      <label class="terminal-ascii-ui__row">
+        <span>FILL COLOR</span>
+        <input type="color" value="#ffffff" data-control="fill-color" />
+      </label>
+      <label class="terminal-ascii-ui__row">
+        <span>BG COLOR</span>
+        <input type="color" value="#000000" data-control="bg-color" />
+      </label>
+    </div>
     <div class="terminal-ascii-ui__readout">
       <div data-output="light-pos">LIGHT X:0.0 Y:0.0 Z:0.0</div>
       <div data-output="scale">SCALE: 1.00</div>
@@ -208,6 +218,32 @@ async function showJoker({ returnToMain = true, label = "JOKER", stlPath = "/jok
     <div class="terminal-ascii-ui__hint">ARRASTRA PARA ROTAR · CTRL/SHIFT/ALT PARA EJES · RUEDA PARA ZOOM · ENTER PARA SALIR</div>
   `;
   screenHost.appendChild(ui);
+
+  const panelNode = ui.querySelector(".terminal-ascii-ui__panel");
+  const toggleButton = ui.querySelector('[data-action="toggle-controls"]');
+  const collapsedIndicator = ui.querySelector(".terminal-ascii-ui__collapsed-indicator");
+  let controlsCollapsed = false;
+  const updateToggleLabel = () => {
+    const expanded = !controlsCollapsed;
+    if (panelNode) {
+      panelNode.classList.toggle("is-collapsed", !expanded);
+    }
+    ui.classList.toggle("terminal-ascii-ui--collapsed", !expanded);
+    if (collapsedIndicator) {
+      collapsedIndicator.classList.toggle("is-visible", !expanded);
+    }
+    if (toggleButton) {
+      toggleButton.textContent = expanded ? "Ocultar controles" : "Mostrar controles";
+      toggleButton.setAttribute("aria-expanded", expanded ? "true" : "false");
+    }
+  };
+  if (toggleButton) {
+    toggleButton.addEventListener("click", () => {
+      controlsCollapsed = !controlsCollapsed;
+      updateToggleLabel();
+    });
+  }
+  updateToggleLabel();
 
   let disposed = false;
   let cleanup = () => {};
@@ -436,6 +472,8 @@ async function showJoker({ returnToMain = true, label = "JOKER", stlPath = "/jok
     applyProfileToMaterial("default");
     applyThemeColors();
     viewer.start();
+    // Theme was lifting the renderer background to the terminal’s green `--bg`, so force a clean black
+    viewer.setBackgroundColor("#010101");
     metrics.mark("render_start");
 
     const markActive = () => {
@@ -643,6 +681,10 @@ async function showJoker({ returnToMain = true, label = "JOKER", stlPath = "/jok
 
 export default async function show(args = "") {
   const normalized = String(args || "").trim().toLowerCase();
+  if (normalized === "w") {
+    await showJoker({ returnToMain: true, label: "W", stlPath: "/w.stl" });
+    return;
+  }
   if (normalized === "joker") {
     await showJoker({ returnToMain: true, label: "JOKER", stlPath: "/joker.stl" });
     return;
@@ -672,7 +714,7 @@ export default async function show(args = "") {
       return;
     }
   }
-  await type([" ", "USO: SHOW JOKER | SHOW BALA | SHOW <EVIDENCIA>", " "], {
+  await type([" ", "USO: SHOW JOKER | SHOW BALA | SHOW W | SHOW <EVIDENCIA>", " "], {
     wait: false,
     initialWait: false,
     finalWait: false,

@@ -5,6 +5,7 @@
   width: 965px;
   height: 800px;
   min-height: 800px;
+  margin-top: 3vh;
 
   /* min-width: 880px;
   min-height: 100%;
@@ -83,20 +84,6 @@
   letter-spacing: 0.3em;
 }
 
-.monitor-debug {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.75rem;
-  z-index: 60;
-  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
-  font-size: 10px;
-  line-height: 1.2;
-  color: #9fb9d9;
-  background: rgba(0, 0, 0, 0.35);
-  padding: 0.35rem 0.45rem;
-  border: 1px solid rgba(159, 185, 217, 0.35);
-  pointer-events: none;
-}
 
 #monitor pre {
   z-index: 10;

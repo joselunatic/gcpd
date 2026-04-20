@@ -40,6 +40,10 @@
   --gradient-bottom: #050b0f;
   --gradient-middle: #0c1922;
   --gradient-inner: #132634;
+  --tooltip-bg: #041217;
+  --tooltip-border: rgba(45, 220, 147, 0.45);
+  --tooltip-color: #b4ffe4;
+  --tooltip-shadow: 0 10px 22px rgba(0, 0, 0, 0.42);
 }
 
 @media (max-width: 639px) {
@@ -142,4 +146,37 @@ body::after {
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
+}
+
+.wopr-tooltip-anchor[data-tooltip] {
+  position: relative;
+}
+
+.wopr-tooltip-anchor[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-color);
+  border: 1px solid var(--tooltip-border);
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  line-height: 1.35;
+  width: max-content;
+  max-width: min(320px, 78vw);
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: var(--tooltip-shadow);
+  transition: opacity 0.16s ease;
+  z-index: 1200;
+}
+
+.wopr-tooltip-anchor[data-tooltip]:hover::after,
+.wopr-tooltip-anchor[data-tooltip]:focus-visible::after {
+  opacity: 1;
 }

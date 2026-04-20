@@ -20,7 +20,9 @@
   width: 100%;
   height: 100%;
   display: block;
-  filter: brightness(1.25);
+  background: #010101;
+  mix-blend-mode: normal;
+  filter: contrast(1.28) brightness(1.18) saturate(1.08);
 }
 
 .boot-ascii__effect table {

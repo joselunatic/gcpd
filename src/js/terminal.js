@@ -127,9 +127,16 @@ async function parse(...args) {
 async function loadingTerminal() {
   console.log("[Terminal]", new Date().toISOString(), "loadingTerminal()");
   let screen = document.querySelector(".terminal");
+  const isDevFast =
+    typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env.VITE_DEV_MODE === "1";
   let screenStatus = localStorage.getItem("screenStatus");
   if (!screenStatus) {
     screenStatus = sessionStorage.getItem("screenStatus");
+  }
+  if (isDevFast) {
+    screenStatus = "os-remote";
   }
   if (
     screen &&
@@ -144,10 +151,20 @@ async function loadingTerminal() {
   const module = await import(
     `${import.meta.env.BASE_URL}utils/screens.js` /* @vite-ignore */
   );
-  const allowResume =
+  if (isDevFast && module && typeof module.restoreTerminalState === "function") {
+    const restored = await module.restoreTerminalState({
+      status: "os-remote",
+      context: { lineIndex: 3 },
+    });
+    if (restored) {
+      return;
+    }
+  }
+  const allowResumeBase =
     module && typeof module.shouldAllowResume === "function"
       ? module.shouldAllowResume()
       : true;
+  const allowResume = isDevFast ? false : allowResumeBase;
   if (allowResume && module && module.restoreTerminalSnapshot) {
     const restored = module.restoreTerminalSnapshot(screenStatus);
     if (restored) {
@@ -241,7 +258,9 @@ function handleSelectableKeys(event) {
   event.preventDefault();
   event.stopPropagation();
   event.__woprHandled = true;
-  import(`${import.meta.env.BASE_URL}utils/selection.js`).then((module) => {
+  import(
+    `${import.meta.env.BASE_URL}utils/selection.js` /* @vite-ignore */
+  ).then((module) => {
     if (!module) return;
     if (key === "ArrowUp") {
       module.moveSelection(-1);

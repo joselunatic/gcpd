@@ -43,6 +43,10 @@ const Base = ({on, setOn, setReset }) => {
     };
 
     const handleSwitch = (event) => {
+        const byClass = (className, index = 0) =>
+            document.getElementsByClassName(className)[index] || null;
+        const removePassive = (element) => element?.classList?.remove('passive');
+        const togglePassive = (element) => element?.classList?.toggle('passive');
         console.log(event);
         // Switch 'PWR ON/OFF'. Turn monitor on and off
         if (event.target.classList.contains('right-part')) {
@@ -50,8 +54,8 @@ const Base = ({on, setOn, setReset }) => {
             // Power is the bottom switch (PWR ON/OFF) per visual order.
             if (event.target.id === String(RIGHT_SWITCH.POWER)) {
                 const powerStatus = event.target.checked ? 'on' : 'off';
-                const indicatorLeftDown = document.getElementsByClassName('indicator middle left-part')[3];
-                indicatorLeftDown.classList.remove('passive');
+                const indicatorLeftDown = byClass('indicator middle left-part', 3);
+                removePassive(indicatorLeftDown);
                 setOn(powerStatus);
             }
             // Switch 'RESET, EXT. CLR'. Reset the login status of the terminal that is stored in local storage. Begin from scratch
@@ -80,14 +84,14 @@ const Base = ({on, setOn, setReset }) => {
             if (event.target.id === String(RIGHT_SWITCH.RUN)) {
                 // Full reset to boot state (dialer/login) on any toggle.
                 resetTerminalToBoot();
-                const switchMid01 = document.getElementsByClassName('mid-part 2')[0];
-                const switchMid02 = document.getElementsByClassName('mid-part 5')[0];
+                const switchMid01 = byClass('mid-part 2', 0);
+                const switchMid02 = byClass('mid-part 5', 0);
                 console.log(switchMid01);
-                switchMid01.checked = false;
-                switchMid02.checked = !switchMid02.checked;
-                const indicatorLeftDown = document.getElementsByClassName('indicator down left-part')[3];
+                if (switchMid01) switchMid01.checked = false;
+                if (switchMid02) switchMid02.checked = !switchMid02.checked;
+                const indicatorLeftDown = byClass('indicator down left-part', 3);
                 console.log(indicatorLeftDown)
-                indicatorLeftDown.classList.remove('passive');
+                removePassive(indicatorLeftDown);
             }
         }
         if (event.target.classList.contains('left-part')) {
@@ -114,7 +118,7 @@ const Base = ({on, setOn, setReset }) => {
                 }
             }
             if (event.target.id === String(LEFT_SWITCH.NAV)) {
-                const switchLeft01 = document.getElementsByClassName('left-part 0')[0];
+                const switchLeft01 = byClass('left-part 0', 0);
                 console.log(switchLeft01);
                 
 
@@ -131,9 +135,9 @@ const Base = ({on, setOn, setReset }) => {
                 })
                 console.log('all set');
                 if (!allSet) {
-                    switchLeft01.checked = !switchLeft01.checked;
-                    const indicatorLeftDown = document.getElementsByClassName('indicator down left-part')[4];
-                    indicatorLeftDown.classList.remove('passive');
+                    if (switchLeft01) switchLeft01.checked = !switchLeft01.checked;
+                    const indicatorLeftDown = byClass('indicator down left-part', 4);
+                    removePassive(indicatorLeftDown);
                     setTimeout(function(){
                         event.target.checked = !event.target.checked;
                     }, 300);
@@ -145,78 +149,42 @@ const Base = ({on, setOn, setReset }) => {
         if (event.target.classList.contains('mid-part')) {
             console.log('Middle button block: ', event.target.id);
             if (event.target.id === '2') {
-                const switchLeft07 = document.getElementsByClassName('left-part 7')[0];
-                switchLeft07.checked = false
+                const switchLeft07 = byClass('left-part 7', 0);
+                if (switchLeft07) switchLeft07.checked = false;
             }
             if (event.target.id === '1') {
-                const indicatorLeftUp = document.getElementsByClassName('indicator up left-part')[0];
-                const indicatorLeftDown = document.getElementsByClassName('indicator down left-part')[0];
-                if (indicatorLeftUp.classList.contains('passive')) {
-                    indicatorLeftUp.classList.remove('passive');
-                } else {
-                    indicatorLeftUp.classList.add('passive');
-                }
-                if (indicatorLeftDown.classList.contains('passive')) {
-                    indicatorLeftDown.classList.remove('passive');
-                } else {
-                    indicatorLeftDown.classList.add('passive');
-                }
+                const indicatorLeftUp = byClass('indicator up left-part', 0);
+                const indicatorLeftDown = byClass('indicator down left-part', 0);
+                togglePassive(indicatorLeftUp);
+                togglePassive(indicatorLeftDown);
             }
             if (event.target.id === '0') {
-                const indicatorLeftDown = document.getElementsByClassName('indicator down left-part')[6];
-                if (indicatorLeftDown.classList.contains('passive')) {
-                    indicatorLeftDown.classList.remove('passive');
-                } else {
-                    indicatorLeftDown.classList.add('passive');
-                }
+                const indicatorLeftDown = byClass('indicator down left-part', 6);
+                togglePassive(indicatorLeftDown);
             }
             if (event.target.id === '4') {
-                const indicatorMid1 = document.getElementsByClassName('indicator middle left-part')[1];
-                const indicatorMid2 = document.getElementsByClassName('indicator middle left-part')[4];
-                if (indicatorMid1.classList.contains('passive')) {
-                    indicatorMid1.classList.remove('passive');
-                } else {
-                    indicatorMid1.classList.add('passive');
-                }
-                if (indicatorMid2.classList.contains('passive')) {
-                    indicatorMid2.classList.remove('passive');
-                } else {
-                    indicatorMid2.classList.add('passive');
-                }
+                const indicatorMid1 = byClass('indicator middle left-part', 1);
+                const indicatorMid2 = byClass('indicator middle left-part', 4);
+                togglePassive(indicatorMid1);
+                togglePassive(indicatorMid2);
             }
             if (event.target.id === '5') {
-                const indicatorMid1 = document.getElementsByClassName('indicator middle left-part')[7];
-                const indicatorMid2 = document.getElementsByClassName('indicator middle left-part')[5];
-                if (indicatorMid1.classList.contains('passive')) {
-                    indicatorMid1.classList.remove('passive');
-                } else {
-                    indicatorMid1.classList.add('passive');
-                }
-                if (indicatorMid2.classList.contains('passive')) {
-                    indicatorMid2.classList.remove('passive');
-                } else {
-                    indicatorMid2.classList.add('passive');
-                }
-                const switchLeft01 = document.getElementsByClassName('left-part 1')[0];
-                const switchLeft02 = document.getElementsByClassName('left-part 1')[4];
-                switchLeft01.checked = !switchLeft01.checked;
-                switchLeft02.checked = false;
+                const indicatorMid1 = byClass('indicator middle left-part', 7);
+                const indicatorMid2 = byClass('indicator middle left-part', 5);
+                togglePassive(indicatorMid1);
+                togglePassive(indicatorMid2);
+                const switchLeft01 = byClass('left-part 1', 0);
+                const switchLeft02 = byClass('left-part 2', 0);
+                if (switchLeft01) switchLeft01.checked = !switchLeft01.checked;
+                if (switchLeft02) switchLeft02.checked = false;
             }
             if (event.target.id === '7') {
-                const indicatorMid1 = document.getElementsByClassName('indicator up left-part')[5];
-                const indicatorMid2 = document.getElementsByClassName('indicator down left-part')[7];
-                const indicatorMid3 = document.getElementsByClassName('indicator down left-part')[2];
-                if (indicatorMid1.classList.contains('passive')) {
-                    indicatorMid1.classList.remove('passive');
-                } else {
-                    indicatorMid1.classList.add('passive');
-                }
-                if (indicatorMid2.classList.contains('passive')) {
-                    indicatorMid2.classList.remove('passive');
-                } else {
-                    indicatorMid2.classList.add('passive');
-                }
-                indicatorMid3.classList.remove('passive');
+                const indicatorMid1 = byClass('indicator up left-part', 5);
+                const indicatorMid2 = byClass('indicator down left-part', 7);
+                const indicatorMid3 = byClass('indicator down left-part', 2);
+                togglePassive(indicatorMid1);
+                togglePassive(indicatorMid2);
+                removePassive(indicatorMid3);
             }
         }
         refocusTerminalInput();
@@ -286,12 +254,14 @@ const Base = ({on, setOn, setReset }) => {
         // Get the <span> element that closes the modal
         var span = document.getElementsByClassName("close")[0];
         // When the user clicks on <span> (x), close the modal
-        span.onclick = function() {
-            modal.style.display = "none";
+        if (span && modal) {
+            span.onclick = function() {
+                modal.style.display = "none";
+            }
         }
         // When the user clicks anywhere outside of the modal, close it
         window.onclick = function(event) {
-            if (event.target == modal) {
+            if (modal && event.target == modal) {
                 modal.style.display = "none";
             }
         }

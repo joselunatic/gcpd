@@ -239,6 +239,30 @@
   font-size: 0.7rem;
 }
 
+.terminal-ascii-ui__title-row {
+  justify-content: space-between;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.terminal-ascii-ui__toggle {
+  font-family: "WOPR";
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(182, 214, 255, 0.3);
+  color: var(--fg-primary);
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+}
+
+.terminal-ascii-ui__toggle:hover {
+  border-color: rgba(175, 230, 210, 0.7);
+}
+
 .terminal-ascii-ui__controls {
   display: flex;
   gap: 0.5rem;
@@ -270,6 +294,51 @@
 
 .terminal-ascii-ui__row input[type="range"] {
   width: 100%;
+}
+
+.terminal-ascii-ui__panel {
+  display: grid;
+  gap: 0.35rem;
+  max-height: 480px;
+  overflow: hidden;
+  opacity: 1;
+  transition: max-height 0.25s ease, opacity 0.25s ease;
+}
+
+.terminal-ascii-ui__panel.is-collapsed {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.terminal-ascii-ui__collapsed-indicator {
+  display: none;
+  font-size: 0.6rem;
+  color: var(--fg-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.2rem;
+  border: 1px solid rgba(182, 214, 255, 0.2);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.35);
+  justify-content: center;
+  text-align: center;
+}
+
+.terminal-ascii-ui--collapsed .terminal-ascii-ui__collapsed-indicator {
+  display: block;
+}
+
+.terminal-ascii-ui--collapsed .terminal-ascii-ui__readout,
+.terminal-ascii-ui--collapsed .terminal-ascii-ui__hint {
+  display: none;
+}
+
+.terminal-ascii-ui--collapsed {
+  padding: 0.35rem 0.55rem;
+  width: auto;
+  min-width: 160px;
+  border-color: rgba(175, 230, 210, 0.4);
 }
 
 .terminal-ascii-ui__hint {
@@ -418,6 +487,435 @@
 
 .touch-key--primary {
   box-shadow: inset 0 0 6px rgba(87, 133, 183, 0.4);
+}
+
+#ballistica-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  pointer-events: auto;
+  animation: textShadow 4s infinite;
+  color: var(--fg-primary);
+  padding: 0;
+  box-sizing: border-box;
+  background: #000;
+}
+
+#ballistica-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.04), transparent 35%);
+  mix-blend-mode: screen;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+#ballistica-overlay .ballistica-crt {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(2, 8, 12, 0.9), rgba(5, 16, 10, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 2px rgba(2, 8, 12, 0.9), 0 0 35px rgba(54, 166, 137, 0.3);
+  backdrop-filter: blur(3px);
+  padding: 0.5rem;
+  max-width: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#ballistica-overlay .ballistica-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#ballistica-overlay .ballistica-title {
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  letter-spacing: 0.18em;
+  color: var(--fg-accent);
+  font-size: 0.95rem;
+}
+
+#ballistica-overlay .ballistica-hint {
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  opacity: 0.9;
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
+}
+
+#ballistica-overlay .ballistica-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  flex: 1 1 auto;
+  overflow: visible;
+  position: relative;
+  z-index: 2;
+  min-height: 0;
+}
+
+#ballistica-overlay .ballistica-panels.is-hidden {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  #ballistica-overlay .ballistica-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+#ballistica-overlay .ballistica-result {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+  transition: opacity 320ms ease, transform 320ms ease;
+  padding: 0 1rem 1rem;
+  pointer-events: none;
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+#ballistica-overlay .ballistica-result.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+#ballistica-overlay .ballistica-result-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 6px;
+  border: 1px solid rgba(140, 255, 210, 0.25);
+  background: rgba(2, 8, 12, 0.9);
+}
+
+#ballistica-overlay .ballistica-result.is-visible {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+#ballistica-overlay .ballistica-result.is-visible .ballistica-result-canvas {
+  max-height: 60vh;
+  max-width: 92%;
+}
+
+#ballistica-overlay .ballistica-panel {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.9rem;
+  position: relative;
+  background: rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.65);
+  z-index: 2;
+}
+
+#ballistica-overlay .ballistica-panel.is-active {
+  border-color: rgba(175, 230, 210, 0.8);
+  box-shadow: 0 0 0 1px rgba(175, 230, 210, 0.6) inset;
+}
+
+#ballistica-overlay .ballistica-label {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  color: var(--fg-accent);
+  opacity: 0.85;
+  font-size: 0.78rem;
+}
+
+#ballistica-overlay .ballistica-code {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+}
+
+#ballistica-overlay .ballistica-code-input {
+  width: 2.4rem;
+  background: rgba(2, 8, 12, 0.8);
+  border: 1px solid rgba(140, 255, 210, 0.45);
+  color: var(--fg-primary);
+  padding: 0.15rem 0.35rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+#ballistica-overlay .ballistica-panel[data-side="left"] .ballistica-code-input {
+  width: 1.6rem;
+}
+
+#ballistica-overlay .ballistica-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 1.2rem;
+  image-rendering: pixelated;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#ballistica-overlay .ballistica-meta {
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  color: var(--fg-system);
+  opacity: 0.95;
+  font-size: 0.8rem;
+  margin-top: 0.6rem;
+  min-height: 3rem;
+  white-space: pre-line;
+}
+
+#ballistica-overlay .ballistica-footer {
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+}
+
+#ballistica-overlay .ballistica-status {
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  color: var(--fg-ok);
+  font-size: 0.82rem;
+  opacity: 0.95;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#ballistica-overlay .ballistica-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+#ballistica-overlay .ballistica-match {
+  border: 1px solid rgba(140, 255, 210, 0.5);
+  background: rgba(3, 14, 12, 0.9);
+  color: var(--fg-accent);
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  padding: 0.35rem 0.6rem;
+  text-transform: uppercase;
+}
+
+#audio-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  animation: textShadow 4s infinite;
+  color: var(--fg-primary);
+}
+
+#audio-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.04), transparent 35%);
+  mix-blend-mode: screen;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+#audio-overlay .audio-crt {
+  position: relative;
+  width: min(900px, 96vw);
+  background: linear-gradient(135deg, rgba(2, 8, 12, 0.92), rgba(5, 16, 10, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 2px rgba(2, 8, 12, 0.9), 0 0 35px rgba(54, 166, 137, 0.3);
+  backdrop-filter: blur(3px);
+  padding: 0.6rem;
+}
+
+#audio-overlay .audio-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#audio-overlay .audio-title {
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  letter-spacing: 0.18em;
+  color: var(--fg-accent);
+  font-size: 0.8rem;
+}
+
+#audio-overlay .audio-hint {
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  opacity: 0.9;
+  color: var(--fg-muted);
+  font-size: 0.6rem;
+  margin-top: 0.3rem;
+}
+
+#audio-overlay .audio-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+#audio-overlay .audio-visual {
+  position: relative;
+}
+
+#audio-overlay .audio-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #020608;
+}
+
+#audio-overlay .audio-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  font-size: 0.65rem;
+  color: var(--fg-system);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#audio-overlay .audio-unlock {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  font-size: 0.65rem;
+  color: var(--fg-system);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#audio-overlay .audio-unlock__input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(2, 8, 12, 0.8);
+  border: 1px solid rgba(140, 255, 210, 0.4);
+  color: var(--fg-primary);
+  padding: 0.35rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+}
+
+#audio-overlay .audio-unlock__btn {
+  background: rgba(5, 20, 14, 0.9);
+  border: 1px solid rgba(140, 255, 210, 0.5);
+  color: var(--fg-accent);
+  padding: 0.35rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+#audio-overlay .audio-unlock__status {
+  color: var(--fg-ok);
+  opacity: 0.9;
+}
+
+#audio-overlay .audio-footer {
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#audio-overlay .audio-state {
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  color: var(--fg-ok);
+  font-size: 0.7rem;
+  opacity: 0.95;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#dialer-audio-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  animation: textShadow 4s infinite;
+  color: var(--fg-primary);
+}
+
+#dialer-audio-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.04), transparent 35%);
+  mix-blend-mode: screen;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+#dialer-audio-overlay .dialer-audio-crt {
+  position: relative;
+  width: min(520px, 92vw);
+  background: linear-gradient(135deg, rgba(2, 8, 12, 0.92), rgba(5, 16, 10, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 2px rgba(2, 8, 12, 0.9), 0 0 28px rgba(54, 166, 137, 0.3);
+  backdrop-filter: blur(3px);
+  padding: 0.45rem 0.6rem 0.6rem;
+}
+
+#dialer-audio-overlay .dialer-audio-body {
+  padding: 0.55rem 0.4rem 0.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+#dialer-audio-overlay .dialer-audio-number {
+  font-family: "Share Tech Mono", "WOPR", ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  color: var(--fg-system);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+#dialer-audio-overlay .dialer-audio-visual {
+  position: relative;
+}
+
+#dialer-audio-overlay .dialer-audio-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #020608;
 }
 
 @keyframes touchPulse {

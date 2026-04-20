@@ -652,14 +652,29 @@ async function parse(input) {
     return;
   }
   // Only allow words, separated by space
-  let matches = String(input).match(/^(\w+)(?:\s((?:\w+(?:\s\w+)*)))?$/);
-  let command = matches[1];
-  let args = matches[2];
+  const COMMAND_ALIASES = {
+    mapa: "map",
+    casos: "cases",
+    modulos: "modules",
+    modulo: "modules",
+    caso: "case",
+    villanos: "villains",
+    villano: "villains",
+    ayuda: "help",
+    salir: "exit",
+    limpiar: "clear",
+    estado: "status",
+  };
 
+  let matches = String(input).match(/^(\w+)(?:\s([A-Za-z0-9\s\-()+#]+))?$/);
   if (!matches) {
-    //throw new Error("INVALID COMMAND");fuck
-    command = "__invalid";
+    const invalid = await import("/commands/__invalid.js");
+    if (invalid?.output) await type(invalid.output);
+    return;
   }
+  let command = matches[1];
+  command = COMMAND_ALIASES[command] || command;
+  let args = matches ? matches[2] : undefined;
 
   let naughty = ["fuck", "shit", "die", "ass", "cunt", "asshole", "idiot"];
   if (naughty.some((word) => command.includes(word))) {
@@ -667,29 +682,17 @@ async function parse(input) {
   }
 
   console.log("Matches: ", matches[0]);
-  let isValidCommand = await isUrlFound(`/commands/${command}.js`);
-  console.log("Command valid: ", isValidCommand);
-  if (!isValidCommand && countWords(matches[0]) < 3) {
-    command = "__invalid";
+  let module;
+  let isValidCommand = false;
+  try {
+    module = await import(`/commands/${command}.js`);
     isValidCommand = true;
+  } catch (e) {
+    console.error("Command import failed:", command, e);
+    isValidCommand = false;
   }
 
   if (isValidCommand) {
-    let module;
-    // Try to import the command function
-    try {
-      module = await import(`/commands/${command}.js`);
-    } catch (e) {
-      console.error(e);
-      // Kinda abusing TypeError to check if the import failed
-      if (e instanceof TypeError) {
-        return await type("UNKNOWN COMMAND");
-      }
-      // E.g. syntax error while executing the command
-      else {
-        return await type("Error while executing command");
-      }
-    }
 
     if (module && module.stylesheet) {
       addStylesheet(module.stylesheet);
@@ -713,32 +716,34 @@ async function parse(input) {
   } else {
     if (countWords(matches[0]) >= 3) {
       console.log("Input has 3 or more words");
-      let module;
-      // Try to import the command function
       try {
         module = await import("/commands/__sentences.js");
       } catch (e) {
         console.error(e);
-        // Kinda abusing TypeError to check if the import failed
-        if (e instanceof TypeError) {
-          return await type("UNKNOWN COMMAND");
-        }
-        // E.g. syntax error while executing the command
-        else {
-          return await type("Error while executing command");
-        }
+        return await type("Error while executing command");
       }
-      // Show any output if the command exports any
       if (module && module.output) {
         await type(module.output);
       }
-
       await pause();
-
-      // Execute the command (default export)
       if (module.default) {
         await module.default(matches[0]);
       }
+      return;
+    }
+
+    try {
+      module = await import("/commands/__invalid.js");
+      if (module && module.output) {
+        await type(module.output);
+      }
+      await pause();
+      if (module.default) {
+        await module.default(matches[0]);
+      }
+    } catch (e) {
+      console.error(e);
+      return await type("UNKNOWN COMMAND");
     }
   }
   return;

@@ -8,6 +8,7 @@ import '../css/BootAscii.styles.css';
 const DEFAULT_DURATION_MS = 9000;
 const ASCII_CHARS = ' .:-+*=%@#';
 const EFFECT_RESOLUTION = 0.2;
+const BOOT_ASCII_FILTER = 'contrast(1.28) brightness(1.18) saturate(1.08)';
 const SHOW_LOGO = false;
 const LOGO_TEXT = String.raw`
   _      _______  ___  ______  _____  _____  __  _______________  ____________
@@ -80,11 +81,8 @@ const BootAscii = ({ onDone, durationMs = DEFAULT_DURATION_MS, modelUrl = '' }) 
       themeStyles?.getPropertyValue('--fg-primary')?.trim() ||
       themeStyles?.getPropertyValue('--color')?.trim() ||
       '#ffffff';
-    const themeBg =
-      themeStyles?.getPropertyValue('--bg')?.trim() ||
-      themeStyles?.getPropertyValue('--background-color')?.trim() ||
-      '#000000';
-    scene.background = new THREE.Color(themeBg || '#000');
+    const bootBackground = '#010101'; // force pure dark baseline to avoid tinted noise
+    scene.background = new THREE.Color(bootBackground);
 
       camera.position.set(0, 0, 160);
 
@@ -105,7 +103,9 @@ const BootAscii = ({ onDone, durationMs = DEFAULT_DURATION_MS, modelUrl = '' }) 
       HTMLCanvasElement.prototype.getContext = originalGetContext;
       effect.domElement.classList.add('boot-ascii__effect');
       effect.domElement.style.color = themeFg || '#ffffff';
-      effect.domElement.style.backgroundColor = themeBg || '#000000';
+      effect.domElement.style.backgroundColor = bootBackground;
+      effect.domElement.style.mixBlendMode = 'normal'; // keep renderer from lifting background tone
+      effect.domElement.style.filter = BOOT_ASCII_FILTER; // brighter glyph pass while preserving dark baseline
       effect.domElement.style.pointerEvents = 'none';
       effect.domElement.style.width = '100%';
       effect.domElement.style.height = '100%';
@@ -132,22 +132,28 @@ const BootAscii = ({ onDone, durationMs = DEFAULT_DURATION_MS, modelUrl = '' }) 
       container.appendChild(logo);
     }
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.78);
     scene.add(ambient);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 3.2);
     keyLight.position.set(120, 160, 200);
     scene.add(keyLight);
 
-      const fillLight = new THREE.PointLight(0xffffff, 0.9);
+      const fillLight = new THREE.PointLight(0xffffff, 1.25);
       fillLight.position.set(-120, -80, 100);
       scene.add(fillLight);
 
+      const rimLight = new THREE.DirectionalLight(0xb6ffe5, 1.35);
+      rimLight.position.set(-160, 60, -120);
+      scene.add(rimLight);
+
       let mesh = null;
       const material = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        roughness: 0.35,
-        metalness: 0.1,
+        color: 0xf2fff8,
+        roughness: 0.28,
+        metalness: 0.18,
+        emissive: 0x56dba8,
+        emissiveIntensity: 0.22,
         flatShading: true,
         side: THREE.DoubleSide,
       });

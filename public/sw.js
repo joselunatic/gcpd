@@ -1,4 +1,4 @@
-const VERSION = "v6";
+const VERSION = "v7";
 const STATIC_CACHE = `wopr-static-${VERSION}`;
 
 const PRECACHE_URLS = [
@@ -52,6 +52,12 @@ function isStaticAssetRequest(request) {
   );
 }
 
+function isRuntimeModuleRequest(request) {
+  return (
+    request.url.includes("/commands/") || request.url.includes("/utils/")
+  );
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -77,6 +83,22 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isStaticAssetRequest(request)) {
+    if (isRuntimeModuleRequest(request)) {
+      event.respondWith(
+        fetch(request)
+          .then((response) => {
+            if (request.headers.has("range") || response.status === 206) {
+              return response;
+            }
+            const copy = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
+            return response;
+          })
+          .catch(() => caches.match(request))
+      );
+      return;
+    }
+
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;

@@ -1,0 +1,273 @@
+.phone-panel {
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 0%, #07202b 0%, #021016 44%, #01080c 100%);
+  color: #d2ffed;
+  font-family: 'Share Tech Mono', 'IBM Plex Mono', monospace;
+  padding: 1rem 0.85rem 2rem;
+}
+
+.phone-panel__inner {
+  width: min(100%, 520px);
+  margin: 0 auto;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.phone-panel__header {
+  border: 1px solid rgba(78, 234, 176, 0.4);
+  border-radius: 14px;
+  background: rgba(2, 16, 20, 0.9);
+  padding: 0.85rem 0.9rem;
+}
+
+.phone-panel__header h1 {
+  margin: 0;
+  font-size: 1.2rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.phone-panel__header p {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.phone-panel__card {
+  border: 1px solid rgba(78, 234, 176, 0.35);
+  border-radius: 14px;
+  background: rgba(3, 18, 24, 0.9);
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.72rem;
+}
+
+.phone-panel__card--auth {
+  gap: 0.95rem;
+}
+
+.phone-panel__card--telemetry {
+  gap: 0.5rem;
+}
+
+.phone-panel__card label {
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.86rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.phone-panel__card input {
+  border-radius: 10px;
+  border: 1px solid rgba(78, 234, 176, 0.35);
+  background: rgba(3, 12, 16, 0.92);
+  color: #d2ffed;
+  padding: 0.78rem 0.82rem;
+  font-size: 1rem;
+}
+
+.phone-panel__status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.phone-panel__telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
+}
+
+.phone-panel__telemetry-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  opacity: 0.82;
+}
+
+.phone-panel__telemetry-value {
+  font-size: 0.96rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.phone-panel__pill {
+  border-radius: 999px;
+  border: 1px solid rgba(78, 234, 176, 0.5);
+  background: rgba(9, 43, 34, 0.5);
+  padding: 0.42rem 0.78rem;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.phone-panel__pill--available {
+  border-color: rgba(120, 255, 201, 0.7);
+  background: rgba(12, 71, 51, 0.52);
+}
+
+.phone-panel__pill--incoming {
+  border-color: rgba(255, 207, 97, 0.9);
+  background: rgba(97, 64, 12, 0.5);
+  color: #ffe9b0;
+}
+
+.phone-panel__pill--active {
+  border-color: rgba(120, 190, 255, 0.85);
+  background: rgba(12, 48, 74, 0.52);
+  color: #d6f0ff;
+}
+
+.phone-panel__pill--offline,
+.phone-panel__pill--ws-offline,
+.phone-panel__pill--ws-error {
+  border-color: rgba(255, 132, 132, 0.78);
+  background: rgba(71, 15, 15, 0.52);
+  color: #ffd4d4;
+}
+
+.phone-panel__pill--ws-connecting {
+  border-color: rgba(255, 224, 161, 0.78);
+  background: rgba(67, 45, 6, 0.5);
+  color: #ffefc8;
+}
+
+.phone-panel__pill--ws-online {
+  border-color: rgba(120, 255, 201, 0.7);
+  background: rgba(12, 71, 51, 0.52);
+}
+
+.phone-panel__hint {
+  margin: 0;
+  font-size: 0.72rem;
+  opacity: 0.82;
+}
+
+.phone-panel__hint--warn {
+  color: #ffe8b7;
+}
+
+.phone-panel__call-title {
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.phone-panel__call-meta {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.phone-panel__empty {
+  margin: 0;
+  opacity: 0.85;
+  font-size: 0.9rem;
+}
+
+.phone-panel__incoming-guide {
+  border: 1px dashed rgba(120, 255, 201, 0.76);
+  background: rgba(13, 65, 48, 0.42);
+  color: #d9ffe7;
+  border-radius: 10px;
+  padding: 0.58rem 0.66rem;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+  animation: phone-guide-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes phone-guide-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(120, 255, 201, 0.05);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(120, 255, 201, 0.22);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(120, 255, 201, 0.05);
+  }
+}
+
+.phone-panel__actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.62rem;
+}
+
+.phone-panel__btn {
+  border-radius: 12px;
+  border: 1px solid rgba(78, 234, 176, 0.5);
+  background: rgba(8, 30, 38, 0.86);
+  color: #d2ffed;
+  padding: 0.9rem;
+  min-height: 50px;
+  font-size: 1rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.phone-panel__btn--accept {
+  border-color: rgba(120, 255, 201, 0.8);
+  background: rgba(8, 69, 51, 0.9);
+}
+
+.phone-panel__btn--guide {
+  animation: phone-accept-pulse 0.95s ease-in-out infinite;
+}
+
+@keyframes phone-accept-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(120, 255, 201, 0.25);
+  }
+  60% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 9px rgba(120, 255, 201, 0.05);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(120, 255, 201, 0.25);
+  }
+}
+
+.phone-panel__btn--hang {
+  border-color: rgba(255, 132, 132, 0.8);
+  background: rgba(73, 16, 16, 0.9);
+  color: #ffd2d2;
+}
+
+.phone-panel__btn--ghost {
+  background: transparent;
+}
+
+.phone-panel__error {
+  margin: 0;
+  border: 1px solid rgba(255, 132, 132, 0.65);
+  background: rgba(73, 16, 16, 0.35);
+  border-radius: 10px;
+  padding: 0.62rem 0.74rem;
+  color: #ffd2d2;
+  font-size: 0.82rem;
+}
+
+.phone-panel :where(button, input):focus-visible {
+  outline: 2px solid rgba(120, 255, 201, 0.95);
+  outline-offset: 2px;
+}
+
+@media (min-width: 680px) {
+  .phone-panel {
+    padding-top: 1.6rem;
+  }
+
+  .phone-panel__actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .phone-panel__telemetry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

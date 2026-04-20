@@ -3,8 +3,32 @@ import { type } from "/utils/io.js";
 const ASSET_PATH = "/assets/ballistics";
 const assetImages = new Map();
 
-function loadAssetImage(assetId) {
-  const cached = assetImages.get(assetId);
+function resolveAssetSrc(entry = {}) {
+  const pngPath = String(entry.pngPath || "").trim();
+  if (pngPath) return pngPath;
+  const assetId = String(entry.assetId || "").trim();
+  if (!assetId) return "";
+  return `${ASSET_PATH}/${assetId}.png`;
+}
+
+function getAssetKey(entry = {}) {
+  return String(entry.pngPath || entry.assetId || "");
+}
+
+function normalizeCaseCode(value = "") {
+  const cleaned = String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "");
+  if (cleaned.length >= 3) return cleaned.slice(0, 3);
+  if (cleaned.length === 2) return `${cleaned}X`;
+  if (cleaned.length === 1) return `${cleaned}XX`;
+  return "XXX";
+}
+
+function loadAssetImage(entry = {}) {
+  const key = getAssetKey(entry);
+  if (!key) return Promise.resolve(null);
+  const cached = assetImages.get(key);
   if (cached) {
     if (cached instanceof HTMLImageElement) {
       return Promise.resolve(cached);
@@ -14,24 +38,45 @@ function loadAssetImage(assetId) {
   const promise = new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      assetImages.set(assetId, img);
+      assetImages.set(key, img);
       resolve(img);
     };
     img.onerror = reject;
-    img.src = `${ASSET_PATH}/${assetId}.png`;
+    img.src = resolveAssetSrc(entry);
   });
-  assetImages.set(assetId, promise);
+  assetImages.set(key, promise);
   return promise;
 }
 
+function deriveAssetId(entry = {}) {
+  if (entry.assetId) return String(entry.assetId);
+  const rawPath = String(entry.pngPath || "");
+  if (!rawPath) return "";
+  const parts = rawPath.split("/").filter(Boolean);
+  const file = parts[parts.length - 1] || "";
+  return file.replace(/\.png$/i, "");
+}
+
+async function loadBallisticsModels() {
+  try {
+    const res = await fetch("/api/ballistics", { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.models) ? data.models : [];
+  } catch (error) {
+    console.warn("Failed to load ballistics models:", error);
+    return [];
+  }
+}
+
 async function preloadAssets(dataset) {
-  const tasks = dataset.map((entry) => loadAssetImage(entry.assetId));
+  const tasks = dataset.map((entry) => loadAssetImage(entry));
   await Promise.all(tasks);
 }
 
-function drawAssetOverlay(canvas, assetId, side) {
+function drawAssetOverlay(canvas, entry, side) {
   const ctx = canvas.getContext("2d");
-  const img = assetImages.get(assetId);
+  const img = assetImages.get(getAssetKey(entry));
   if (!img || !(img instanceof HTMLImageElement)) return;
   const halfWidth = img.width / 2;
   const sourceX = side === "left" ? 0 : halfWidth;
@@ -160,52 +205,50 @@ function ensureOverlay() {
   let overlay = document.getElementById("ballistica-overlay");
   if (overlay) return overlay;
 
-  const container = document.getElementById("screen-container") || document.body;
+  const container =
+    document.getElementById("screen-container") ||
+    document.getElementById("terminal") ||
+    document.getElementById("terminal-container") ||
+    document.body;
   overlay = document.createElement("div");
   overlay.id = "ballistica-overlay";
+  overlay.classList.add("ballistica-overlay");
   overlay.innerHTML = `
     <div class="ballistica-crt">
       <div class="ballistica-header">
         <div class="ballistica-title">BALISTICA // MATCHER</div>
-        <div class="ballistica-hint">TAB cambia panel · \u2190/\u2192 rota · \u2191/\u2193 cambia bala · ENTER compara · ESC salir</div>
+        <div class="ballistica-hint">TAB selecciona panel · ingresa el codigo y ENTER · MATCH compara · ESC salir</div>
       </div>
       <div class="ballistica-panels">
         <div class="ballistica-panel" data-side="left">
           <div class="ballistica-label">IZQ</div>
+          <div class="ballistica-code">
+            <span>COD</span>
+            <input class="ballistica-code-input" data-side="left" maxlength="1" />
+          </div>
           <canvas class="ballistica-canvas" width="512" height="256"></canvas>
           <div class="ballistica-meta"></div>
         </div>
         <div class="ballistica-panel" data-side="right">
           <div class="ballistica-label">DER</div>
+          <div class="ballistica-code">
+            <span>COD</span>
+            <input class="ballistica-code-input" data-side="right" maxlength="2" />
+          </div>
           <canvas class="ballistica-canvas" width="512" height="256"></canvas>
           <div class="ballistica-meta"></div>
         </div>
       </div>
+      <div class="ballistica-result">
+        <canvas class="ballistica-result-canvas" width="1024" height="256"></canvas>
+      </div>
       <div class="ballistica-footer">
+        <button class="ballistica-match" type="button">MATCH</button>
         <div class="ballistica-status"></div>
       </div>
     </div>
   `;
 
-  // Minimal styling inline to avoid touching CSS right now.
-  const style = document.createElement("style");
-  style.textContent = `
-    #ballistica-overlay{ position:absolute; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; padding:24px; }
-    #ballistica-overlay .ballistica-crt{ width:min(980px, 96vw); background:rgba(2,8,12,0.92); border:1px solid rgba(120,200,255,0.28); box-shadow:0 0 0 2px rgba(0,0,0,0.6), 0 0 50px rgba(80,170,255,0.10); backdrop-filter: blur(2px); }
-    #ballistica-overlay .ballistica-header{ padding:12px 14px; border-bottom:1px solid rgba(120,200,255,0.18); }
-    #ballistica-overlay .ballistica-title{ font-family: monospace; letter-spacing:0.14em; color:#bfeaff; font-size:14px; }
-    #ballistica-overlay .ballistica-hint{ font-family: monospace; opacity:0.75; color:#8fcbe6; font-size:11px; margin-top:6px; }
-    #ballistica-overlay .ballistica-panels{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:14px; }
-    #ballistica-overlay .ballistica-panel{ border:1px solid rgba(120,200,255,0.18); padding:10px; position:relative; }
-    #ballistica-overlay .ballistica-panel.is-active{ border-color: rgba(190,240,255,0.85); box-shadow: 0 0 0 1px rgba(190,240,255,0.35) inset; }
-    #ballistica-overlay .ballistica-label{ position:absolute; top:8px; left:10px; font-family: monospace; color:#bfeaff; opacity:0.7; font-size:12px; }
-    #ballistica-overlay .ballistica-canvas{ width:100%; height:auto; display:block; margin-top:14px; image-rendering: pixelated; }
-    #ballistica-overlay .ballistica-meta{ font-family: monospace; color:#a7dff7; opacity:0.85; font-size:12px; margin-top:8px; min-height:34px; white-space:pre-line; }
-    #ballistica-overlay .ballistica-footer{ padding:10px 14px 14px; border-top:1px solid rgba(120,200,255,0.18); }
-    #ballistica-overlay .ballistica-status{ font-family: monospace; color:#bfeaff; font-size:12px; opacity:0.9; }
-  `;
-
-  overlay.appendChild(style);
   container.appendChild(overlay);
   return overlay;
 }
@@ -215,70 +258,100 @@ function removeOverlay() {
   if (overlay) overlay.remove();
 }
 
-function makeDataset() {
-  // Internal bullet IDs stable; case fields editable later.
-  const bullets = [
+function makeDataset(models = []) {
+  const fallback = [
     {
       bulletId: "BULLET-01",
-      caseNumber: "gcpd-0001",
+      caseId: "gcpd-XYZ-JKL",
+      caseCode: "XYZ",
       crime: "HOMICIDIO",
       location: "NARROWS",
       status: "ABIERTO",
+      closedBy: "",
       assetId: "b01",
       caliber: "9mm",
       material: "copper-jacketed",
     },
     {
       bulletId: "BULLET-02",
-      caseNumber: "gcpd-0002",
+      caseId: "gcpd-ABC-TUV",
+      caseCode: "ABC",
       crime: "ASALTO",
       location: "BURNSIDE",
       status: "ABIERTO",
+      closedBy: "",
       assetId: "b02",
       caliber: ".45 ACP",
       material: "lead core",
     },
     {
       bulletId: "BULLET-03",
-      caseNumber: "gcpd-0003",
+      caseId: "gcpd-DEF-QRS",
+      caseCode: "DEF",
       crime: "ROBO",
       location: "OLD GOTHAM",
       status: "CERRADO",
+      closedBy: "AGT. HOLLAND",
       assetId: "b03",
       caliber: "5.56 NATO",
       material: "steel-core",
     },
     {
       bulletId: "BULLET-04",
-      caseNumber: "gcpd-0004",
+      caseId: "gcpd-GHI-MNO",
+      caseCode: "GHI",
       crime: "SECUESTRO",
       location: "TRICORNER",
       status: "ABIERTO",
+      closedBy: "",
       assetId: "b04",
       caliber: "7.62x39",
       material: "molybdenum",
     },
     {
       bulletId: "BULLET-05",
-      caseNumber: "gcpd-0005",
+      caseId: "gcpd-JKL-PQR",
+      caseCode: "JKL",
       crime: "EXTORSION",
       location: "THE BOWERY",
       status: "CERRADO",
+      closedBy: "AGT. MONTES",
       assetId: "b05",
       caliber: ".50 BMG",
       material: "blackened",
     },
     {
       bulletId: "BULLET-06",
-      caseNumber: "gcpd-0006",
+      caseId: "gcpd-MNO-STU",
+      caseCode: "MNO",
       crime: "HOMICIDIO",
       location: "EAST END",
       status: "ABIERTO",
+      closedBy: "",
       assetId: "b06",
       caliber: "11.43x33",
       material: "monel",
     },
   ];
+  const bullets = (Array.isArray(models) && models.length
+    ? models.map((entry, index) => ({
+        bulletId: entry.bulletId || `BULLET-${String(index + 1).padStart(2, "0")}`,
+        caseId:
+          entry.caseId ||
+          entry.caseNumber ||
+          `gcpd-${String(index + 1).padStart(4, "0")}`,
+        caseCode: normalizeCaseCode(entry.caseCode),
+        crime: entry.crime || "SIN CRIMEN",
+        location: entry.location || "SIN UBICACION",
+        status: entry.status || "ABIERTO",
+        closedBy: entry.closedBy || "",
+        assetId: deriveAssetId(entry) || `b${String(index + 1).padStart(2, "0")}`,
+        pngPath: entry.pngPath || "",
+        caliber: entry.caliber || "CALIBRE",
+        material: entry.material || "MATERIAL",
+        label: entry.label || "",
+      }))
+    : fallback);
 
   const dataset = bullets.map((b, idx) => {
     const seed = 1337 + idx * 101;
@@ -306,12 +379,17 @@ function makeDataset() {
 
 async function startBallistica() {
   const overlay = ensureOverlay();
-  const dataset = makeDataset();
+  const models = await loadBallisticsModels();
+  const dataset = makeDataset(models);
 
   const state = {
     active: "left",
-    leftIndex: 0,
-    rightIndex: 1,
+    leftIndex: null,
+    rightIndex: null,
+    leftCandidates: [],
+    rightCandidates: [],
+    leftCursor: 0,
+    rightCursor: 0,
     leftRot: 0,
     rightRot: 0,
     lastResult: "",
@@ -320,6 +398,11 @@ async function startBallistica() {
   const panels = {
     left: overlay.querySelector(".ballistica-panel[data-side=left]"),
     right: overlay.querySelector(".ballistica-panel[data-side=right]"),
+  };
+  const panelsWrapper = overlay.querySelector(".ballistica-panels");
+  const codeInputs = {
+    left: overlay.querySelector(".ballistica-code-input[data-side=left]"),
+    right: overlay.querySelector(".ballistica-code-input[data-side=right]"),
   };
   const canvases = {
     left: panels.left.querySelector("canvas"),
@@ -330,6 +413,9 @@ async function startBallistica() {
     right: panels.right.querySelector(".ballistica-meta"),
   };
   const statusEl = overlay.querySelector(".ballistica-status");
+  const matchButton = overlay.querySelector(".ballistica-match");
+  const resultWrapper = overlay.querySelector(".ballistica-result");
+  const resultCanvas = overlay.querySelector(".ballistica-result-canvas");
 
   statusEl.textContent = "CARGANDO IMAGENES BALISTICAS...";
   try {
@@ -345,51 +431,128 @@ async function startBallistica() {
     panels.right.classList.toggle("is-active", side === "right");
   }
 
+  function findIndexByLeftChar(char) {
+    const target = String(char || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
+    if (!target) return -1;
+    return dataset.findIndex((entry) => entry.caseCode?.[0] === target);
+  }
+
+  function findIndexByRightChars(chars) {
+    const target = String(chars || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
+    if (target.length !== 2) return -1;
+    return dataset.findIndex((entry) => entry.caseCode?.slice(1) === target);
+  }
+
+  function findCandidatesByLeftChar(char) {
+    const target = String(char || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
+    if (!target) return [];
+    return dataset
+      .map((entry, idx) => ({ entry, idx }))
+      .filter(({ entry }) => entry.caseCode?.[0] === target)
+      .map(({ idx }) => idx);
+  }
+
+  function findCandidatesByRightChars(chars) {
+    const target = String(chars || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
+    if (target.length !== 2) return [];
+    return dataset
+      .map((entry, idx) => ({ entry, idx }))
+      .filter(({ entry }) => entry.caseCode?.slice(1) === target)
+      .map(({ idx }) => idx);
+  }
+
   function render() {
-    const left = dataset[state.leftIndex];
-    const right = dataset[state.rightIndex];
+    const left = Number.isInteger(state.leftIndex) ? dataset[state.leftIndex] : null;
+    const right = Number.isInteger(state.rightIndex) ? dataset[state.rightIndex] : null;
 
     // map rotation (0..2pi) -> circular shift of texture
-    const n = left.halves.A.pattern.length;
-    const shiftL = Math.round((state.leftRot / (Math.PI * 2)) * n);
-    const shiftR = Math.round((state.rightRot / (Math.PI * 2)) * n);
+    const n = left ? left.halves.A.pattern.length : right?.halves.B.pattern.length;
+    const shiftL = Math.round((state.leftRot / (Math.PI * 2)) * (n || 1));
+    const shiftR = Math.round((state.rightRot / (Math.PI * 2)) * (n || 1));
 
-    const pattL = circularShift(left.halves.A.pattern, shiftL);
-    const pattR = circularShift(right.halves.B.pattern, shiftR);
+    if (left) {
+      const pattL = circularShift(left.halves.A.pattern, shiftL);
+      drawStripTexture(canvases.left, pattL, { tint: "#9fe7ff" });
+      drawAssetOverlay(canvases.left, left, "left");
+    } else {
+      const ctx = canvases.left.getContext("2d");
+      ctx.clearRect(0, 0, canvases.left.width, canvases.left.height);
+    }
 
-    drawStripTexture(canvases.left, pattL, { tint: "#9fe7ff" });
-    drawAssetOverlay(canvases.left, left.assetId, "left");
-    drawStripTexture(canvases.right, pattR, { tint: "#9fe7ff" });
-    drawAssetOverlay(canvases.right, right.assetId, "right");
+    if (right) {
+      const pattR = circularShift(right.halves.B.pattern, shiftR);
+      drawStripTexture(canvases.right, pattR, { tint: "#9fe7ff" });
+      drawAssetOverlay(canvases.right, right, "right");
+    } else {
+      const ctx = canvases.right.getContext("2d");
+      ctx.clearRect(0, 0, canvases.right.width, canvases.right.height);
+    }
 
-    metas.left.textContent = `${left.assetId} · ${left.caliber} · ${left.material}\n${left.halves.A.id}\nREF: ${left.bulletId}\nCASE: ${left.caseNumber}`;
-    metas.right.textContent = `${right.assetId} · ${right.caliber} · ${right.material}\n${right.halves.B.id}\nREF: ${right.bulletId}\nCASE: ${right.caseNumber}`;
+    statusEl.textContent = state.lastResult || "LISTO. Ingresa codigos y compara.";
+  }
 
-    statusEl.textContent = state.lastResult || "LISTO. Ajusta rotacion y compara.";
+  function renderResult(left, right) {
+    if (!resultCanvas || !left || !right) return;
+    const ctx = resultCanvas.getContext("2d");
+    ctx.clearRect(0, 0, resultCanvas.width, resultCanvas.height);
+    const halfWidth = Math.floor(resultCanvas.width / 2);
+
+    const tempLeft = document.createElement("canvas");
+    tempLeft.width = halfWidth;
+    tempLeft.height = resultCanvas.height;
+    const pattL = circularShift(left.halves.A.pattern, 0);
+    drawStripTexture(tempLeft, pattL, { tint: "#9fe7ff" });
+    drawAssetOverlay(tempLeft, left, "left");
+    ctx.drawImage(tempLeft, 0, 0);
+
+    const tempRight = document.createElement("canvas");
+    tempRight.width = halfWidth;
+    tempRight.height = resultCanvas.height;
+    const pattR = circularShift(right.halves.B.pattern, 0);
+    drawStripTexture(tempRight, pattR, { tint: "#9fe7ff" });
+    drawAssetOverlay(tempRight, right, "right");
+    ctx.drawImage(tempRight, halfWidth, 0);
   }
 
   async function compare() {
+    if (!Number.isInteger(state.leftIndex) || !Number.isInteger(state.rightIndex)) {
+      state.lastResult = "CODIGOS INCOMPLETOS.";
+      metas.left.textContent = "";
+      metas.right.textContent = "";
+      render();
+      return;
+    }
     const left = dataset[state.leftIndex];
     const right = dataset[state.rightIndex];
-    const a = left.halves.A.pattern;
-    const b = right.halves.B.pattern;
-
-    const { score } = bestCircularSimilarity(a, b);
-
-    // make it feel a bit strict.
-    const same = left.bulletId === right.bulletId;
-    const threshold = 0.78;
-
-    if (same || score > threshold) {
+    if (left.caseCode && right.caseCode && left.caseCode === right.caseCode) {
       state.lastResult = [
-        `COINCIDENCIA: POSITIVA  (score ${(score).toFixed(2)})`,
-        `CASE: ${left.caseNumber}`,
-        `CRIMEN: ${left.crime}`,
+        "MATCH EXITOSO",
+        `CASE: ${left.caseId || "SIN CASO"}`,
+        `CRIMEN: ${left.crime || "SIN CRIMEN"}`,
         `LOCALIZACION: ${left.location}`,
         `ESTADO: ${left.status}`,
       ].join(" | ");
+      const label = left.label ? `${left.label} · ` : "";
+      const closedBy =
+        /cerrado/i.test(left.status) && left.closedBy ? `\nCERRADO POR: ${left.closedBy}` : "";
+      const metaText = `${label}${left.assetId} · ${left.caliber} · ${left.material}\nREF: ${left.bulletId}${closedBy}`;
+      metas.left.textContent = metaText;
+      metas.right.textContent = "";
+      if (resultWrapper) {
+        renderResult(left, right);
+        resultWrapper.classList.add("is-visible");
+      }
+      if (panelsWrapper) panelsWrapper.classList.add("is-hidden");
+      if (codeInputs.left) codeInputs.left.blur();
+      if (codeInputs.right) codeInputs.right.blur();
     } else {
-      state.lastResult = `COINCIDENCIA: NEGATIVA  (score ${(score).toFixed(2)})`;
+      state.lastResult = "NO MATCH.";
+      metas.left.textContent = "";
+      metas.right.textContent = "";
+      if (resultWrapper) {
+        resultWrapper.classList.remove("is-visible");
+      }
+      if (panelsWrapper) panelsWrapper.classList.remove("is-hidden");
     }
     render();
   }
@@ -414,48 +577,111 @@ async function startBallistica() {
 
     const active = state.active;
 
-    if (key === "ArrowUp") {
+    if (key === "ArrowUp" || key === "ArrowDown") {
       event.preventDefault();
-      if (active === "left") state.leftIndex = (state.leftIndex + dataset.length - 1) % dataset.length;
-      else state.rightIndex = (state.rightIndex + dataset.length - 1) % dataset.length;
-      state.lastResult = "";
-      render();
-      return;
-    }
-
-    if (key === "ArrowDown") {
-      event.preventDefault();
-      if (active === "left") state.leftIndex = (state.leftIndex + 1) % dataset.length;
-      else state.rightIndex = (state.rightIndex + 1) % dataset.length;
-      state.lastResult = "";
-      render();
+      const dir = key === "ArrowUp" ? -1 : 1;
+      if (active === "left" && state.leftCandidates.length) {
+        state.leftCursor =
+          (state.leftCursor + dir + state.leftCandidates.length) % state.leftCandidates.length;
+        state.leftIndex = state.leftCandidates[state.leftCursor];
+        state.lastResult = "";
+        render();
+      } else if (active === "right" && state.rightCandidates.length) {
+        state.rightCursor =
+          (state.rightCursor + dir + state.rightCandidates.length) % state.rightCandidates.length;
+        state.rightIndex = state.rightCandidates[state.rightCursor];
+        state.lastResult = "";
+        render();
+      }
       return;
     }
 
     if (key === "ArrowLeft") {
       event.preventDefault();
-      if (active === "left") state.leftRot -= 0.18;
-      else state.rightRot -= 0.18;
+      if (active === "left" && Number.isInteger(state.leftIndex)) state.leftRot -= 0.18;
+      else if (active === "right" && Number.isInteger(state.rightIndex)) state.rightRot -= 0.18;
       render();
       return;
     }
 
     if (key === "ArrowRight") {
       event.preventDefault();
-      if (active === "left") state.leftRot += 0.18;
-      else state.rightRot += 0.18;
+      if (active === "left" && Number.isInteger(state.leftIndex)) state.leftRot += 0.18;
+      else if (active === "right" && Number.isInteger(state.rightIndex)) state.rightRot += 0.18;
       render();
       return;
     }
 
     if (key === "Enter") {
       event.preventDefault();
-      compare();
+      return;
     }
   }
 
   setActive("left");
   window.addEventListener("keydown", onKeyDown, true);
+  if (codeInputs.left) {
+    codeInputs.left.addEventListener("input", (event) => {
+      const value = event.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
+      event.target.value = value;
+    });
+    codeInputs.left.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      const value = event.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
+      const candidates = findCandidatesByLeftChar(value);
+      if (candidates.length) {
+        state.leftCandidates = candidates;
+        state.leftCursor = 0;
+        state.leftIndex = candidates[0];
+        state.lastResult = "";
+        render();
+        if (resultWrapper) resultWrapper.classList.remove("is-visible");
+        if (panelsWrapper) panelsWrapper.classList.remove("is-hidden");
+      } else {
+        state.lastResult = "CODIGO IZQ NO ENCONTRADO.";
+        state.leftCandidates = [];
+        state.leftIndex = null;
+        render();
+        if (resultWrapper) resultWrapper.classList.remove("is-visible");
+        if (panelsWrapper) panelsWrapper.classList.remove("is-hidden");
+      }
+    });
+  }
+  if (codeInputs.right) {
+    codeInputs.right.addEventListener("input", (event) => {
+      const value = event.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
+      event.target.value = value;
+    });
+    codeInputs.right.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      const value = event.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
+      if (value.length < 2) return;
+      const candidates = findCandidatesByRightChars(value);
+      if (candidates.length) {
+        state.rightCandidates = candidates;
+        state.rightCursor = 0;
+        state.rightIndex = candidates[0];
+        state.lastResult = "";
+        render();
+        if (resultWrapper) resultWrapper.classList.remove("is-visible");
+        if (panelsWrapper) panelsWrapper.classList.remove("is-hidden");
+      } else {
+        state.lastResult = "CODIGO DER NO ENCONTRADO.";
+        state.rightCandidates = [];
+        state.rightIndex = null;
+        render();
+        if (resultWrapper) resultWrapper.classList.remove("is-visible");
+        if (panelsWrapper) panelsWrapper.classList.remove("is-hidden");
+      }
+    });
+  }
+  if (matchButton) {
+    matchButton.addEventListener("click", () => {
+      compare();
+    });
+  }
   render();
 
   await type(["", "BALISTICA: modo grafico activo. ESC para salir.", ""], { wait: false });

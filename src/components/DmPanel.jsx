@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '../css/DmPanel.styles.css';
+import PoiSelector from './dm/PoiList';
+import PoiPreview from './dm/PoiPreview';
+import PoiEditor from './dm/PoiEditor';
+import PoiMapPicker from './dm/PoiMapPicker';
 
 const CASES_ENDPOINT = '/api/cases-data';
 const POIS_ENDPOINT = '/api/pois-data';
@@ -9,6 +13,15 @@ const CAMPAIGN_ENDPOINT = '/api/campaign-state';
 const GLOBAL_COMMANDS_ENDPOINT = '/api/global-commands';
 const EVIDENCE_ENDPOINT = '/api/evidence';
 const EVIDENCE_UPLOAD_ENDPOINT = '/api/evidence-upload';
+const BALLISTICS_ENDPOINT = '/api/ballistics';
+const BALLISTICS_UPLOAD_ENDPOINT = '/api/ballistics-upload';
+const BALLISTICS_ASSETS_ENDPOINT = '/api/ballistics-assets';
+const AUDIO_ENDPOINT = '/api/audio';
+const AUDIO_UPLOAD_ENDPOINT = '/api/audio-upload';
+const PHONE_LINES_ENDPOINT = '/api/phone-lines';
+const PHONE_LINES_UPLOAD_ENDPOINT = '/api/phone-lines-upload';
+const POI_IMAGE_UPLOAD_ENDPOINT = '/api/poi-image-upload';
+const TRACER_CONFIG_ENDPOINT = '/api/tracer-config';
 
 const initialCaseForm = {
   id: '',
@@ -208,6 +221,10 @@ const initialPoiForm = {
   nodeType: 'mixed',
   parentId: '',
   category: 'map',
+  mapX: '',
+  mapY: '',
+  mapRadius: '1.6',
+  mapLabel: '',
 };
 
 const initialEvidenceForm = {
@@ -215,6 +232,55 @@ const initialEvidenceForm = {
   label: '',
   command: '',
   stlPath: '',
+};
+
+const initialBallisticsForm = {
+  id: '',
+  label: '',
+  assetId: '',
+  pngPath: '',
+  caliber: '',
+  material: '',
+  bulletId: '',
+  caseId: '',
+  caseCode: '',
+  crime: '',
+  location: '',
+  status: '',
+  closedBy: '',
+};
+
+const initialAudioForm = {
+  id: '',
+  title: '',
+  originalSrc: '',
+  garbledSrc: '',
+  isGarbled: false,
+  passwordHash: '',
+};
+
+const initialPhoneForm = {
+  id: '',
+  number: '',
+  label: '',
+  audioId: '',
+  rellamable: false,
+  llamado: false,
+};
+
+const initialTracerHotspotForm = {
+  id: '',
+  label: '',
+  x: '50',
+  y: '50',
+};
+
+const initialTracerLineForm = {
+  id: '',
+  number: '',
+  label: '',
+  hotspotId: '',
+  enabled: true,
 };
 
 const initialVillainForm = {
@@ -244,6 +310,61 @@ const splitList = (value = '') =>
     .map((entry) => entry.trim())
     .filter(Boolean);
 
+const deriveAssetId = (pathValue = '') => {
+  const trimmed = String(pathValue || '').trim();
+  if (!trimmed) return '';
+  const parts = trimmed.split('/').filter(Boolean);
+  const file = parts[parts.length - 1] || '';
+  return file.replace(/\.png$/i, '');
+};
+
+const drawBallisticsStriations = (ctx, width, height) => {
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = 'rgba(120, 255, 180, 0.55)';
+  ctx.lineWidth = 1;
+  for (let y = -height; y < height * 2; y += 8) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y + width * 0.18);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 0.2;
+  ctx.strokeStyle = 'rgba(70, 200, 120, 0.35)';
+  for (let x = 0; x < width; x += 18) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x - height * 0.25, height);
+    ctx.stroke();
+  }
+  ctx.restore();
+};
+
+const renderBallisticsPreview = (canvas, img, side) => {
+  if (!canvas || !img) return;
+  const ctx = canvas.getContext('2d');
+  const { width, height } = canvas;
+  const halfWidth = img.width / 2;
+  const sourceX = side === 'left' ? 0 : halfWidth;
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#040907';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.drawImage(img, sourceX, 0, halfWidth, img.height, 0, 0, width, height);
+  ctx.globalCompositeOperation = 'source-atop';
+  drawBallisticsStriations(ctx, width, height);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = '#79ffb5';
+  ctx.fillRect(0, 0, width, height);
+  ctx.restore();
+};
+
 const splitLines = (value = '') =>
   value
     .split('\n')
@@ -255,9 +376,21 @@ const VIEW_OPTIONS = [
   { id: 'pois', label: 'POIs' },
   { id: 'villains', label: 'Villanos' },
   { id: 'evidence', label: 'Evidencias' },
+  { id: 'tracer', label: 'Tracer' },
   { id: 'access', label: 'Accesos' },
   { id: 'campaign', label: 'Campaña' },
 ];
+
+const MAP_IMAGE = '/mapa.png';
+const MAP_ASPECT_RATIO = 0.744;
+const MAP_GRID_STEP = 1;
+const POI_IMAGE_ASPECT = 16 / 9;
+
+const clampNumber = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '';
+  return String(Math.max(0, Math.min(100, num)));
+};
 
 const accessToFormFields = (access = {}) => {
   const config = { ...defaultAccessConfig, ...(access || {}) };
@@ -340,7 +473,7 @@ const labelRow = (label, tooltip) => (
   <span className="dm-panel__label-row">
     <span>{label}</span>
     {tooltip && (
-      <span className="dm-panel__tooltip" tabIndex="0" data-tooltip={tooltip}>
+      <span className="dm-panel__tooltip wopr-tooltip-anchor" tabIndex="0" data-tooltip={tooltip}>
         ?
       </span>
     )}
@@ -352,7 +485,7 @@ const basicLabel = (label, tooltip) => (
   <span className="dm-panel__label-row dm-panel__label-row--basic">
     <span>{label}</span>
     {tooltip && (
-      <span className="dm-panel__tooltip" tabIndex="0" data-tooltip={tooltip}>
+      <span className="dm-panel__tooltip wopr-tooltip-anchor" tabIndex="0" data-tooltip={tooltip}>
         ?
       </span>
     )}
@@ -483,6 +616,18 @@ const DmPanel = () => {
   const [poiMessage, setPoiMessage] = useState('');
   const [poiBaseline, setPoiBaseline] = useState(JSON.stringify(initialPoiForm));
   const [poiSaveState, setPoiSaveState] = useState({ status: 'idle', at: null });
+  const [poiRecents, setPoiRecents] = useState([]);
+  const [poiImageFile, setPoiImageFile] = useState(null);
+  const [poiImageUploading, setPoiImageUploading] = useState(false);
+  const [poiImagePreview, setPoiImagePreview] = useState('');
+  const [poiImageError, setPoiImageError] = useState('');
+  const [poiCropZoom, setPoiCropZoom] = useState(1.2);
+  const [poiCropOffset, setPoiCropOffset] = useState({ x: 0, y: 0 });
+  const [poiCropDragging, setPoiCropDragging] = useState(false);
+  const [poiCropOpen, setPoiCropOpen] = useState(false);
+  const poiImageInputRef = useRef(null);
+  const cropFrameRef = useRef(null);
+  const cropImageRef = useRef(null);
 
   const [villains, setVillains] = useState([]);
   const [villainsError, setVillainsError] = useState('');
@@ -526,11 +671,46 @@ const DmPanel = () => {
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [evidenceUploading, setEvidenceUploading] = useState(false);
   const [evidenceFile, setEvidenceFile] = useState(null);
+  const [evidenceTab, setEvidenceTab] = useState('stl');
+  const [ballisticsModels, setBallisticsModels] = useState([]);
+  const [ballisticsForm, setBallisticsForm] = useState(initialBallisticsForm);
+  const [ballisticsMessage, setBallisticsMessage] = useState('');
+  const [ballisticsLoading, setBallisticsLoading] = useState(false);
+  const [ballisticsAssets, setBallisticsAssets] = useState([]);
+  const [ballisticsAssetsLoading, setBallisticsAssetsLoading] = useState(false);
+  const [ballisticsUploading, setBallisticsUploading] = useState(false);
+  const [ballisticsFile, setBallisticsFile] = useState(null);
+  const [audioModels, setAudioModels] = useState([]);
+  const [audioForm, setAudioForm] = useState(initialAudioForm);
+  const [audioMessage, setAudioMessage] = useState('');
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioUploading, setAudioUploading] = useState(false);
+  const [audioFile, setAudioFile] = useState(null);
+  const [audioGarble, setAudioGarble] = useState(false);
+  const [audioPassword, setAudioPassword] = useState('');
+  const [phoneLines, setPhoneLines] = useState([]);
+  const [phoneForm, setPhoneForm] = useState(initialPhoneForm);
+  const [phoneMessage, setPhoneMessage] = useState('');
+  const [phoneLoading, setPhoneLoading] = useState(false);
+  const [phoneUploading, setPhoneUploading] = useState(false);
+  const [phoneFile, setPhoneFile] = useState(null);
+  const [tracerLines, setTracerLines] = useState([]);
+  const [tracerHotspots, setTracerHotspots] = useState([]);
+  const [tracerLineForm, setTracerLineForm] = useState(initialTracerLineForm);
+  const [tracerHotspotForm, setTracerHotspotForm] = useState(initialTracerHotspotForm);
+  const [tracerLoading, setTracerLoading] = useState(false);
+  const [tracerMessage, setTracerMessage] = useState('');
+  const [tracerWsState, setTracerWsState] = useState('offline');
+  const [tracerLiveCalls, setTracerLiveCalls] = useState([]);
+  const [tracerMapExpanded, setTracerMapExpanded] = useState(false);
+  const tracerSocketRef = useRef(null);
   const evidencePreviewRef = useRef(null);
   const evidenceViewerRef = useRef(null);
   const evidenceMeshRef = useRef(null);
   const evidenceMaterialRef = useRef(null);
   const evidenceAxisCleanupRef = useRef(null);
+  const ballisticsPreviewLeftRef = useRef(null);
+  const ballisticsPreviewRightRef = useRef(null);
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -540,6 +720,8 @@ const DmPanel = () => {
   const [passwordStatus, setPasswordStatus] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [transientNotice, setTransientNotice] = useState(null);
+  const noticeTrackerRef = useRef({});
 
   const caseTree = useMemo(() => buildNavigationTree(cases, 'cases'), [cases]);
   const caseTreeWithDraft = useMemo(() => {
@@ -606,6 +788,25 @@ const DmPanel = () => {
       })),
     [pois]
   );
+
+  const buildPoiRow = useCallback(
+    (item) => ({
+      id: item.id,
+      label: getNodeLabel(item),
+      name: item.name || item.id || '',
+      meta: item.district || item.status || '',
+    }),
+    []
+  );
+
+  const addPoiRecent = useCallback((item) => {
+    if (!item?.id) return;
+    const row = buildPoiRow(item);
+    setPoiRecents((prev) => {
+      const next = [row, ...prev.filter((entry) => entry.id !== row.id)];
+      return next.slice(0, 6);
+    });
+  }, [buildPoiRow]);
   const villainParentOptions = useMemo(
     () =>
       villains.map((item) => ({
@@ -728,6 +929,7 @@ const DmPanel = () => {
     if (match) {
       setSelectedPoi(match);
       resetPoiForm(match);
+      addPoiRecent(match);
     }
   }, [pois, selectionState.pois, selectedPoi?.id]);
 
@@ -1237,6 +1439,12 @@ const DmPanel = () => {
   const resetPoiForm = (data) => {
     if (!data) {
       setPoiForm(initialPoiForm);
+      setPoiImageFile(null);
+      setPoiImagePreview('');
+      setPoiImageError('');
+      setPoiCropOffset({ x: 0, y: 0 });
+      setPoiCropZoom(1.2);
+      setPoiCropOpen(false);
       setSelectedPoi(null);
       setPoiBaseline(JSON.stringify(initialPoiForm));
       return;
@@ -1251,8 +1459,28 @@ const DmPanel = () => {
       parentId: data.commands?.parentId || '',
       category: data.commands?.category || 'map',
       details: (data.details || []).join('\n'),
+      mapX:
+        data.commands?.mapMeta?.x != null
+          ? String(data.commands.mapMeta.x)
+          : '',
+      mapY:
+        data.commands?.mapMeta?.y != null
+          ? String(data.commands.mapMeta.y)
+          : '',
+      mapRadius:
+        data.commands?.mapMeta?.radius != null
+          ? String(data.commands.mapMeta.radius)
+          : '1.6',
+      mapLabel: data.commands?.mapMeta?.label || '',
+      mapImage: data.commands?.mapMeta?.image || '',
     };
     setPoiForm(nextForm);
+    setPoiImageFile(null);
+    setPoiImagePreview('');
+    setPoiImageError('');
+    setPoiCropOffset({ x: 0, y: 0 });
+    setPoiCropZoom(1.2);
+    setPoiCropOpen(false);
     setPoiBaseline(JSON.stringify(nextForm));
   };
 
@@ -1420,6 +1648,13 @@ const DmPanel = () => {
         nodeType: poiForm.nodeType,
         parentId: poiForm.parentId,
         category: poiForm.category || 'map',
+        mapMeta: {
+          x: poiForm.mapX !== '' ? Number(poiForm.mapX) : null,
+          y: poiForm.mapY !== '' ? Number(poiForm.mapY) : null,
+          radius: poiForm.mapRadius !== '' ? Number(poiForm.mapRadius) : 1.6,
+          label: poiForm.mapLabel || poiForm.name || '',
+          image: poiForm.mapImage || '',
+        },
       },
     };
     try {
@@ -1437,6 +1672,7 @@ const DmPanel = () => {
       setPoiSaveState({ status: 'saved', at: Date.now() });
       resetPoiForm(saved);
       setSelectedPoi(saved);
+      addPoiRecent(saved);
       setPois((prev) => {
         const others = prev.filter((p) => p.id !== saved.id);
         return [...others, saved];
@@ -1463,6 +1699,186 @@ const DmPanel = () => {
       setPoiMessage('No se pudo eliminar el POI.');
     }
   };
+
+  const handleMapPick = useCallback((rawX, rawY) => {
+    const x = Number(rawX);
+    const y = Number(rawY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const clampedX = Math.max(0, Math.min(100, x));
+    const clampedY = Math.max(0, Math.min(100, y));
+    const snap = (value) =>
+      MAP_GRID_STEP > 0
+        ? Math.round(value / MAP_GRID_STEP) * MAP_GRID_STEP
+        : value;
+    const snappedX = snap(clampedX);
+    const snappedY = snap(clampedY);
+    setPoiForm((prev) => ({
+      ...prev,
+      mapX: snappedX.toFixed(2),
+      mapY: snappedY.toFixed(2),
+    }));
+  }, []);
+
+  const handleTracerMapPick = useCallback((rawX, rawY) => {
+    const x = Number(rawX);
+    const y = Number(rawY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const clampedX = Math.max(0, Math.min(100, x));
+    const clampedY = Math.max(0, Math.min(100, y));
+    const snap = (value) =>
+      MAP_GRID_STEP > 0
+        ? Math.round(value / MAP_GRID_STEP) * MAP_GRID_STEP
+        : value;
+    const snappedX = snap(clampedX);
+    const snappedY = snap(clampedY);
+    setTracerHotspotForm((prev) => ({
+      ...prev,
+      x: snappedX.toFixed(2),
+      y: snappedY.toFixed(2),
+    }));
+  }, []);
+
+  const mapMarkerStyle = useMemo(() => {
+    const x = Number(poiForm.mapX);
+    const y = Number(poiForm.mapY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return { display: 'none' };
+    }
+    const radius = Number(poiForm.mapRadius) || 1.6;
+    return {
+      left: `${x}%`,
+      top: `${y}%`,
+      width: `${radius * 2}%`,
+      height: `${radius * 2}%`,
+    };
+  }, [poiForm.mapX, poiForm.mapY, poiForm.mapRadius]);
+
+  const mapMarkerLabel = useMemo(() => {
+    return (
+      poiForm.mapLabel?.trim() ||
+      poiForm.name?.trim() ||
+      poiForm.id?.trim() ||
+      ''
+    );
+  }, [poiForm.mapLabel, poiForm.name, poiForm.id]);
+
+  const tracerMarkerStyle = useMemo(() => {
+    const x = Number(tracerHotspotForm.x);
+    const y = Number(tracerHotspotForm.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return { display: 'none' };
+    }
+    return {
+      left: `${x}%`,
+      top: `${y}%`,
+      width: '4%',
+      height: '4%',
+    };
+  }, [tracerHotspotForm.x, tracerHotspotForm.y]);
+
+  const tracerMarkerLabel = useMemo(
+    () => tracerHotspotForm.label?.trim() || tracerHotspotForm.id?.trim() || '',
+    [tracerHotspotForm.label, tracerHotspotForm.id]
+  );
+
+  const handlePoiImageUpload = useCallback(async () => {
+    if (!poiImageFile) return;
+    setPoiImageUploading(true);
+    try {
+      const croppedBlob = await buildPoiCroppedBlob();
+      const formData = new FormData();
+      if (croppedBlob) {
+        formData.append('file', croppedBlob, poiImageFile.name || 'poi.png');
+      } else {
+        formData.append('file', poiImageFile);
+      }
+      const res = await fetch(POI_IMAGE_UPLOAD_ENDPOINT, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'No se pudo subir la imagen.');
+      setPoiForm((prev) => ({ ...prev, mapImage: data.url || '' }));
+      setPoiImageFile(null);
+      setPoiImagePreview('');
+      setPoiCropOffset({ x: 0, y: 0 });
+      setPoiCropZoom(1.2);
+      setPoiCropOpen(false);
+    } catch (error) {
+      setPoiMessage(error.message || 'No se pudo subir la imagen.');
+    } finally {
+      setPoiImageUploading(false);
+    }
+  }, [poiImageFile, sessionToken]);
+
+  const handlePoiImageSelect = useCallback((file) => {
+    setPoiImageError('');
+    if (!file) {
+      setPoiImageFile(null);
+      setPoiImagePreview('');
+      return;
+    }
+    if (!/image\/(png|jpeg|jpg|webp)/.test(file.type)) {
+      setPoiImageError('Solo PNG/JPG/WEBP.');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setPoiImageError('Max 8MB.');
+      return;
+    }
+    setPoiImageFile(file);
+    setPoiImagePreview(URL.createObjectURL(file));
+    setPoiCropOffset({ x: 0, y: 0 });
+    setPoiCropZoom(1.2);
+    setPoiCropOpen(true);
+  }, []);
+
+  const buildPoiCroppedBlob = useCallback(async () => {
+    if (!poiImagePreview || !cropFrameRef.current || !cropImageRef.current) return null;
+    const img = cropImageRef.current;
+    const frame = cropFrameRef.current.getBoundingClientRect();
+    const canvas = document.createElement('canvas');
+    const targetW = 720;
+    const targetH = Math.round(targetW / POI_IMAGE_ASPECT);
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    const scale = poiCropZoom;
+    const imgW = img.naturalWidth;
+    const imgH = img.naturalHeight;
+    const baseScale = Math.max(targetW / imgW, targetH / imgH);
+    const drawW = imgW * baseScale * scale;
+    const drawH = imgH * baseScale * scale;
+    const offsetX = (targetW - drawW) / 2 + poiCropOffset.x;
+    const offsetY = (targetH - drawH) / 2 + poiCropOffset.y;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, targetW, targetH);
+    ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), 'image/png', 0.92);
+    });
+  }, [poiImagePreview, poiCropOffset.x, poiCropOffset.y, poiCropZoom]);
+
+  const handleCropPointerDown = useCallback((event) => {
+    if (!poiImagePreview) return;
+    setPoiCropDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }, [poiImagePreview]);
+
+  const handleCropPointerMove = useCallback((event) => {
+    if (!poiCropDragging) return;
+    setPoiCropOffset((prev) => ({
+      x: prev.x + event.movementX,
+      y: prev.y + event.movementY,
+    }));
+  }, [poiCropDragging]);
+
+  const handleCropPointerUp = useCallback((event) => {
+    setPoiCropDragging(false);
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }, []);
 
   const saveVillain = async (event) => {
     event.preventDefault();
@@ -1717,7 +2133,7 @@ const DmPanel = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const getDefaultPreviewOpen = () => viewportWidth >= 1024;
+  const getDefaultPreviewOpen = () => viewportWidth >= 980;
   const getDefaultSelectorOpen = () => viewportWidth >= 640;
 
   const previewOpen = previewByView[activeView] ?? getDefaultPreviewOpen();
@@ -1741,8 +2157,9 @@ const DmPanel = () => {
       return {
         identity: true,
         summary: true,
+        map: false,
         quick: true,
-        content: true,
+        content: false,
         dm: false,
         engine: false,
         preview: true,
@@ -1751,6 +2168,7 @@ const DmPanel = () => {
     return {
       identity: true,
       summary: true,
+      map: false,
       quick: true,
       content: false,
       dm: false,
@@ -1898,6 +2316,213 @@ const DmPanel = () => {
     }
   }, [evidenceForm.id]);
 
+  const loadBallisticsModels = useCallback(async () => {
+    setBallisticsLoading(true);
+    setBallisticsMessage('');
+    try {
+      const res = await fetch(BALLISTICS_ENDPOINT);
+      if (!res.ok) throw new Error('No se pudieron cargar las balisticas.');
+      const data = await res.json();
+      const models = Array.isArray(data?.models) ? data.models : [];
+      setBallisticsModels(models);
+    } catch (error) {
+      setBallisticsMessage(error.message || 'No se pudieron cargar las balisticas.');
+    } finally {
+      setBallisticsLoading(false);
+    }
+  }, []);
+
+  const loadBallisticsAssets = useCallback(async () => {
+    setBallisticsAssetsLoading(true);
+    try {
+      const res = await fetch(BALLISTICS_ASSETS_ENDPOINT, { cache: 'no-store' });
+      if (!res.ok) throw new Error('No se pudieron cargar los PNGs.');
+      const data = await res.json();
+      const assets = Array.isArray(data?.assets) ? data.assets : [];
+      setBallisticsAssets(assets);
+    } catch (error) {
+      console.error('Load ballistics assets error', error);
+    } finally {
+      setBallisticsAssetsLoading(false);
+    }
+  }, []);
+
+  const loadAudioModels = useCallback(async () => {
+    setAudioLoading(true);
+    setAudioMessage('');
+    try {
+      const res = await fetch(AUDIO_ENDPOINT, { cache: 'no-store' });
+      if (!res.ok) throw new Error('No se pudieron cargar los audios.');
+      const data = await res.json();
+      const models = Array.isArray(data?.models) ? data.models : [];
+      setAudioModels(models);
+    } catch (error) {
+      setAudioMessage(error.message || 'No se pudieron cargar los audios.');
+    } finally {
+      setAudioLoading(false);
+    }
+  }, []);
+
+  const loadPhoneLines = useCallback(async () => {
+    setPhoneLoading(true);
+    setPhoneMessage('');
+    try {
+      const res = await fetch(PHONE_LINES_ENDPOINT, { cache: 'no-store' });
+      if (!res.ok) throw new Error('No se pudieron cargar las lineas.');
+      const data = await res.json();
+      const lines = Array.isArray(data?.lines) ? data.lines : [];
+      setPhoneLines(lines);
+    } catch (error) {
+      setPhoneMessage(error.message || 'No se pudieron cargar las lineas.');
+    } finally {
+      setPhoneLoading(false);
+    }
+  }, []);
+
+  const savePhoneLines = useCallback(
+    async (payload = []) => {
+      if (!authorized || !sessionToken) {
+        setPhoneMessage('Necesitas sesion activa para guardar.');
+        return;
+      }
+      setPhoneLoading(true);
+      setPhoneMessage('');
+      try {
+        const res = await fetch(PHONE_LINES_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${sessionToken}`,
+          },
+          body: JSON.stringify({ lines: payload }),
+        });
+        if (!res.ok) throw new Error('No se pudieron guardar las lineas.');
+        const data = await res.json();
+        const lines = Array.isArray(data?.lines) ? data.lines : [];
+        setPhoneLines(lines);
+        setPhoneMessage('Linea guardada.');
+      } catch (error) {
+        setPhoneMessage(error.message || 'No se pudieron guardar las lineas.');
+      } finally {
+        setPhoneLoading(false);
+      }
+    },
+    [authorized, sessionToken]
+  );
+
+  const loadTracerConfig = useCallback(async () => {
+    setTracerLoading(true);
+    setTracerMessage('');
+    try {
+      const res = await fetch(TRACER_CONFIG_ENDPOINT, { cache: 'no-store' });
+      if (!res.ok) throw new Error('No se pudo cargar TRACER.');
+      const data = await res.json();
+      const lines = Array.isArray(data?.lines) ? data.lines : [];
+      const hotspots = Array.isArray(data?.hotspots) ? data.hotspots : [];
+      setTracerLines(lines);
+      setTracerHotspots(hotspots);
+    } catch (error) {
+      setTracerMessage(error.message || 'No se pudo cargar TRACER.');
+    } finally {
+      setTracerLoading(false);
+    }
+  }, []);
+
+  const saveTracerConfig = useCallback(
+    async (payload = { lines: [], hotspots: [] }) => {
+      if (!authorized || !sessionToken) {
+        setTracerMessage('Necesitas sesion activa para guardar TRACER.');
+        return;
+      }
+      setTracerLoading(true);
+      setTracerMessage('');
+      try {
+        const res = await fetch(TRACER_CONFIG_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${sessionToken}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('No se pudo guardar TRACER.');
+        const data = await res.json();
+        const lines = Array.isArray(data?.lines) ? data.lines : [];
+        const hotspots = Array.isArray(data?.hotspots) ? data.hotspots : [];
+        setTracerLines(lines);
+        setTracerHotspots(hotspots);
+        setTracerMessage('Tracer guardado.');
+      } catch (error) {
+        setTracerMessage(error.message || 'No se pudo guardar TRACER.');
+      } finally {
+        setTracerLoading(false);
+      }
+    },
+    [authorized, sessionToken]
+  );
+
+  const saveAudioModels = useCallback(
+    async (payload = []) => {
+      if (!authorized || !sessionToken) {
+        setAudioMessage('Necesitas sesion activa para guardar.');
+        return;
+      }
+      setAudioLoading(true);
+      setAudioMessage('');
+      try {
+        const res = await fetch(AUDIO_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${sessionToken}`,
+          },
+          body: JSON.stringify({ models: payload }),
+        });
+        if (!res.ok) throw new Error('No se pudieron guardar los audios.');
+        const data = await res.json();
+        const models = Array.isArray(data?.models) ? data.models : [];
+        setAudioModels(models);
+        setAudioMessage('Audio guardado.');
+      } catch (error) {
+        setAudioMessage(error.message || 'No se pudieron guardar los audios.');
+      } finally {
+        setAudioLoading(false);
+      }
+    },
+    [authorized, sessionToken]
+  );
+
+  const saveBallisticsModels = useCallback(
+    async (payload = []) => {
+      if (!authorized || !sessionToken) {
+        setBallisticsMessage('Necesitas sesion activa para guardar.');
+        return;
+      }
+      setBallisticsLoading(true);
+      setBallisticsMessage('');
+      try {
+        const res = await fetch(BALLISTICS_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${sessionToken}`,
+          },
+          body: JSON.stringify({ models: payload }),
+        });
+        if (!res.ok) throw new Error('No se pudieron guardar las balisticas.');
+        const data = await res.json();
+        const models = Array.isArray(data?.models) ? data.models : [];
+        setBallisticsModels(models);
+        setBallisticsMessage('Balistica guardada.');
+      } catch (error) {
+        setBallisticsMessage(error.message || 'No se pudieron guardar las balisticas.');
+      } finally {
+        setBallisticsLoading(false);
+      }
+    },
+    [authorized, sessionToken]
+  );
+
   const saveEvidenceModels = useCallback(
     async (models) => {
       if (!authorized || !sessionToken) {
@@ -1968,6 +2593,100 @@ const DmPanel = () => {
     }
   }, [authorized, evidenceFile, sessionToken]);
 
+  const handleBallisticsUpload = useCallback(async () => {
+    if (!ballisticsFile) {
+      setBallisticsMessage('Selecciona un PNG.');
+      return;
+    }
+    if (!authorized || !sessionToken) {
+      setBallisticsMessage('Necesitas sesion activa para subir PNGs.');
+      return;
+    }
+    setBallisticsUploading(true);
+    setBallisticsMessage('');
+    const formData = new FormData();
+    formData.append('file', ballisticsFile);
+    try {
+      const res = await fetch(BALLISTICS_UPLOAD_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudo subir el PNG.');
+      }
+      const url = data.url || '';
+      setBallisticsForm((prev) => ({
+        ...prev,
+        pngPath: url || prev.pngPath,
+        assetId: prev.assetId || deriveAssetId(url),
+      }));
+      await loadBallisticsAssets();
+      setBallisticsMessage('PNG cargado.');
+    } catch (error) {
+      setBallisticsMessage(error.message || 'No se pudo subir el PNG.');
+    } finally {
+      setBallisticsUploading(false);
+    }
+  }, [authorized, ballisticsFile, sessionToken, loadBallisticsAssets]);
+
+  const handleAudioUpload = useCallback(async () => {
+    if (!audioFile) {
+      setAudioMessage('Selecciona un MP3.');
+      return;
+    }
+    if (!authorized || !sessionToken) {
+      setAudioMessage('Necesitas sesion activa para subir audio.');
+      return;
+    }
+    if (audioGarble && !audioPassword.trim()) {
+      setAudioMessage('Ingresa un password para cifrar.');
+      return;
+    }
+    if (audioGarble && (audioPassword.trim().length < 4 || audioPassword.trim().length > 8)) {
+      setAudioMessage('El password debe tener 4-8 caracteres.');
+      return;
+    }
+    setAudioUploading(true);
+    setAudioMessage('');
+    const formData = new FormData();
+    formData.append('file', audioFile);
+    formData.append('garble', audioGarble ? 'true' : 'false');
+    if (audioGarble) {
+      formData.append('password', audioPassword.trim());
+    }
+    try {
+      const res = await fetch(AUDIO_UPLOAD_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudo subir el MP3.');
+      }
+      setAudioForm((prev) => ({
+        ...prev,
+        id: data.id || prev.id,
+        originalSrc: data.originalSrc || prev.originalSrc,
+        garbledSrc: data.garbledSrc || '',
+        isGarbled: Boolean(data.isGarbled),
+        passwordHash: data.passwordHash || prev.passwordHash,
+        title: prev.title || (data.id ? data.id.toUpperCase() : prev.title),
+      }));
+      setAudioMessage('MP3 cargado.');
+    } catch (error) {
+      setAudioMessage(error.message || 'No se pudo subir el MP3.');
+    } finally {
+      setAudioUploading(false);
+    }
+  }, [authorized, audioFile, audioGarble, audioPassword, sessionToken]);
+
   const handleEvidenceSave = useCallback(
     async (event) => {
       event.preventDefault();
@@ -2002,6 +2721,276 @@ const DmPanel = () => {
     [evidenceForm.id, evidenceModels, saveEvidenceModels]
   );
 
+  const handleBallisticsSave = useCallback(async () => {
+    const id = ballisticsForm.id.trim();
+    const pngPath = ballisticsForm.pngPath.trim();
+    if (!id || !pngPath) {
+      setBallisticsMessage('ID y PNG son obligatorios.');
+      return;
+    }
+    if (!/\.png(\?.*)?$/i.test(pngPath)) {
+      setBallisticsMessage('La ruta del PNG debe terminar en .png.');
+      return;
+    }
+    const derivedAssetId = deriveAssetId(pngPath);
+    const statusValue = ballisticsForm.status.trim();
+    const isClosed = /cerrado/i.test(statusValue);
+    if (isClosed && !ballisticsForm.closedBy.trim()) {
+      setBallisticsMessage('Si el caso está cerrado, indica el agente encargado.');
+      return;
+    }
+    const entry = {
+      ...ballisticsForm,
+      id,
+      label: ballisticsForm.label.trim(),
+      assetId: ballisticsForm.assetId.trim() || derivedAssetId,
+      pngPath,
+      caliber: ballisticsForm.caliber.trim(),
+      material: ballisticsForm.material.trim(),
+      bulletId: ballisticsForm.bulletId.trim(),
+      caseId: ballisticsForm.caseId.trim(),
+      caseCode: ballisticsForm.caseCode.trim(),
+      crime: ballisticsForm.crime.trim(),
+      location: ballisticsForm.location.trim(),
+      status: statusValue,
+      closedBy: ballisticsForm.closedBy.trim(),
+    };
+    const next = [
+      entry,
+      ...ballisticsModels.filter((item) => item.id !== entry.id),
+    ];
+    await saveBallisticsModels(next);
+  }, [ballisticsForm, ballisticsModels, saveBallisticsModels]);
+
+  const handleBallisticsDelete = useCallback(
+    async (id) => {
+      const next = ballisticsModels.filter((item) => item.id !== id);
+      await saveBallisticsModels(next);
+      if (ballisticsForm.id === id) {
+        setBallisticsForm({ ...initialBallisticsForm });
+      }
+    },
+    [ballisticsForm.id, ballisticsModels, saveBallisticsModels]
+  );
+
+  const handleAudioSave = useCallback(
+    async (event) => {
+      event.preventDefault();
+      if (!audioForm.id.trim() || !audioForm.originalSrc.trim()) {
+        setAudioMessage('ID y MP3 son obligatorios.');
+        return;
+      }
+      if (audioForm.isGarbled && !audioForm.passwordHash) {
+        setAudioMessage('Falta hash de password para audio cifrado.');
+        return;
+      }
+      const entry = {
+        ...audioForm,
+        id: audioForm.id.trim(),
+        title: audioForm.title.trim(),
+        originalSrc: audioForm.originalSrc.trim(),
+        garbledSrc: audioForm.garbledSrc.trim(),
+        number: audioForm.number.trim(),
+      };
+      const next = [
+        entry,
+        ...audioModels.filter((item) => item.id !== entry.id),
+      ];
+      await saveAudioModels(next);
+    },
+    [audioForm, audioModels, saveAudioModels]
+  );
+
+  const handleAudioDelete = useCallback(
+    async (id) => {
+      if (!id) return;
+      const next = audioModels.filter((item) => item.id !== id);
+      await saveAudioModels(next);
+      if (audioForm.id === id) {
+        setAudioForm({ ...initialAudioForm });
+      }
+    },
+    [audioForm.id, audioModels, saveAudioModels]
+  );
+
+  const handlePhoneSave = useCallback(
+    async (event) => {
+      event.preventDefault();
+      if (!phoneForm.id.trim() || !phoneForm.number.trim()) {
+        setPhoneMessage('ID y numero son obligatorios.');
+        return;
+      }
+      const entry = {
+        id: phoneForm.id.trim(),
+        number: phoneForm.number.trim(),
+        label: phoneForm.label.trim(),
+        audioId: phoneForm.audioId.trim(),
+        rellamable: Boolean(phoneForm.rellamable),
+        llamado: Boolean(phoneForm.llamado),
+      };
+      const next = [
+        entry,
+        ...phoneLines.filter((item) => item.id !== entry.id),
+      ];
+      await savePhoneLines(next);
+      setPhoneForm({ ...initialPhoneForm });
+    },
+    [phoneForm, phoneLines, savePhoneLines]
+  );
+
+  const handlePhoneDelete = useCallback(
+    async (id) => {
+      if (!id) return;
+      const next = phoneLines.filter((item) => item.id !== id);
+      await savePhoneLines(next);
+      if (phoneForm.id === id) {
+        setPhoneForm({ ...initialPhoneForm });
+      }
+    },
+    [phoneForm.id, phoneLines, savePhoneLines]
+  );
+
+  const handlePhoneUpload = useCallback(async () => {
+    if (!phoneFile) {
+      setPhoneMessage('Selecciona un MP3.');
+      return;
+    }
+    if (!authorized || !sessionToken) {
+      setPhoneMessage('Necesitas sesion activa para subir audio.');
+      return;
+    }
+    setPhoneUploading(true);
+    setPhoneMessage('');
+    const formData = new FormData();
+    formData.append('file', phoneFile);
+    try {
+      const res = await fetch(PHONE_LINES_UPLOAD_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudo subir el MP3.');
+      }
+      setAudioModels((prev) => {
+        const exists = prev.some((item) => item.id === data.audioId);
+        if (exists) return prev;
+        return [
+          {
+            id: data.audioId,
+            title: data.audioId?.toUpperCase?.() || data.audioId,
+            originalSrc: data.originalSrc || '',
+            garbledSrc: '',
+            isGarbled: false,
+            passwordHash: '',
+          },
+          ...prev,
+        ];
+      });
+      setPhoneForm((prev) => ({
+        ...prev,
+        id: data.id || prev.id,
+        audioId: data.audioId || prev.audioId,
+      }));
+      setPhoneMessage('MP3 cargado.');
+    } catch (error) {
+      setPhoneMessage(error.message || 'No se pudo subir el MP3.');
+    } finally {
+      setPhoneUploading(false);
+    }
+  }, [authorized, phoneFile, sessionToken]);
+
+  const handleTracerHotspotSave = useCallback(
+    async (event) => {
+      event.preventDefault();
+      const id = tracerHotspotForm.id.trim();
+      if (!id) {
+        setTracerMessage('Hotspot ID obligatorio.');
+        return;
+      }
+      const x = Number(tracerHotspotForm.x);
+      const y = Number(tracerHotspotForm.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        setTracerMessage('Coordenadas invalidas.');
+        return;
+      }
+      const nextHotspot = {
+        id,
+        label: tracerHotspotForm.label.trim() || id,
+        x: Math.max(0, Math.min(100, x)),
+        y: Math.max(0, Math.min(100, y)),
+      };
+      const nextHotspots = [
+        nextHotspot,
+        ...tracerHotspots.filter((item) => item.id !== nextHotspot.id),
+      ];
+      await saveTracerConfig({ lines: tracerLines, hotspots: nextHotspots });
+      setTracerHotspotForm({ ...initialTracerHotspotForm });
+    },
+    [tracerHotspotForm, tracerHotspots, tracerLines, saveTracerConfig]
+  );
+
+  const handleTracerHotspotDelete = useCallback(
+    async (id) => {
+      if (!id) return;
+      const nextHotspots = tracerHotspots.filter((item) => item.id !== id);
+      const nextLines = tracerLines.map((line) =>
+        line.hotspotId === id ? { ...line, hotspotId: '' } : line
+      );
+      await saveTracerConfig({ lines: nextLines, hotspots: nextHotspots });
+      if (tracerHotspotForm.id === id) {
+        setTracerHotspotForm({ ...initialTracerHotspotForm });
+      }
+    },
+    [tracerHotspotForm.id, tracerHotspots, tracerLines, saveTracerConfig]
+  );
+
+  const handleTracerLineSave = useCallback(
+    async (event) => {
+      event.preventDefault();
+      const number = tracerLineForm.number.trim();
+      if (!number) {
+        setTracerMessage('Linea tracer: el numero es obligatorio.');
+        return;
+      }
+      const id = number;
+      const previousId = tracerLineForm.id.trim();
+      if (!tracerLineForm.hotspotId.trim()) {
+        setTracerMessage('Selecciona un hotspot para la linea.');
+        return;
+      }
+      const entry = {
+        id,
+        number,
+        label: tracerLineForm.label.trim() || id,
+        hotspotId: tracerLineForm.hotspotId.trim(),
+        enabled: Boolean(tracerLineForm.enabled),
+      };
+      const nextLines = [
+        entry,
+        ...tracerLines.filter((item) => item.id !== id && (!previousId || item.id !== previousId)),
+      ];
+      await saveTracerConfig({ lines: nextLines, hotspots: tracerHotspots });
+      setTracerLineForm({ ...initialTracerLineForm });
+    },
+    [tracerLineForm, tracerLines, tracerHotspots, saveTracerConfig]
+  );
+
+  const handleTracerLineDelete = useCallback(
+    async (id) => {
+      if (!id) return;
+      const nextLines = tracerLines.filter((item) => item.id !== id);
+      await saveTracerConfig({ lines: nextLines, hotspots: tracerHotspots });
+      if (tracerLineForm.id === id) {
+        setTracerLineForm({ ...initialTracerLineForm });
+      }
+    },
+    [tracerLineForm.id, tracerLines, tracerHotspots, saveTracerConfig]
+  );
+
   useEffect(() => {
     if (activeView !== 'evidence') return;
     if (evidenceForm.id) return;
@@ -2013,10 +3002,158 @@ const DmPanel = () => {
   }, [activeView, evidenceForm.id]);
 
   useEffect(() => {
+    if (activeView !== 'evidence') return;
+    setEvidenceTab('stl');
+  }, [activeView]);
+
+  useEffect(() => {
     if (!authorized) return;
     if (activeView !== 'evidence') return;
-    loadEvidenceModels();
-  }, [authorized, activeView, loadEvidenceModels]);
+    if (evidenceTab === 'stl') {
+      loadEvidenceModels();
+    } else if (evidenceTab === 'ballistics') {
+      loadBallisticsModels();
+      loadBallisticsAssets();
+    } else if (evidenceTab === 'audio') {
+      loadAudioModels();
+    } else {
+      loadPhoneLines();
+      loadAudioModels();
+    }
+  }, [
+    authorized,
+    activeView,
+    evidenceTab,
+    loadEvidenceModels,
+    loadBallisticsModels,
+    loadBallisticsAssets,
+    loadAudioModels,
+    loadPhoneLines,
+  ]);
+
+  useEffect(() => {
+    if (!authorized) return;
+    if (activeView !== 'tracer') return;
+    loadTracerConfig();
+  }, [authorized, activeView, loadTracerConfig]);
+
+  useEffect(() => {
+    if (!authorized || !sessionToken) {
+      if (tracerSocketRef.current) {
+        tracerSocketRef.current.close(1000, 'logout');
+        tracerSocketRef.current = null;
+      }
+      setTracerWsState('offline');
+      setTracerLiveCalls([]);
+      return;
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = `${protocol}://${window.location.host}/ws/tracer?role=dm&token=${encodeURIComponent(
+      sessionToken
+    )}`;
+    const socket = new WebSocket(wsUrl);
+    tracerSocketRef.current = socket;
+    setTracerWsState('connecting');
+
+    socket.onopen = () => {
+      setTracerWsState('online');
+    };
+
+    socket.onclose = () => {
+      if (tracerSocketRef.current === socket) {
+        tracerSocketRef.current = null;
+      }
+      setTracerWsState('offline');
+    };
+
+    socket.onerror = () => {
+      setTracerWsState('error');
+    };
+
+    socket.onmessage = (event) => {
+      let payload;
+      try {
+        payload = JSON.parse(String(event.data || '{}'));
+      } catch (error) {
+        return;
+      }
+      if (payload.type === 'tracer:snapshot') {
+        const calls = Array.isArray(payload.calls) ? payload.calls : [];
+        setTracerLiveCalls(calls);
+        return;
+      }
+      if (payload.type === 'tracer:incoming') {
+        const call = payload.call;
+        if (!call?.callId) return;
+        setTracerLiveCalls((prev) => [
+          { ...call, state: 'incoming' },
+          ...prev.filter((entry) => entry.callId !== call.callId),
+        ]);
+        return;
+      }
+      if (payload.type === 'tracer:answered') {
+        const callId = payload.callId;
+        if (!callId) return;
+        setTracerLiveCalls((prev) =>
+          prev.map((entry) =>
+            entry.callId === callId
+              ? { ...entry, state: 'answered', answeredAt: payload.answeredAt || Date.now() }
+              : entry
+          )
+        );
+        return;
+      }
+      if (payload.type === 'tracer:ended') {
+        const callId = payload.callId;
+        if (!callId) return;
+        setTracerLiveCalls((prev) => prev.filter((entry) => entry.callId !== callId));
+        return;
+      }
+      if (payload.type === 'tracer:error' && payload.message) {
+        setTracerMessage(payload.message);
+      }
+    };
+
+    return () => {
+      if (tracerSocketRef.current === socket) {
+        tracerSocketRef.current = null;
+      }
+      socket.close(1000, 'cleanup');
+    };
+  }, [authorized, sessionToken]);
+
+  useEffect(() => {
+    const leftCanvas = ballisticsPreviewLeftRef.current;
+    const rightCanvas = ballisticsPreviewRightRef.current;
+    const pngPath = ballisticsForm.pngPath?.trim();
+    if (!leftCanvas || !rightCanvas) return;
+    if (!pngPath) {
+      const leftCtx = leftCanvas.getContext('2d');
+      const rightCtx = rightCanvas.getContext('2d');
+      [leftCtx, rightCtx].forEach((ctx) => {
+        if (!ctx) return;
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillStyle = '#040907';
+        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      });
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      renderBallisticsPreview(leftCanvas, img, 'left');
+      renderBallisticsPreview(rightCanvas, img, 'right');
+    };
+    img.onerror = () => {
+      const ctx = leftCanvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, leftCanvas.width, leftCanvas.height);
+        ctx.fillStyle = '#040907';
+        ctx.fillRect(0, 0, leftCanvas.width, leftCanvas.height);
+      }
+    };
+    img.src = pngPath;
+  }, [ballisticsForm.pngPath]);
 
   const renderNav = () => (
     <div className="dm-panel__nav" data-workspace={activeView}>
@@ -2032,6 +3169,81 @@ const DmPanel = () => {
       ))}
     </div>
   );
+
+  const resolveNoticeTone = (text = '') => {
+    const normalized = String(text || '').toLowerCase();
+    if (
+      normalized.includes('error') ||
+      normalized.includes('no se pudo') ||
+      normalized.includes('fallo') ||
+      normalized.includes('incorrecta')
+    ) {
+      return 'error';
+    }
+    if (
+      normalized.includes('sin guardar') ||
+      normalized.includes('pendiente') ||
+      normalized.includes('cuidado')
+    ) {
+      return 'warning';
+    }
+    return 'success';
+  };
+
+  useEffect(() => {
+    const noticeSources = {
+      authError,
+      passwordError,
+      passwordStatus,
+      caseMessage,
+      poiMessage,
+      villainMessage,
+      evidenceMessage,
+      ballisticsMessage,
+      audioMessage,
+      phoneMessage,
+      tracerMessage,
+      accessMessage,
+      campaignMessage,
+      globalCommandsMessage,
+    };
+
+    Object.entries(noticeSources).forEach(([key, value]) => {
+      const current = value || '';
+      const previous = noticeTrackerRef.current[key] || '';
+      if (current && current !== previous) {
+        setTransientNotice({
+          id: `${key}-${Date.now()}`,
+          text: current,
+          tone: resolveNoticeTone(current),
+        });
+      }
+      noticeTrackerRef.current[key] = current;
+    });
+  }, [
+    authError,
+    passwordError,
+    passwordStatus,
+    caseMessage,
+    poiMessage,
+    villainMessage,
+    evidenceMessage,
+    ballisticsMessage,
+    audioMessage,
+    phoneMessage,
+    tracerMessage,
+    accessMessage,
+    campaignMessage,
+    globalCommandsMessage,
+  ]);
+
+  useEffect(() => {
+    if (!transientNotice?.id) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setTransientNotice(null);
+    }, 4200);
+    return () => window.clearTimeout(timeoutId);
+  }, [transientNotice?.id]);
 
   const renderTree = (nodes, selectedId, onSelect, scope, level = 0, options = {}) => (
     <ul className="dm-panel__tree">
@@ -2083,8 +3295,8 @@ const DmPanel = () => {
                   </span>
                 )}
                 <span
-                  className={`dm-panel__tree-status dm-panel__tree-status--${getNodeStatusVariant(item)}`}
-                  title={`Visibilidad: ${item.unlockConditions?.visibility || 'listed'}`}
+                  className={`dm-panel__tree-status wopr-tooltip-anchor dm-panel__tree-status--${getNodeStatusVariant(item)}`}
+                  data-tooltip={`Visibilidad: ${item.unlockConditions?.visibility || 'listed'}`}
                 />
                 {isCaseTree && level > 0 && (
                   <span className="dm-panel__tree-connector">
@@ -2253,10 +3465,18 @@ const DmPanel = () => {
     </section>
   );
 
-  const formatUpdatedAt = (timestamp) => {
-    if (!timestamp) return 'No guardado';
-    return new Date(timestamp).toLocaleString();
+  const formatDateTime = (timestamp, fallback = 'Sin dato') => {
+    if (!timestamp) return fallback;
+    const parsed = Number(timestamp);
+    const date = Number.isNaN(parsed) ? new Date(timestamp) : new Date(parsed);
+    if (Number.isNaN(date.getTime())) return fallback;
+    return new Intl.DateTimeFormat('es-ES', {
+      dateStyle: 'short',
+      timeStyle: 'medium',
+    }).format(date);
   };
+
+  const formatUpdatedAt = (timestamp) => formatDateTime(timestamp, 'No guardado');
 
   const formatSaveState = (dirty, updatedAt, saveState) => {
     if (dirty) {
@@ -2353,7 +3573,9 @@ const DmPanel = () => {
     return {
       title: poiForm.name?.trim() || 'Sin nombre',
       summary: poiForm.summary?.trim() || 'Sin resumen.',
-      meta: poiForm.district?.trim() ? `Distrito: ${poiForm.district.trim()}` : '',
+      meta: poiForm.district?.trim() ? poiForm.district.trim() : '',
+      state: poiForm.status?.trim() ? poiForm.status.trim() : '',
+      image: poiForm.mapImage || '',
     };
   };
 
@@ -2425,7 +3647,7 @@ const DmPanel = () => {
                   <button
                     key={item.id}
                     type="button"
-                    className={`dm-panel__case-item ${isActive ? 'active' : ''}`}
+                    className={`dm-panel__case-item wopr-tooltip-anchor ${isActive ? 'active' : ''}`}
                     style={level ? { paddingLeft: '12px' } : undefined}
                     data-tooltip={`${isSubcase ? '› ' : ''}${getNodeLabel(item)}`}
                     onClick={() => {
@@ -2464,8 +3686,12 @@ const DmPanel = () => {
                     <button type="button" className="dm-panel__ghost" onClick={toggleAdvanced}>
                       {advancedOpen ? 'Avanzado ▾' : 'Avanzado ▸'}
                     </button>
-                    <button type="button" className="dm-panel__ghost" onClick={togglePreview}>
-                      {previewOpen ? 'Preview ▾' : 'Preview ▸'}
+                    <button
+                      type="button"
+                      className="dm-panel__ghost dm-panel__ghost--utility"
+                      onClick={togglePreview}
+                    >
+                      {previewOpen ? 'Vista ▾' : 'Vista ▸'}
                     </button>
                     <span className={`dm-panel__save-state dm-panel__save-state--${saveState.status}`}>
                       {saveStateCompact}
@@ -2792,7 +4018,7 @@ const DmPanel = () => {
               </div>
               {previewOpen && (
                 <aside className="dm-panel__preview">
-                  <div className="dm-panel__panel-title">Preview agente</div>
+                  <div className="dm-panel__panel-title">Vista agente</div>
                   {previewData.parentLabel && (
                     <div className="dm-panel__preview-meta">
                       › Subcaso de: {previewData.parentLabel}
@@ -2836,270 +4062,194 @@ const DmPanel = () => {
       poiSaveState
     );
     const poiList = flattenTree(poiTree);
+    const isDesktop = viewportWidth >= 980;
+    const isMobile = viewportWidth <= 700;
     const saveStateCompact =
       saveState.status === 'dirty'
         ? 'Cambios sin guardar'
         : saveState.status === 'error'
           ? 'Error al guardar'
           : 'Guardado';
+    const activeRow = selectedPoi?.id
+      ? buildPoiRow(selectedPoi)
+      : poiForm.id || poiForm.name
+        ? {
+            id: poiForm.id || 'draft',
+            label: poiForm.name || poiForm.id || 'Nuevo POI',
+            meta: poiForm.district || poiForm.status || '',
+          }
+        : null;
+    const handlePoiSelect = (id) => {
+      const match = poiList.find(({ item }) => item.id === id)?.item;
+      if (!match) return;
+      setSelectedPoi(match);
+      setSelection('pois', match.id);
+      resetPoiForm(match);
+      addPoiRecent(match);
+    };
 
     return (
       <section className={`dm-panel__section ${helpMode ? 'dm-panel__help-on' : ''}`}>
         <h2 className="dm-panel__section-title">Puntos de interes</h2>
         {poisError && <p className="dm-panel__error">{poisError}</p>}
-        <div className="dm-panel__grid dm-panel__grid--split">
-          <div className="dm-panel__selector dm-panel__selector--cases">
-            <div className="dm-panel__panel-title">Listado de POIs</div>
-            <div className="dm-panel__case-list">
-              {poiList.map(({ item, level }, index) => {
-                const parentId = item.commands?.parentId || '';
-                const isSubcase = Boolean(parentId);
-                const isActive = selectedPoi?.id === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`dm-panel__case-item ${isActive ? 'active' : ''}`}
-                    style={level ? { paddingLeft: '12px' } : undefined}
-                    data-tooltip={`${isSubcase ? '› ' : ''}${getNodeLabel(item)}`}
-                    onClick={() => {
-                      setSelectedPoi(item);
-                      setSelection('pois', item.id);
-                      resetPoiForm(item);
-                    }}
-                  >
-                    <span className="dm-panel__case-index">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <span className="dm-panel__case-title">
-                      {isSubcase ? '› ' : ''}
-                      {getNodeLabel(item)}
-                    </span>
-                  </button>
-                );
-              })}
+        <div className="dm-panel__grid dm-panel__grid--poi-editor">
+          <div className="dm-panel__poi-left">
+            <PoiSelector
+              items={poiList.map(({ item }) => buildPoiRow(item))}
+              selection={selectedPoi?.id || ''}
+              error={poisError}
+              onSelect={handlePoiSelect}
+              active={activeRow}
+              recents={poiRecents}
+              isMobile={isMobile}
+            />
+
+            <div className="dm-panel__details dm-panel__poi-editor-shell">
+              <div className="dm-panel__editor-layout dm-panel__editor-layout--poi">
+                <PoiEditor
+                  poiForm={poiForm}
+                  setPoiForm={setPoiForm}
+                  sections={sections}
+                  toggleSection={toggleSection}
+                  renderSection={renderSection}
+                  labelRow={labelRow}
+                  savePoi={savePoi}
+                  advancedOpen={advancedOpen}
+                  toggleAdvanced={toggleAdvanced}
+                  previewOpen={previewOpen}
+                  togglePreview={togglePreview}
+                  saveState={saveState}
+                  saveStateCompact={saveStateCompact}
+                  resetPoi={() => resetPoiForm(null)}
+                  clearPoi={() => {
+                    setSelectedPoi(null);
+                    setSelection('pois', '');
+                    resetPoiForm(null);
+                  }}
+                  selectedPoi={selectedPoi}
+                  deletePoi={deletePoi}
+                  poiMessage={poiMessage}
+                  isOperation={isOperation}
+                  mapProps={{
+                    aspectRatio: MAP_ASPECT_RATIO,
+                    imageUrl: MAP_IMAGE,
+                    markerStyle: mapMarkerStyle,
+                    markerLabel: mapMarkerLabel,
+                    onPick: handleMapPick,
+                  }}
+                  mapFineOpen={Boolean(advancedByView.poiFineTune)}
+                  onToggleMapFine={() =>
+                    setAdvancedByView((prev) => ({
+                      ...prev,
+                      poiFineTune: !prev.poiFineTune,
+                    }))
+                  }
+                  imageCardProps={{
+                    imageUrl: poiForm.mapImage,
+                    previewUrl: poiImagePreview,
+                    uploading: poiImageUploading,
+                    error: poiImageError,
+                    onReplaceClick: () => poiImageInputRef.current?.click(),
+                    onClear: () => setPoiForm((prev) => ({ ...prev, mapImage: '' })),
+                    onFileChange: (e) =>
+                      handlePoiImageSelect(e.target.files?.[0] || null),
+                    onDrop: (e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove('is-dragging');
+                      const file = e.dataTransfer.files?.[0];
+                      handlePoiImageSelect(file || null);
+                    },
+                    onDragOver: (e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add('is-dragging');
+                    },
+                    onDragLeave: (e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove('is-dragging');
+                    },
+                    onOpenCrop: () => setPoiCropOpen(true),
+                    fileInputRef: poiImageInputRef,
+                  }}
+                  mapGridStep={MAP_GRID_STEP}
+                  onClamp={clampNumber}
+                  nodeTypeOptions={NODE_TYPE_OPTIONS}
+                  parentOptions={poiParentOptions}
+                  updatedAtLabel={formatUpdatedAt(updatedAt)}
+                />
+              </div>
             </div>
           </div>
-          <div className="dm-panel__details">
-            <div
-              className={`dm-panel__editor-layout ${
-                previewOpen ? 'dm-panel__editor-layout--preview' : ''
-              }`}
-            >
-              <div className="dm-panel__editor-main">
-                <form onSubmit={savePoi} className="dm-panel__form">
-                  <div className="dm-panel__editor-actions">
-                    <button type="submit" className="dm-panel__primary">
-                      Guardar
-                    </button>
-                    <button type="button" className="dm-panel__ghost" onClick={toggleAdvanced}>
-                      {advancedOpen ? 'Avanzado ▾' : 'Avanzado ▸'}
-                    </button>
-                    <button type="button" className="dm-panel__ghost" onClick={togglePreview}>
-                      {previewOpen ? 'Preview ▾' : 'Preview ▸'}
-                    </button>
-                    <span className={`dm-panel__save-state dm-panel__save-state--${saveState.status}`}>
-                      {saveStateCompact}
-                    </span>
-                    <div className="dm-panel__editor-shortcuts">
-                      <button type="button" className="dm-panel__ghost" onClick={() => resetPoiForm(null)}>
-                        Nuevo
-                      </button>
-                      <button
-                        type="button"
-                        className="dm-panel__ghost"
-                        onClick={() => {
-                          setSelectedPoi(null);
-                          setSelection('pois', '');
-                          resetPoiForm(null);
-                        }}
-                      >
-                        Limpiar
-                      </button>
-                    </div>
-                  </div>
-                  {renderSection({
-                    id: 'poi-identity',
-                    title: 'Identidad',
-                    open: sections.identity,
-                    onToggle: () => toggleSection('pois', 'identity'),
-                    children: (
-                      <div className="dm-panel__form-group">
-                        <div className="dm-panel__form-grid dm-panel__form-grid--two">
-                          <label>
-                            {labelRow('ID', 'Identificador unico para la TUI.')}
-                            <input
-                              type="text"
-                              value={poiForm.id}
-                              readOnly={Boolean(selectedPoi?.id)}
-                              onChange={(e) =>
-                                setPoiForm({ ...poiForm, id: e.target.value })
-                              }
-                            />
-                          </label>
-                          <label>
-                            {labelRow('Nombre', 'Nombre visible para agentes.')}
-                            <input
-                              type="text"
-                              value={poiForm.name}
-                              onChange={(e) =>
-                                setPoiForm({ ...poiForm, name: e.target.value })
-                              }
-                            />
-                          </label>
-                        </div>
-                        <div className="dm-panel__form-grid dm-panel__form-grid--two">
-                          <label>
-                            {labelRow('Distrito', 'Zona de Gotham.')}
-                            <input
-                              type="text"
-                              value={poiForm.district}
-                              onChange={(e) =>
-                                setPoiForm({ ...poiForm, district: e.target.value })
-                              }
-                            />
-                          </label>
-                          <label>
-                            {labelRow('Estado', 'Estado operativo.')}
-                            <input
-                              type="text"
-                              value={poiForm.status}
-                              onChange={(e) =>
-                                setPoiForm({ ...poiForm, status: e.target.value })
-                              }
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    ),
-                  })}
-
-                  {renderSection({
-                    id: 'poi-summary',
-                    title: 'Agent-facing Summary',
-                    open: sections.summary,
-                    onToggle: () => toggleSection('pois', 'summary'),
-                    children: (
-                      <div className="dm-panel__form-group">
-                        <label>
-                          {labelRow('Resumen', 'Texto breve visible para agentes.')}
-                          <textarea
-                            className="dm-panel__textarea--sm"
-                            value={poiForm.summary}
-                            onChange={(e) =>
-                              setPoiForm({ ...poiForm, summary: e.target.value })
-                            }
-                          />
-                        </label>
-                      </div>
-                    ),
-                  })}
-
-                  {advancedOpen && !isOperation && renderSection({
-                    id: 'poi-content',
-                    title: 'Detalles',
-                    open: sections.content,
-                    onToggle: () => toggleSection('pois', 'content'),
-                    children: (
-                      <div className="dm-panel__form-group">
-                        <label>
-                          {labelRow('Detalles', 'Intel visible en la TUI.')}
-                          <textarea
-                            className="dm-panel__textarea--md"
-                            value={poiForm.details}
-                            onChange={(e) =>
-                              setPoiForm({ ...poiForm, details: e.target.value })
-                            }
-                          />
-                        </label>
-                      </div>
-                    ),
-                  })}
-
-                  {advancedOpen && !isOperation && renderSection({
-                    id: 'poi-structure',
-                    title: 'Estructura',
-                    open: sections.engine,
-                    onToggle: () => toggleSection('pois', 'engine'),
-                    children: (
-                      <div className="dm-panel__form-group">
-                        <label>
-                          {labelRow('Nodo padre (ID)', 'Jerarquia en menus.')}
-                          <input
-                            type="text"
-                            list="poi-parent-options"
-                            value={poiForm.parentId}
-                            onChange={(e) =>
-                              setPoiForm({ ...poiForm, parentId: e.target.value })
-                            }
-                            placeholder="Ej. poi_narrows"
-                          />
-                        </label>
-                        <datalist id="poi-parent-options">
-                          {poiParentOptions.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </datalist>
-                        <div className="dm-panel__form-grid dm-panel__form-grid--two">
-                          <label>
-                            {labelRow('Tipo de nodo', 'Controla submenu.')}
-                            <select
-                              value={poiForm.nodeType}
-                              onChange={(e) =>
-                                setPoiForm({ ...poiForm, nodeType: e.target.value })
-                              }
-                            >
-                              {NODE_TYPE_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        </div>
-                      </div>
-                    ),
-                  })}
-
-                  {advancedOpen && selectedPoi && (
-                    <div className="dm-panel__form-group">
-                      <h4>Debug</h4>
-                      <div className="dm-panel__debug-grid">
-                        <div>
-                          <span className="dm-panel__debug-label">Ultima actualizacion</span>
-                          <span className="dm-panel__debug-value">
-                            {formatUpdatedAt(updatedAt)}
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="dm-panel__delete dm-panel__delete--compact"
-                        onClick={deletePoi}
-                      >
-                        Eliminar POI
-                      </button>
-                    </div>
-                  )}
-
-                  {poiMessage && <p className="dm-panel__hint">{poiMessage}</p>}
-                </form>
+          <div className="dm-panel__poi-right">
+            <PoiPreview
+              open={isDesktop ? previewOpen : previewOpen && !helpMode}
+              onToggle={togglePreview}
+              data={previewData}
+              title="Vista agente"
+            />
+          </div>
+        </div>
+        {poiCropOpen && (
+          <div className="dm-panel__modal">
+            <div className="dm-panel__modal-backdrop" onClick={() => setPoiCropOpen(false)} />
+            <div className="dm-panel__modal-card">
+              <div className="dm-panel__modal-header">
+                <strong>Recortar imagen POI</strong>
+                <button
+                  type="button"
+                  className="dm-panel__ghost"
+                  onClick={() => setPoiCropOpen(false)}
+                >
+                  Cerrar
+                </button>
               </div>
-              {previewOpen && (
-                <aside className="dm-panel__preview">
-                  <div className="dm-panel__panel-title">Preview agente</div>
-                  {previewData.meta && (
-                    <div className="dm-panel__preview-meta">{previewData.meta}</div>
-                  )}
-                  <div className="dm-panel__preview-title">{previewData.title}</div>
-                  <div className="dm-panel__preview-summary">{previewData.summary}</div>
-                </aside>
+              {poiImagePreview ? (
+                <div className="dm-panel__map-crop">
+                  <div
+                    className="dm-panel__map-crop-frame"
+                    ref={cropFrameRef}
+                    style={{ aspectRatio: POI_IMAGE_ASPECT }}
+                    onPointerDown={handleCropPointerDown}
+                    onPointerMove={handleCropPointerMove}
+                    onPointerUp={handleCropPointerUp}
+                    onPointerLeave={handleCropPointerUp}
+                  >
+                    <img
+                      ref={cropImageRef}
+                      src={poiImagePreview}
+                      alt="Recorte"
+                      style={{
+                        transform: `translate(-50%, -50%) translate(${poiCropOffset.x}px, ${poiCropOffset.y}px) scale(${poiCropZoom})`,
+                      }}
+                    />
+                  </div>
+                  <label>
+                    {labelRow('Zoom', 'Ajusta el recorte antes de subir.')}
+                    <input
+                      type="range"
+                      min="1"
+                      max="3"
+                      step="0.05"
+                      value={poiCropZoom}
+                      onChange={(e) => setPoiCropZoom(Number(e.target.value))}
+                    />
+                  </label>
+                  <div className="dm-panel__map-upload">
+                    <button
+                      type="button"
+                      className="dm-panel__ghost"
+                      onClick={handlePoiImageUpload}
+                      disabled={poiImageUploading}
+                    >
+                      {poiImageUploading ? 'Subiendo...' : 'Subir imagen'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="dm-panel__hint">Selecciona una imagen para recortar.</p>
               )}
             </div>
           </div>
-        </div>
+        )}
       </section>
     );
   };
@@ -3138,7 +4288,7 @@ const DmPanel = () => {
                   <button
                     key={item.id}
                     type="button"
-                    className={`dm-panel__case-item ${isActive ? 'active' : ''}`}
+                    className={`dm-panel__case-item wopr-tooltip-anchor ${isActive ? 'active' : ''}`}
                     style={level ? { paddingLeft: '12px' } : undefined}
                     data-tooltip={`${isSubcase ? '› ' : ''}${getNodeLabel(item)}`}
                     onClick={() => {
@@ -3174,8 +4324,12 @@ const DmPanel = () => {
                     <button type="button" className="dm-panel__ghost" onClick={toggleAdvanced}>
                       {advancedOpen ? 'Avanzado ▾' : 'Avanzado ▸'}
                     </button>
-                    <button type="button" className="dm-panel__ghost" onClick={togglePreview}>
-                      {previewOpen ? 'Preview ▾' : 'Preview ▸'}
+                    <button
+                      type="button"
+                      className="dm-panel__ghost dm-panel__ghost--utility"
+                      onClick={togglePreview}
+                    >
+                      {previewOpen ? 'Vista ▾' : 'Vista ▸'}
                     </button>
                     <span className={`dm-panel__save-state dm-panel__save-state--${saveState.status}`}>
                       {saveStateCompact}
@@ -3615,7 +4769,7 @@ const DmPanel = () => {
               </div>
               {previewOpen && (
                 <aside className="dm-panel__preview">
-                  <div className="dm-panel__panel-title">Preview agente</div>
+                  <div className="dm-panel__panel-title">Vista agente</div>
                   <div className="dm-panel__preview-title">{previewData.title}</div>
                   <div className="dm-panel__preview-summary">{previewData.summary}</div>
                 </aside>
@@ -3629,140 +4783,998 @@ const DmPanel = () => {
 
   const renderEvidenceView = () => (
     <section className="dm-panel__section">
-      <h2 className="dm-panel__section-title">Evidencias STL</h2>
-      <div className="dm-panel__grid dm-panel__grid--evidence">
-        <div className="dm-panel__card">
-          <div className="dm-panel__panel-title">Modelos</div>
-          {evidenceLoading && <p className="dm-panel__hint">Cargando evidencias...</p>}
-          {!evidenceLoading && !evidenceModels.length && (
-            <p className="dm-panel__hint">No hay evidencias registradas.</p>
-          )}
-          <div className="dm-panel__list">
-            {evidenceModels.map((model) => (
-              <button
-                key={model.id}
-                type="button"
-                className={`dm-panel__list-item${
-                  evidenceForm.id === model.id ? ' active' : ''
-                }`}
-                onClick={() =>
-                  setEvidenceForm({
-                    id: model.id || '',
-                    label: model.label || '',
-                    command: model.command || '',
-                    stlPath: model.stlPath || '',
-                  })
-                }
-              >
-                <strong>{model.label || model.id}</strong>
-                <span>{model.command ? `SHOW ${model.command}` : model.id}</span>
-              </button>
-            ))}
+      <h2 className="dm-panel__section-title">Evidencias</h2>
+      <div className="dm-panel__subtabs">
+        <button
+          type="button"
+          className={evidenceTab === 'stl' ? 'active' : ''}
+          onClick={() => setEvidenceTab('stl')}
+        >
+          STL
+        </button>
+        <button
+          type="button"
+          className={evidenceTab === 'ballistics' ? 'active' : ''}
+          onClick={() => setEvidenceTab('ballistics')}
+        >
+          Balistica
+        </button>
+        <button
+          type="button"
+          className={evidenceTab === 'audio' ? 'active' : ''}
+          onClick={() => setEvidenceTab('audio')}
+        >
+          Audio
+        </button>
+        <button
+          type="button"
+          className={evidenceTab === 'phones' ? 'active' : ''}
+          onClick={() => setEvidenceTab('phones')}
+        >
+          Telefonos
+        </button>
+      </div>
+      {evidenceTab === 'stl' ? (
+        <div className="dm-panel__grid dm-panel__grid--evidence">
+          <div className="dm-panel__card">
+            <div className="dm-panel__panel-title">Modelos</div>
+            {evidenceLoading && <p className="dm-panel__hint">Cargando evidencias...</p>}
+            {!evidenceLoading && !evidenceModels.length && (
+              <p className="dm-panel__hint">No hay evidencias registradas.</p>
+            )}
+            <div className="dm-panel__list">
+              {evidenceModels.map((model) => (
+                <button
+                  key={model.id}
+                  type="button"
+                  className={`dm-panel__list-item${
+                    evidenceForm.id === model.id ? ' active' : ''
+                  }`}
+                  onClick={() =>
+                    setEvidenceForm({
+                      id: model.id || '',
+                      label: model.label || '',
+                      command: model.command || '',
+                      stlPath: model.stlPath || '',
+                    })
+                  }
+                >
+                  <strong>{model.label || model.id}</strong>
+                  <span>{model.command ? `SHOW ${model.command}` : model.id}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEvidenceForm({ ...initialEvidenceForm });
+                setEvidenceFile(null);
+                setEvidenceMessage('');
+                setEvidenceProfile('default');
+                setEvidencePreviewNonce((prev) => prev + 1);
+              }}
+            >
+              Nuevo
+            </button>
           </div>
+
+          <div className="dm-panel__card">
+            <div className="dm-panel__panel-title">Detalle / Upload</div>
+            <form onSubmit={handleEvidenceSave} className="dm-panel__form">
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('ID', 'Identificador interno para la evidencia.')}
+                  <input
+                    type="text"
+                    value={evidenceForm.id}
+                    onChange={(e) =>
+                      setEvidenceForm((prev) => ({ ...prev, id: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Etiqueta', 'Texto mostrado en el visor ASCII.')}
+                  <input
+                    type="text"
+                    value={evidenceForm.label}
+                    onChange={(e) =>
+                      setEvidenceForm((prev) => ({ ...prev, label: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Comando SHOW', 'Alias para invocar el modelo (SHOW <alias>).')}
+                  <input
+                    type="text"
+                    value={evidenceForm.command}
+                    onChange={(e) =>
+                      setEvidenceForm((prev) => ({ ...prev, command: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Perfil ASCII', 'Selecciona el perfil de render en el preview.')}
+                  <select
+                    value={evidenceProfile}
+                    onChange={(e) => setEvidenceProfile(e.target.value)}
+                  >
+                    <option value="default">Default</option>
+                    <option value="wayne90x30">Wayne 90x30</option>
+                    <option value="normal">Normal</option>
+                  </select>
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Ruta STL', 'Ruta generada tras subir el archivo.')}
+                  <input type="text" value={evidenceForm.stlPath} readOnly />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Subir STL', 'Solo .stl (max 20MB).')}
+                  <input
+                    type="file"
+                    accept=".stl"
+                    onChange={(e) => setEvidenceFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-actions">
+                <button type="button" onClick={handleEvidenceUpload} disabled={evidenceUploading}>
+                  {evidenceUploading ? 'Subiendo...' : 'Subir STL'}
+                </button>
+                <button type="submit" disabled={evidenceLoading}>
+                  Guardar evidencia
+                </button>
+                {evidenceForm.id && (
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => handleEvidenceDelete(evidenceForm.id)}
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
+              {evidenceMessage && <p className="dm-panel__hint">{evidenceMessage}</p>}
+            </form>
+            <div className="dm-panel__preview dm-panel__preview--evidence">
+              <div className="dm-panel__panel-title">Preview ASCII</div>
+              <div className="dm-panel__evidence-preview" ref={evidencePreviewRef} />
+            </div>
+          </div>
+        </div>
+      ) : evidenceTab === 'ballistics' ? (
+        <div className="dm-panel__grid dm-panel__grid--evidence">
+          <div className="dm-panel__card">
+            <div className="dm-panel__panel-title">PNG Balistica</div>
+            {ballisticsLoading && <p className="dm-panel__hint">Cargando balistica...</p>}
+            {!ballisticsLoading && !ballisticsModels.length && (
+              <p className="dm-panel__hint">No hay entradas balisticas registradas.</p>
+            )}
+            <div className="dm-panel__list">
+              {ballisticsModels.map((model) => (
+                <button
+                  key={model.id}
+                  type="button"
+                  className={`dm-panel__list-item${
+                    ballisticsForm.id === model.id ? ' active' : ''
+                  }`}
+                  onClick={() =>
+                    setBallisticsForm({
+                      id: model.id || '',
+                      label: model.label || '',
+                      assetId: model.assetId || '',
+                      pngPath: model.pngPath || '',
+                      caliber: model.caliber || '',
+                      material: model.material || '',
+                      bulletId: model.bulletId || '',
+                      caseId: model.caseId || model.caseNumber || '',
+                      caseCode: model.caseCode || '',
+                      crime: model.crime || '',
+                      location: model.location || '',
+                      status: model.status || '',
+                      closedBy: model.closedBy || '',
+                    })
+                  }
+                >
+                  <strong>{model.label || model.id}</strong>
+                  <span>
+                    {model.caseCode || model.caseId
+                      ? `${model.caseCode || ''}${model.caseCode && model.caseId ? ' · ' : ''}${model.caseId || ''}`
+                      : model.location || model.id}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setBallisticsForm({ ...initialBallisticsForm });
+                setBallisticsMessage('');
+                setBallisticsFile(null);
+              }}
+            >
+              Nuevo
+            </button>
+          </div>
+
+          <div className="dm-panel__card">
+            <div className="dm-panel__panel-title">Metadatos Balistica</div>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleBallisticsSave();
+              }}
+              className="dm-panel__form dm-panel__form--compact"
+            >
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('ID', 'Identificador interno para la entrada balistica.')}
+                  <input
+                    type="text"
+                    value={ballisticsForm.id}
+                    onChange={(e) =>
+                      setBallisticsForm((prev) => ({ ...prev, id: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('PNG', 'Ruta del PNG (ej: /assets/ballistics/b01.png).')}
+                  <input
+                    type="text"
+                    value={ballisticsForm.pngPath}
+                    onChange={(e) =>
+                      setBallisticsForm((prev) => ({ ...prev, pngPath: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('PNG existente', 'Selecciona un PNG ya cargado.')}
+                  <select
+                    value={ballisticsForm.pngPath}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setBallisticsForm((prev) => ({
+                        ...prev,
+                        pngPath: value,
+                        assetId: prev.assetId || deriveAssetId(value),
+                      }));
+                    }}
+                  >
+                    <option value="">-- Seleccionar PNG --</option>
+                    {ballisticsAssets.map((asset) => (
+                      <option key={asset.id} value={asset.url}>
+                        {asset.filename}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {ballisticsAssetsLoading && (
+                  <p className="dm-panel__hint">Cargando PNGs...</p>
+                )}
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Subir PNG', 'Solo .png (max 8MB).')}
+                  <input
+                    type="file"
+                    accept=".png"
+                    onChange={(e) => setBallisticsFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Case ID', 'ID de caso (ej: gcpd-XYZ-JKL).')}
+                  <input
+                    type="text"
+                    value={ballisticsForm.caseId}
+                    onChange={(e) =>
+                      setBallisticsForm((prev) => ({ ...prev, caseId: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Codigo', 'Codigo de 3 letras asociado al caso.')}
+                  <input
+                    type="text"
+                    value={ballisticsForm.caseCode}
+                    onChange={(e) =>
+                      setBallisticsForm((prev) => ({ ...prev, caseCode: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Localizacion', 'Ubicacion mostrada en el terminal.')}
+                  <input
+                    type="text"
+                    value={ballisticsForm.location}
+                    onChange={(e) =>
+                      setBallisticsForm((prev) => ({ ...prev, location: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Crimen', 'Tipo de crimen asociado.')}
+                  <input
+                    type="text"
+                    value={ballisticsForm.crime}
+                    onChange={(e) =>
+                      setBallisticsForm((prev) => ({ ...prev, crime: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Estado', 'Estado del caso (ej: ABIERTO).')}
+                  <input
+                    type="text"
+                    value={ballisticsForm.status}
+                    onChange={(e) =>
+                      setBallisticsForm((prev) => ({ ...prev, status: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Cerrado por', 'Agente que cerró el caso (solo si está cerrado).')}
+                  <input
+                    type="text"
+                    value={ballisticsForm.closedBy}
+                    onChange={(e) =>
+                      setBallisticsForm((prev) => ({ ...prev, closedBy: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-actions">
+                <button
+                  type="button"
+                  onClick={handleBallisticsUpload}
+                  disabled={ballisticsUploading}
+                >
+                  {ballisticsUploading ? 'Subiendo...' : 'Subir PNG'}
+                </button>
+                <button type="submit" disabled={ballisticsLoading}>
+                  Guardar balistica
+                </button>
+                {ballisticsForm.id && (
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => handleBallisticsDelete(ballisticsForm.id)}
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
+              {ballisticsMessage && <p className="dm-panel__hint">{ballisticsMessage}</p>}
+            </form>
+            <div className="dm-panel__preview dm-panel__preview--ballistics">
+              <div className="dm-panel__panel-title">Preview PNG</div>
+              <div className="dm-panel__ballistics-preview-grid">
+                <div className="dm-panel__ballistics-preview-cell">
+                  <div className="dm-panel__ballistics-preview-label">Mitad izquierda</div>
+                  <canvas
+                    ref={ballisticsPreviewLeftRef}
+                    width={320}
+                    height={160}
+                    className="dm-panel__ballistics-preview-canvas"
+                  />
+                </div>
+                <div className="dm-panel__ballistics-preview-cell">
+                  <div className="dm-panel__ballistics-preview-label">Mitad derecha</div>
+                  <canvas
+                    ref={ballisticsPreviewRightRef}
+                    width={320}
+                    height={160}
+                    className="dm-panel__ballistics-preview-canvas"
+                  />
+                </div>
+              </div>
+              {!ballisticsForm.pngPath && (
+                <p className="dm-panel__hint">Selecciona un PNG para previsualizar.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : evidenceTab === 'audio' ? (
+        <div className="dm-panel__grid dm-panel__grid--evidence">
+          <div className="dm-panel__card">
+            <div className="dm-panel__panel-title">Audios</div>
+            {audioLoading && <p className="dm-panel__hint">Cargando audios...</p>}
+            {!audioLoading && !audioModels.length && (
+              <p className="dm-panel__hint">No hay audios registrados.</p>
+            )}
+            <div className="dm-panel__list">
+              {audioModels.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`dm-panel__list-item${
+                    audioForm.id === item.id ? ' active' : ''
+                  }`}
+                  onClick={() => {
+                    setAudioForm({
+                      id: item.id || '',
+                      title: item.title || '',
+                      originalSrc: item.originalSrc || '',
+                      garbledSrc: item.garbledSrc || '',
+                      isGarbled: Boolean(item.isGarbled),
+                      passwordHash: item.passwordHash || '',
+                    });
+                    setAudioGarble(Boolean(item.isGarbled));
+                    setAudioPassword('');
+                  }}
+                >
+                  <strong>{item.title || item.id}</strong>
+                  <span>{item.isGarbled ? 'Cifrado' : 'Libre'}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setAudioForm({ ...initialAudioForm });
+                setAudioMessage('');
+                setAudioFile(null);
+                setAudioGarble(false);
+                setAudioPassword('');
+              }}
+            >
+              Nuevo
+            </button>
+          </div>
+
+          <div className="dm-panel__card">
+            <div className="dm-panel__panel-title">Audio / Upload</div>
+            <form onSubmit={handleAudioSave} className="dm-panel__form dm-panel__form--compact">
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('ID', 'Identificador interno del audio.')}
+                  <input
+                    type="text"
+                    value={audioForm.id}
+                    placeholder="Se genera al subir"
+                    readOnly
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Titulo', 'Nombre visible para el audio.')}
+                  <input
+                    type="text"
+                    value={audioForm.title}
+                    onChange={(e) =>
+                      setAudioForm((prev) => ({ ...prev, title: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('MP3', 'Ruta generada tras subir el audio.')}
+                  <input type="text" value={audioForm.originalSrc} readOnly />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Cifrar', 'Genera version garbled del audio.')}
+                  <select
+                    value={audioGarble ? 'yes' : 'no'}
+                    onChange={(e) => setAudioGarble(e.target.value === 'yes')}
+                  >
+                    <option value="no">No</option>
+                    <option value="yes">Si</option>
+                  </select>
+                </label>
+              </div>
+              {audioGarble && (
+                <div className="dm-panel__form-group">
+                  <label>
+                    {labelRow('Password', 'Clave para desbloqueo en terminal.')}
+                    <input
+                      type="password"
+                      value={audioPassword}
+                      onChange={(e) => setAudioPassword(e.target.value)}
+                    />
+                  </label>
+                </div>
+              )}
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Subir MP3', 'Solo .mp3 (max 20MB).')}
+                  <input
+                    type="file"
+                    accept=".mp3"
+                    onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Garbled', 'Ruta del audio cifrado (si aplica).')}
+                  <input type="text" value={audioForm.garbledSrc} readOnly />
+                </label>
+              </div>
+              <div className="dm-panel__form-actions">
+                <button type="button" onClick={handleAudioUpload} disabled={audioUploading}>
+                  {audioUploading ? 'Subiendo...' : 'Subir MP3'}
+                </button>
+                <button type="submit" disabled={audioLoading}>
+                  Guardar audio
+                </button>
+                {audioForm.id && (
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => handleAudioDelete(audioForm.id)}
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
+              {audioMessage && <p className="dm-panel__hint">{audioMessage}</p>}
+            </form>
+          </div>
+        </div>
+      ) : (
+        <div className="dm-panel__grid dm-panel__grid--evidence">
+          <div className="dm-panel__card">
+            <div className="dm-panel__panel-title">Telefonos</div>
+            {phoneLoading && <p className="dm-panel__hint">Cargando lineas...</p>}
+            {!phoneLoading && !phoneLines.length && (
+              <p className="dm-panel__hint">No hay lineas registradas.</p>
+            )}
+            <div className="dm-panel__list">
+              {phoneLines.map((line) => (
+                <button
+                  key={line.id}
+                  type="button"
+                  className={`dm-panel__list-item${
+                    phoneForm.id === line.id ? ' active' : ''
+                  }`}
+                  onClick={() =>
+                    setPhoneForm({
+                      id: line.id || '',
+                      number: line.number || '',
+                      label: line.label || '',
+                      audioId: line.audioId || '',
+                      rellamable: Boolean(line.rellamable),
+                      llamado: Boolean(line.llamado),
+                    })
+                  }
+                >
+                  <strong>{line.label || line.id}</strong>
+                  <span>{line.number || line.audioId}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setPhoneForm({ ...initialPhoneForm });
+                setPhoneMessage('');
+              }}
+            >
+              Nuevo
+            </button>
+          </div>
+
+          <div className="dm-panel__card">
+            <div className="dm-panel__panel-title">Linea / Audio</div>
+            <form onSubmit={handlePhoneSave} className="dm-panel__form dm-panel__form--compact">
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('ID', 'Identificador interno de la linea.')}
+                  <input
+                    type="text"
+                    value={phoneForm.id}
+                    placeholder="Se genera al subir"
+                    readOnly
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Numero', 'Numero para DIAL (ej: 311-399-2364).')}
+                  <input
+                    type="text"
+                    value={phoneForm.number}
+                    onChange={(e) =>
+                      setPhoneForm((prev) => ({ ...prev, number: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Etiqueta', 'Solo para uso interno del DM.')}
+                  <input
+                    type="text"
+                    value={phoneForm.label}
+                    onChange={(e) =>
+                      setPhoneForm((prev) => ({ ...prev, label: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Audio', 'Selecciona el audio asociado.')}
+                  <select
+                    value={phoneForm.audioId}
+                    onChange={(e) =>
+                      setPhoneForm((prev) => ({ ...prev, audioId: e.target.value }))
+                    }
+                  >
+                    <option value="">-- Sin audio --</option>
+                    {audioModels.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.title || item.id}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Rellamable', 'Permite repetir llamadas.')}
+                  <input
+                    type="checkbox"
+                    checked={phoneForm.rellamable}
+                    onChange={(e) =>
+                      setPhoneForm((prev) => ({ ...prev, rellamable: e.target.checked }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Llamado', 'Se activa al primer DIAL.')}
+                  <input
+                    type="checkbox"
+                    checked={phoneForm.llamado}
+                    onChange={(e) =>
+                      setPhoneForm((prev) => ({ ...prev, llamado: e.target.checked }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Audio ID', 'ID auto generado tras subir MP3.')}
+                  <input type="text" value={phoneForm.audioId} readOnly />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Subir MP3', 'Solo .mp3 (max 20MB).')}
+                  <input
+                    type="file"
+                    accept=".mp3"
+                    onChange={(e) => setPhoneFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-actions">
+                <button type="button" onClick={handlePhoneUpload} disabled={phoneUploading}>
+                  {phoneUploading ? 'Subiendo...' : 'Subir MP3'}
+                </button>
+                <button type="submit" disabled={phoneLoading}>
+                  Guardar linea
+                </button>
+                {phoneForm.id && (
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => handlePhoneDelete(phoneForm.id)}
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
+              {phoneMessage && <p className="dm-panel__hint">{phoneMessage}</p>}
+            </form>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+
+  const renderTracerView = () => (
+    <section className="dm-panel__section">
+      <h2 className="dm-panel__section-title">Tracer</h2>
+      <div className="dm-panel__card dm-panel__tracer-shell">
+        <div className="dm-panel__tracer-head">
+          <div className="dm-panel__panel-title">Lineas DM y hotspots de traza</div>
+          <p className="dm-panel__hint">
+            {tracerLines.length} lineas DM / {tracerHotspots.length} hotspots / operador{' '}
+            {tracerWsState.toUpperCase()}
+          </p>
+        </div>
+        {tracerLoading && <p className="dm-panel__hint">Cargando tracer...</p>}
+        {!tracerLoading && !tracerLines.length && (
+          <p className="dm-panel__hint">Sin lineas tracer. Crea una linea y asignale hotspot.</p>
+        )}
+        <div className="dm-panel__tracer-lines-grid">
+          {tracerLines.map((line) => {
+            const linkedSpot = tracerHotspots.find((spot) => spot.id === line.hotspotId);
+            return (
+              <button
+                key={line.id}
+                type="button"
+                className={`dm-panel__list-item dm-panel__tracer-line-item${
+                  tracerLineForm.id === line.id ? ' active' : ''
+                }`}
+                onClick={() => {
+                  setTracerLineForm({
+                    id: line.id || '',
+                    number: line.number || '',
+                    label: line.label || '',
+                    hotspotId: line.hotspotId || '',
+                    enabled: line.enabled !== false,
+                  });
+                  if (linkedSpot) {
+                    setTracerHotspotForm({
+                      id: linkedSpot.id || '',
+                      label: linkedSpot.label || '',
+                      x: String(linkedSpot.x ?? ''),
+                      y: String(linkedSpot.y ?? ''),
+                    });
+                  }
+                }}
+              >
+                <strong>{line.number || line.id}</strong>
+                <span>Linea (DM): {line.label || 'Sin etiqueta'}</span>
+                <span>
+                  hotspot (Agente): {linkedSpot?.label || line.hotspotId || 'sin hotspot'} /{' '}
+                  {line.enabled === false ? 'OFF' : 'ON'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="dm-panel__form-actions">
           <button
             type="button"
             onClick={() => {
-              setEvidenceForm({ ...initialEvidenceForm });
-              setEvidenceFile(null);
-              setEvidenceMessage('');
-              setEvidenceProfile('default');
-              setEvidencePreviewNonce((prev) => prev + 1);
+              setTracerLineForm({ ...initialTracerLineForm });
+              setTracerMessage('');
             }}
           >
-            Nuevo
+            Nueva linea
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTracerHotspotForm({ ...initialTracerHotspotForm });
+              setTracerMessage('');
+            }}
+          >
+            Nuevo hotspot
           </button>
         </div>
 
-        <div className="dm-panel__card">
-          <div className="dm-panel__panel-title">Detalle / Upload</div>
-          <form onSubmit={handleEvidenceSave} className="dm-panel__form">
-            <div className="dm-panel__form-group">
-              <label>
-                {labelRow('ID', 'Identificador interno para la evidencia.')}
-                <input
-                  type="text"
-                  value={evidenceForm.id}
-                  onChange={(e) =>
-                    setEvidenceForm((prev) => ({ ...prev, id: e.target.value }))
-                  }
-                />
-              </label>
-            </div>
-            <div className="dm-panel__form-group">
-              <label>
-                {labelRow('Etiqueta', 'Texto mostrado en el visor ASCII.')}
-                <input
-                  type="text"
-                  value={evidenceForm.label}
-                  onChange={(e) =>
-                    setEvidenceForm((prev) => ({ ...prev, label: e.target.value }))
-                  }
-                />
-              </label>
-            </div>
-            <div className="dm-panel__form-group">
-              <label>
-                {labelRow('Comando SHOW', 'Alias para invocar el modelo (SHOW <alias>).')}
-                <input
-                  type="text"
-                  value={evidenceForm.command}
-                  onChange={(e) =>
-                    setEvidenceForm((prev) => ({ ...prev, command: e.target.value }))
-                  }
-                />
-              </label>
-            </div>
-            <div className="dm-panel__form-group">
-              <label>
-                {labelRow('Perfil ASCII', 'Selecciona el perfil de render en el preview.')}
-                <select
-                  value={evidenceProfile}
-                  onChange={(e) => setEvidenceProfile(e.target.value)}
-                >
-                  <option value="default">Default</option>
-                  <option value="wayne90x30">Wayne 90x30</option>
-                  <option value="normal">Normal</option>
-                </select>
-              </label>
-            </div>
-            <div className="dm-panel__form-group">
-              <label>
-                {labelRow('Ruta STL', 'Ruta generada tras subir el archivo.')}
-                <input type="text" value={evidenceForm.stlPath} readOnly />
-              </label>
-            </div>
-            <div className="dm-panel__form-group">
-              <label>
-                {labelRow('Subir STL', 'Solo .stl (max 20MB).')}
-                <input
-                  type="file"
-                  accept=".stl"
-                  onChange={(e) => setEvidenceFile(e.target.files?.[0] || null)}
-                />
-              </label>
-            </div>
-            <div className="dm-panel__form-actions">
-              <button type="button" onClick={handleEvidenceUpload} disabled={evidenceUploading}>
-                {evidenceUploading ? 'Subiendo...' : 'Subir STL'}
-              </button>
-              <button type="submit" disabled={evidenceLoading}>
-                Guardar evidencia
-              </button>
-              {evidenceForm.id && (
+        <div className="dm-panel__tracer-workspace">
+          <div className="dm-panel__card dm-panel__tracer-map-card">
+            <div className="dm-panel__panel-title">Hotspot (visible para Agentes)</div>
+            {!tracerHotspots.length && !tracerLoading && (
+              <p className="dm-panel__hint">Sin hotspots tracer.</p>
+            )}
+            <div className="dm-panel__tracer-hotspot-strip">
+              {tracerHotspots.map((spot) => (
                 <button
+                  key={spot.id}
                   type="button"
-                  className="danger"
-                  onClick={() => handleEvidenceDelete(evidenceForm.id)}
+                  className={`dm-panel__pill${
+                    tracerHotspotForm.id === spot.id ? ' active' : ''
+                  }`}
+                  onClick={() =>
+                    setTracerHotspotForm({
+                      id: spot.id || '',
+                      label: spot.label || '',
+                      x: String(spot.x ?? ''),
+                      y: String(spot.y ?? ''),
+                    })
+                  }
                 >
-                  Eliminar
+                  {spot.label || spot.id}
                 </button>
-              )}
+              ))}
             </div>
-            {evidenceMessage && <p className="dm-panel__hint">{evidenceMessage}</p>}
-          </form>
-          <div className="dm-panel__preview dm-panel__preview--evidence">
-            <div className="dm-panel__panel-title">Preview ASCII</div>
-            <div className="dm-panel__evidence-preview" ref={evidencePreviewRef} />
+            <form
+              onSubmit={handleTracerHotspotSave}
+              className="dm-panel__form dm-panel__form--compact dm-panel__form--tracer-hotspot"
+            >
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('ID hotspot', 'Identificador tracer independiente de POIs.')}
+                  <input
+                    type="text"
+                    value={tracerHotspotForm.id}
+                    onChange={(e) =>
+                      setTracerHotspotForm((prev) => ({ ...prev, id: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Label hotspot', 'Texto que se mostrara al agente al resolver la traza.')}
+                  <input
+                    type="text"
+                    value={tracerHotspotForm.label}
+                    onChange={(e) =>
+                      setTracerHotspotForm((prev) => ({ ...prev, label: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__map-picker dm-panel__map-picker--compact">
+                <PoiMapPicker
+                  aspectRatio={MAP_ASPECT_RATIO}
+                  imageUrl={MAP_IMAGE}
+                  markerStyle={tracerMarkerStyle}
+                  markerLabel={tracerMarkerLabel}
+                  values={{
+                    x: tracerHotspotForm.x,
+                    y: tracerHotspotForm.y,
+                    radius: '',
+                    label: tracerHotspotForm.label,
+                  }}
+                  onValueChange={(next = {}) =>
+                    setTracerHotspotForm((prev) => ({
+                      ...prev,
+                      x: next.mapX !== undefined ? next.mapX : prev.x,
+                      y: next.mapY !== undefined ? next.mapY : prev.y,
+                      label: next.mapLabel !== undefined ? next.mapLabel : prev.label,
+                    }))
+                  }
+                  onClamp={clampNumber}
+                  mapGridStep={MAP_GRID_STEP}
+                  mapFineOpen={false}
+                  showFineButton={false}
+                  showExpandButton={false}
+                  expanded={tracerMapExpanded}
+                  onExpandedChange={setTracerMapExpanded}
+                  afterPreview={
+                    <div className="dm-panel__form-actions dm-panel__tracer-map-actions">
+                      <button
+                        type="button"
+                        className="dm-panel__ghost"
+                        onClick={() => setTracerMapExpanded(true)}
+                      >
+                        Expandir mapa
+                      </button>
+                      <button type="submit" disabled={tracerLoading}>
+                        Guardar hotspot
+                      </button>
+                      {tracerHotspotForm.id && (
+                        <button
+                          type="button"
+                          className="danger"
+                          onClick={() => handleTracerHotspotDelete(tracerHotspotForm.id)}
+                        >
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+                  }
+                  labelRow={labelRow}
+                  onClearCoords={() =>
+                    setTracerHotspotForm((prev) => ({
+                      ...prev,
+                      x: '',
+                      y: '',
+                    }))
+                  }
+                  onPick={handleTracerMapPick}
+                />
+                <p className="dm-panel__hint">
+                  Click en el mapa para fijar coordenadas (snap {MAP_GRID_STEP}%).
+                </p>
+              </div>
+            </form>
+          </div>
+
+          <div className="dm-panel__card">
+            <div className="dm-panel__panel-title">Linea asociada al hotspot</div>
+            <form
+              onSubmit={handleTracerLineSave}
+              className="dm-panel__form dm-panel__form--compact dm-panel__form--tracer-line"
+            >
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Numero', 'Identificador unico de la linea (DB) y usado por TRACER #TELEFONO.')}
+                  <input
+                    type="text"
+                    value={tracerLineForm.number}
+                    onChange={(e) =>
+                      setTracerLineForm((prev) => ({ ...prev, number: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Label linea (DM)', 'Alias operativo para el DM (no es ID tecnico).')}
+                  <input
+                    type="text"
+                    value={tracerLineForm.label}
+                    onChange={(e) =>
+                      setTracerLineForm((prev) => ({ ...prev, label: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Hotspot', 'Hotspot custom donde trazar.')}
+                  <select
+                    value={tracerLineForm.hotspotId}
+                    onChange={(e) =>
+                      setTracerLineForm((prev) => ({ ...prev, hotspotId: e.target.value }))
+                    }
+                  >
+                    <option value="">-- Selecciona hotspot --</option>
+                    {tracerHotspots.map((spot) => (
+                      <option key={spot.id} value={spot.id}>
+                        {spot.label || spot.id}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="dm-panel__form-group">
+                <label>
+                  {labelRow('Activa', 'Si esta OFF, TRACER devolvera linea no valida.')}
+                  <input
+                    type="checkbox"
+                    checked={Boolean(tracerLineForm.enabled)}
+                    onChange={(e) =>
+                      setTracerLineForm((prev) => ({ ...prev, enabled: e.target.checked }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="dm-panel__form-actions">
+                <button type="submit" disabled={tracerLoading}>
+                  Guardar linea
+                </button>
+                {(tracerLineForm.id || tracerLineForm.number) && (
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => handleTracerLineDelete(tracerLineForm.id || tracerLineForm.number)}
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
+            </form>
+            {tracerMessage && <p className="dm-panel__hint">{tracerMessage}</p>}
           </div>
         </div>
       </div>
@@ -3957,134 +5969,153 @@ const DmPanel = () => {
                 {authLoading ? 'Verificando...' : 'Desbloquear panel'}
               </button>
               <p className="dm-panel__hint">
-                El servidor Node inicializa la contraseña con <code>DM_DEFAULT_PASSWORD</code>
-                (por defecto: <code>brother</code>). Puedes cambiarla una vez estes dentro.
+                La contraseña inicial se define en <code>DM_DEFAULT_PASSWORD</code> del
+                servidor. Cambiala al entrar.
               </p>
             </form>
           ) : (
-            <div className="dm-panel__card dm-panel__card--unlocked">
-              <p>Panel desbloqueado. Gestiona los casos activos.</p>
-              {sessionInfo?.expiresAt && (
-                <p className="dm-panel__hint">
-                  Sesion expira: {new Date(Number(sessionInfo.expiresAt)).toLocaleString()}
-                </p>
-              )}
-              <button type="button" onClick={handleLogout}>
-                Cerrar sesion
-              </button>
+            <div className="dm-panel__card dm-panel__card--unlocked dm-panel__session-strip">
+              <div className="dm-panel__session-copy">
+                <p>Panel desbloqueado. Gestiona los casos activos.</p>
+                {sessionInfo?.expiresAt && (
+                  <p className="dm-panel__hint">
+                    Sesion expira: {formatDateTime(sessionInfo.expiresAt, 'sin dato')}
+                  </p>
+                )}
+              </div>
+              <div className="dm-panel__session-actions">
+                <button
+                  type="button"
+                  className="dm-panel__ghost dm-panel__ghost--utility"
+                  aria-expanded={accountOpen}
+                  onClick={() => setAccountOpen((prev) => !prev)}
+                >
+                  {accountOpen ? 'Ocultar seguridad' : 'Cuenta / Seguridad'}
+                </button>
+                <button
+                  type="button"
+                  className="dm-panel__ghost dm-panel__ghost--danger"
+                  onClick={handleLogout}
+                >
+                  Cerrar sesion
+                </button>
+              </div>
             </div>
           )}
 
-          {authorized && (
-            <div className={`dm-panel__accordion ${accountOpen ? 'open' : ''}`}>
-              <button
-                type="button"
-                className="dm-panel__accordion-toggle"
-                onClick={() => setAccountOpen((prev) => !prev)}
-              >
-                <span>Cuenta / Seguridad</span>
-                <span className="dm-panel__accordion-icon">{accountOpen ? '▾' : '▸'}</span>
-              </button>
-              {accountOpen && (
-                <div className="dm-panel__accordion-body">
-                  <form
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      setPasswordStatus('');
-                      setPasswordError('');
-                      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-                        setPasswordError('Las nuevas contraseñas no coinciden.');
-                        return;
+          {authorized && accountOpen && (
+            <div className="dm-panel__accordion open">
+              <div className="dm-panel__accordion-body">
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setPasswordStatus('');
+                    setPasswordError('');
+                    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+                      setPasswordError('Las nuevas contraseñas no coinciden.');
+                      return;
+                    }
+                    try {
+                      setPasswordLoading(true);
+                      const res = await fetch(`${AUTH_ENDPOINT}/password`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          Authorization: `Bearer ${sessionToken}`,
+                        },
+                        body: JSON.stringify({
+                          currentPassword: passwordForm.currentPassword,
+                          newPassword: passwordForm.newPassword,
+                        }),
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) throw new Error(data.message || 'No se pudo actualizar.');
+                      setPasswordStatus('Contraseña actualizada. Vuelve a iniciar sesion.');
+                      setPasswordForm({
+                        currentPassword: '',
+                        newPassword: '',
+                        confirmPassword: '',
+                      });
+                      await handleLogout();
+                    } catch (error) {
+                      setPasswordError(error.message);
+                    } finally {
+                      setPasswordLoading(false);
+                    }
+                  }}
+                  className="dm-panel__card"
+                >
+                  <h2>Actualizar contraseña</h2>
+                  <label>
+                    Contraseña actual
+                    <input
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          currentPassword: e.target.value,
+                        }))
                       }
-                      try {
-                        setPasswordLoading(true);
-                        const res = await fetch(`${AUTH_ENDPOINT}/password`, {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${sessionToken}`,
-                          },
-                          body: JSON.stringify({
-                            currentPassword: passwordForm.currentPassword,
-                            newPassword: passwordForm.newPassword,
-                          }),
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok) throw new Error(data.message || 'No se pudo actualizar.');
-                        setPasswordStatus('Contraseña actualizada. Vuelve a iniciar sesion.');
-                        setPasswordForm({
-                          currentPassword: '',
-                          newPassword: '',
-                          confirmPassword: '',
-                        });
-                        await handleLogout();
-                      } catch (error) {
-                        setPasswordError(error.message);
-                      } finally {
-                        setPasswordLoading(false);
+                    />
+                  </label>
+                  <label>
+                    Nueva contraseña
+                    <input
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(e) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          newPassword: e.target.value,
+                        }))
                       }
-                    }}
-                    className="dm-panel__card"
-                  >
-                    <h2>Actualizar contraseña</h2>
-                    <label>
-                      Contraseña actual
-                      <input
-                        type="password"
-                        value={passwordForm.currentPassword}
-                        onChange={(e) =>
-                          setPasswordForm((prev) => ({
-                            ...prev,
-                            currentPassword: e.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    <label>
-                      Nueva contraseña
-                      <input
-                        type="password"
-                        value={passwordForm.newPassword}
-                        onChange={(e) =>
-                          setPasswordForm((prev) => ({
-                            ...prev,
-                            newPassword: e.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    <label>
-                      Repite la nueva contraseña
-                      <input
-                        type="password"
-                        value={passwordForm.confirmPassword}
-                        onChange={(e) =>
-                          setPasswordForm((prev) => ({
-                            ...prev,
-                            confirmPassword: e.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    {passwordError && <p className="dm-panel__error">{passwordError}</p>}
-                    {passwordStatus && <p className="dm-panel__hint">{passwordStatus}</p>}
-                    <button type="submit" disabled={passwordLoading}>
-                      {passwordLoading ? 'Actualizando...' : 'Guardar nueva contraseña'}
-                    </button>
-                  </form>
-                </div>
-              )}
+                    />
+                  </label>
+                  <label>
+                    Repite la nueva contraseña
+                    <input
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          confirmPassword: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  {passwordError && <p className="dm-panel__error">{passwordError}</p>}
+                  {passwordStatus && <p className="dm-panel__hint">{passwordStatus}</p>}
+                  <button type="submit" disabled={passwordLoading}>
+                    {passwordLoading ? 'Actualizando...' : 'Guardar nueva contraseña'}
+                  </button>
+                </form>
+              </div>
             </div>
           )}
+
         </section>
 
         {authorized && (
           <>
-            {renderNav()}
+            <div className="dm-panel__workspace-top">
+              {renderNav()}
+              {transientNotice && (
+                <div
+                  className={`dm-panel__flash dm-panel__flash--${transientNotice.tone}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {transientNotice.text}
+                </div>
+              )}
+            </div>
             {activeView === 'cases' && renderCaseView()}
             {activeView === 'pois' && renderPoiView()}
             {activeView === 'villains' && renderVillainView()}
             {activeView === 'evidence' && renderEvidenceView()}
+            {activeView === 'tracer' && renderTracerView()}
             {activeView === 'access' && renderAccessView()}
             {activeView === 'campaign' && renderCampaignView()}
           </>

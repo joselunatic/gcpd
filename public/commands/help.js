@@ -1,7 +1,19 @@
 const output = [
   " ",
-  "Comandos disponibles:",
-  "help, map, cases (modules), case, villains, status, summary, flags, last, matrix, dialer, clear, logout, touch, show joker, show bala, show <evidencia>, exit",
+  "COMANDOS TERMINALOS DISPONIBLES:",
+  " ",
+  "NAVEGACION / ESTADO:",
+  "HELP, STATUS, SUMMARY, FLAGS, LAST, MAP, CASES, MODULES, CASE <id>, VILLAINS",
+  " ",
+  "VISUAL / MEDIA:",
+  "SHOW W | SHOW JOKER | SHOW BALA | SHOW <evidencia-id>",
+  "AUDIO [id], BALLISTICA",
+  " ",
+  "COMUNICACIONES:",
+  "DIAL <telefono>, DIALER, TRACER <telefono>",
+  " ",
+  "SISTEMA:",
+  "CLEAR, TOUCH [ON|OFF], LOGOUT, EXIT, QUIT, HELLO",
   " ",
 ];
 

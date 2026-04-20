@@ -1,4 +1,4 @@
-import { prompt, type } from "/utils/io.js";
+import { prompt, type, parse } from "/utils/io.js";
 import {
   evaluateAccess,
   evaluateAttributeAccess,
@@ -252,12 +252,20 @@ async function handleCustomCommand(input) {
 
 async function handleHelp() {
   await type([
-    "COMANDOS:",
-    "INFO <ENTIDAD> <ATRIBUTO>",
-    "SCAN <ENTIDAD>",
-    "SHOW JOKER | SHOW BALA | SHOW <EVIDENCIA>",
-    "HELP",
-    "EXIT | BYE | HANGUP",
+    "COMANDOS DISPONIBLES:",
+    "MAP - Matriz cartografica",
+    "CASES - Expedientes",
+    "CASE <ID> - Detalle de expediente",
+    "VILLAINS - Rogue gallery",
+    "STATUS / FLAGS / SUMMARY / LAST / MATRIX / CLEAR",
+    "SHOW - Batescaner 3D",
+    "BALISTICA - Comparador balistico grafico",
+    "AUDIO - Audioregistros",
+    "DIAL - Linea telefonica externa",
+    "TRACER #TELEFONO - Trazado remoto con operador DM",
+    "HELP - Lista comandos disponibles",
+    "EXIT - Cierra la sesion",
+    "LOGOUT - Cierra sesion principal",
   ]);
 }
 
@@ -301,6 +309,31 @@ async function handleOsCommand(rawInput) {
       return { exit: false };
     }
   }
+  if (command === "audio") {
+    const target = String(tokens[1] || "").toLowerCase();
+    const module = await import("/commands/audio.js");
+    if (module?.startAudio) {
+      const id = target || "dkb";
+      await module.startAudio({ id });
+      return { exit: false };
+    }
+  }
+  if (command === "dial") {
+    const number = input.slice(command.length).trim();
+    const module = await import("/commands/dial.js");
+    if (module?.startDial) {
+      await module.startDial({ number });
+      return { exit: false };
+    }
+  }
+  if (command === "tracer") {
+    const number = input.slice(command.length).trim();
+    const module = await import("/commands/tracer.js");
+    if (module?.startTracer) {
+      await module.startTracer({ number });
+      return { exit: false };
+    }
+  }
 
   if (FIND_COMMANDS.includes(command)) {
     await handleFindCommand(tokens);
@@ -310,7 +343,7 @@ async function handleOsCommand(rawInput) {
   const customMatched = await handleCustomCommand(input);
   if (customMatched) return { exit: false };
 
-  await type("COMANDO NO RECONOCIDO.");
+  await parse(input);
   return { exit: false };
 }
 

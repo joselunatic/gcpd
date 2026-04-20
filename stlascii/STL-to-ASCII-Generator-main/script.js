@@ -107,7 +107,8 @@ const profiles = {
         mode: 'ascii',
         flatShading: true,
         roughness: .35,
-        metalness: .1
+        metalness: .1,
+        cutoffThreshold: .08
     },
     normal: {
         name: 'Normal',
@@ -116,7 +117,8 @@ const profiles = {
         mode: 'render',
         flatShading: true,
         roughness: .35,
-        metalness: .1
+        metalness: .1,
+        cutoffThreshold: .08
     },
     wayne90x30: {
         name: 'Wayne 90x30',
@@ -125,7 +127,8 @@ const profiles = {
         mode: 'ascii',
         flatShading: false,
         roughness: .95,
-        metalness: 0
+        metalness: 0,
+        cutoffThreshold: .12
     }
 };
 let currentProfile = 'default';
@@ -138,8 +141,50 @@ const GRID_TARGET = { cols: 90, rows: 30 };
 const profileSelect = document.getElementById('profileSelect');
 const scanlineToggle = document.getElementById('scanlineToggle');
 const gridReadout = document.getElementById('gridReadout');
+const cleanCutoffToggle = document.getElementById('cleanCutoffToggle');
+const cleanCutoffSlider = document.getElementById('cleanCutoffSlider');
+const cleanCutoffReadout = document.getElementById('cleanCutoffReadout');
+
+let baseCharacters = profiles.default.characters;
+let cleanBackgroundEnabled = true;
+let cleanBackgroundThreshold = profiles.default.cutoffThreshold || 0.08;
+
+function buildCharacterSet(source) {
+    const threshold = cleanBackgroundEnabled ? cleanBackgroundThreshold : 0;
+    const pool = Math.max(source.length, 12);
+    const extraSpaces = Math.round(threshold * pool);
+    const spaceChunk = ' '.repeat(Math.max(0, extraSpaces));
+    return `${spaceChunk}${source}`;
+}
+
+function refreshCleanReadout() {
+    if (!cleanCutoffReadout) return;
+    if (cleanBackgroundEnabled) {
+        cleanCutoffReadout.textContent = `Cutoff: ${cleanBackgroundThreshold.toFixed(3)}`;
+    } else {
+        cleanCutoffReadout.textContent = 'Cutoff: off';
+    }
+}
+
+function refreshEffectCharacters() {
+    if (outputMode !== 'ascii') return;
+    if (effect?.domElement?.parentNode) {
+        effect.domElement.parentNode.removeChild(effect.domElement);
+    }
+    createEffect();
+    attachOutput();
+    createOrbitControls();
+}
+
+function setBaseCharacters(value, skipRefresh = false) {
+    baseCharacters = value || profiles.default.characters;
+    if (!skipRefresh && outputMode === 'ascii') {
+        refreshEffectCharacters();
+    }
+}
 
 function createEffect() {
+    characters = buildCharacterSet(baseCharacters);
     effect = new THREE.AsciiEffect(renderer, characters, { invert: true, resolution: effectSize.amount });
     effect.setSize(sizes.width, sizes.height);
     effect.domElement.style.color = ASCIIColor;
@@ -234,7 +279,10 @@ function captureProfileState(profileKey) {
         scale: document.getElementById('scaleSlider')?.value,
         fontSize: effect?.domElement?.style?.fontSize || '',
         lineHeight: effect?.domElement?.style?.lineHeight || '',
-        scanlines: asciiContainer.classList.contains('ascii-scanlines')
+        scanlines: asciiContainer.classList.contains('ascii-scanlines'),
+        baseCharacters,
+        cleanBackgroundEnabled,
+        cleanBackgroundThreshold
     };
 }
 
@@ -263,6 +311,13 @@ function applyProfileState(state) {
     if (scanlineToggle) scanlineToggle.checked = Boolean(state.scanlines);
     updateRotateModelButtonUI();
     updateRotateLightButtonUI();
+    baseCharacters = state.baseCharacters || baseCharacters;
+    cleanBackgroundEnabled = state.cleanBackgroundEnabled ?? cleanBackgroundEnabled;
+    cleanBackgroundThreshold = state.cleanBackgroundThreshold ?? cleanBackgroundThreshold;
+    if (cleanCutoffToggle) cleanCutoffToggle.checked = cleanBackgroundEnabled;
+    if (cleanCutoffSlider) cleanCutoffSlider.value = cleanBackgroundThreshold;
+    refreshCleanReadout();
+    refreshEffectCharacters();
 }
 
 function measureChar() {
@@ -313,6 +368,12 @@ function applyProfile(profileKey) {
     characters = profile.characters;
     effectSize.amount = profile.effectResolution;
     outputMode = profile.mode || 'ascii';
+    baseCharacters = profile.characters;
+    cleanBackgroundEnabled = true;
+    cleanBackgroundThreshold = profile.cutoffThreshold ?? cleanBackgroundThreshold;
+    if (cleanCutoffToggle) cleanCutoffToggle.checked = cleanBackgroundEnabled;
+    if (cleanCutoffSlider) cleanCutoffSlider.value = cleanBackgroundThreshold;
+    refreshCleanReadout();
 
     if (outputMode === 'ascii') {
         createEffect();
@@ -492,7 +553,7 @@ function updateASCII() {
 
     if (effect?.domElement?.parentNode) effect.domElement.parentNode.removeChild(effect.domElement)
 
-    characters = " " + "." + document.getElementById('newASCII').value;
+    setBaseCharacters(" " + "." + document.getElementById('newASCII').value, true);
 
     createEffect()
     onWindowResize()
@@ -510,7 +571,7 @@ function resetASCII() {
 
     if (effect?.domElement?.parentNode) effect.domElement.parentNode.removeChild(effect.domElement)
 
-    characters = ' .:-+*=%@#'
+    setBaseCharacters(' .:-+*=%@#', true);
 
     createEffect()
     onWindowResize()
@@ -598,6 +659,28 @@ if (scanlineToggle) {
     });
     scanlineToggle.disabled = true;
 }
+
+if (cleanCutoffToggle) {
+    cleanCutoffToggle.checked = cleanBackgroundEnabled;
+    cleanCutoffToggle.addEventListener('change', (event) => {
+        cleanBackgroundEnabled = event.target.checked;
+        refreshCleanReadout();
+        refreshEffectCharacters();
+    });
+}
+
+if (cleanCutoffSlider) {
+    cleanCutoffSlider.value = cleanBackgroundThreshold;
+    cleanCutoffSlider.addEventListener('input', (event) => {
+        cleanBackgroundThreshold = parseFloat(event.target.value) || cleanBackgroundThreshold;
+        refreshCleanReadout();
+        if (cleanBackgroundEnabled) {
+            refreshEffectCharacters();
+        }
+    });
+}
+
+refreshCleanReadout();
 
 function download(filename, text) {
     var element = document.createElement('a');

@@ -45,6 +45,28 @@ function say(text, pitch = 0.6, rate = 0.6) {
   });
 }
 
+function sayForced(text, pitch = 0.6, rate = 0.6) {
+  if (volume === 0) return Promise.resolve();
+  if (synth.speaking) {
+    synth.pause();
+    synth.cancel();
+  }
+  let spokenText = text;
+  if (Array.isArray(spokenText)) {
+    spokenText = spokenText.join(".");
+  }
+  return new Promise((resolve) => {
+    const utterance = new SpeechSynthesisUtterance(spokenText);
+    utterance.pitch = pitch;
+    utterance.rate = rate;
+    utterance.volume = volume;
+    utterance.lang = "es-ES";
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+    synth.speak(utterance);
+  });
+}
+
 function stopSpeaking() {
   if (!speechEnabled) return;
   if (synth) {
@@ -56,5 +78,5 @@ function stopSpeaking() {
 function setVolume(value) {
   volume = value;
 }
-export { stopSpeaking, setVolume };
+export { stopSpeaking, setVolume, sayForced };
 export default say;

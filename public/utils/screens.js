@@ -1640,6 +1640,7 @@ export {
   osMenu,
   dialer,
   handleDialerSelection,
+  playDialAnimation,
   restoreTerminalState,
   shouldAllowResume,
   getTerminalState,
