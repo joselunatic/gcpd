@@ -8,7 +8,7 @@ const QuestCanvas = () => {
   return (
     <div className="quest-canvas-shell">
       <Canvas
-        camera={{ position: [0, 1.6, 2.35], fov: 56 }}
+        camera={{ position: [0, 1.52, 3.15], fov: 50 }}
         dpr={[1, 1.75]}
         gl={{ antialias: true, alpha: true }}
       >

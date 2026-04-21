@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
 
 import './App.css'
@@ -8,7 +8,8 @@ import UpdateBanner from './components/UpdateBanner'
 import DmPanel from './components/DmPanel'
 import DocsPage from './components/DocsPage'
 import PhonePanel from './components/PhonePanel'
-import QuestRoute from './quest/QuestRoute'
+
+const QuestRoute = lazy(() => import('./quest/QuestRoute'))
 
 const TerminalShell = () => {
   const isDevFast =
@@ -43,7 +44,14 @@ const App = () => {
       <Route path="/docs" element={<DocsPage />} />
       <Route path="/dm" element={<DmPanel />} />
       <Route path="/phone" element={<PhonePanel />} />
-      <Route path="/quest/*" element={<QuestRoute />} />
+      <Route
+        path="/quest/*"
+        element={
+          <Suspense fallback={<div className="pc-container" />}>
+            <QuestRoute />
+          </Suspense>
+        }
+      />
       <Route path="/*" element={<TerminalShell />} />
     </Routes>
   )

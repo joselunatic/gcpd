@@ -56,7 +56,7 @@ const QuestButton = ({ title, subtitle, position, onClick, accent = false }) => 
 
   return (
     <mesh position={position} onClick={onClick}>
-      <planeGeometry args={[1.7, 0.42]} />
+      <planeGeometry args={[1.52, 0.36]} />
       <meshBasicMaterial map={texture || null} transparent />
     </mesh>
   );
@@ -71,6 +71,7 @@ const QuestPanel3D = ({
   onBack,
   onHome,
   position = [0, 1.6, -1.4],
+  scale = 1,
 }) => {
   const titleTexture = useLabelTexture({
     title,
@@ -88,9 +89,9 @@ const QuestPanel3D = ({
   });
 
   return (
-    <group position={position}>
+    <group position={position} scale={scale}>
       <mesh position={[0, 0, -0.02]}>
-        <planeGeometry args={[2.15, 2.05]} />
+        <planeGeometry args={[1.84, 1.72]} />
         <meshStandardMaterial
           color="#061018"
           transparent
@@ -101,7 +102,7 @@ const QuestPanel3D = ({
       </mesh>
 
       <mesh position={[0, 0.73, 0]}>
-        <planeGeometry args={[1.9, 0.38]} />
+        <planeGeometry args={[1.58, 0.31]} />
         <meshBasicMaterial map={titleTexture || null} transparent />
       </mesh>
 
@@ -110,13 +111,13 @@ const QuestPanel3D = ({
           key={item.id || index}
           title={item.label}
           subtitle={item.description}
-          position={[0, 0.22 - index * 0.48, 0.02]}
+          position={[0, 0.22 - index * 0.4, 0.02]}
           onClick={() => onSelect?.(item.id)}
         />
       ))}
 
-      <mesh position={[0, -0.82, 0]}>
-        <planeGeometry args={[1.9, 0.32]} />
+      <mesh position={[0, -0.62, 0]}>
+        <planeGeometry args={[1.58, 0.27]} />
         <meshBasicMaterial map={hintTexture || null} transparent />
       </mesh>
 
@@ -124,7 +125,7 @@ const QuestPanel3D = ({
         <QuestButton
           title="BACK"
           subtitle="Return to previous panel"
-          position={[-0.5, -1.18, 0.03]}
+          position={[-0.44, -0.94, 0.03]}
           onClick={onBack}
         />
       ) : null}
@@ -133,7 +134,7 @@ const QuestPanel3D = ({
         <QuestButton
           title="HOME"
           subtitle="Return to quest root"
-          position={[0.5, -1.18, 0.03]}
+          position={[0.44, -0.94, 0.03]}
           onClick={onHome}
         />
       ) : null}

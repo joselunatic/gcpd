@@ -24,7 +24,8 @@ const QuestShell = () => {
         onSelect={screen.onSelect}
         onBack={screen.onBack}
         onHome={screen.onHome}
-        position={[0, 1.6, -1.4]}
+        position={[0, 1.22, -1.45]}
+        scale={0.82}
       />
     </group>
   );
