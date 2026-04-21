@@ -40,6 +40,16 @@
   cursor: pointer;
 }
 
+.quest-session-controls__badge {
+  border: 1px solid rgba(122, 213, 255, 0.28);
+  background: rgba(9, 24, 35, 0.9);
+  color: #dff6ff;
+  padding: 0.7rem 0.9rem;
+  font: 600 0.85rem/1.2 "Share Tech Mono", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
 .quest-session-controls p {
   margin: 0;
   color: #8cb9d4;

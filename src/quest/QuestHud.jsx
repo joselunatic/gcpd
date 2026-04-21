@@ -1,4 +1,20 @@
-const QuestHud = ({ data, navigation }) => {
+const EMPTY_DATA = {
+  loading: true,
+  error: '',
+  cases: [],
+  pois: [],
+  villains: [],
+};
+
+const EMPTY_NAVIGATION = {
+  goHome: () => {},
+  openCases: () => {},
+  openPois: () => {},
+  openVillains: () => {},
+  goBack: () => {},
+};
+
+const QuestHud = ({ data = EMPTY_DATA, navigation = EMPTY_NAVIGATION }) => {
   return (
     <div className="quest-hud">
       <div className="quest-hud__card">
