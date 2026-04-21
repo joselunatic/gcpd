@@ -2,13 +2,8 @@ import { useMemo } from 'react';
 
 import QuestPanel3D from './components/QuestPanel3D';
 import { buildQuestScreen } from './domain/mapTerminalToQuest';
-import { useQuestData } from './hooks/useQuestData';
-import { useQuestNavigation } from './hooks/useQuestNavigation';
 
-const QuestShell = () => {
-  const data = useQuestData();
-  const navigation = useQuestNavigation();
-
+const QuestShell = ({ data, navigation }) => {
   const screen = useMemo(
     () => buildQuestScreen({ data, navigation }),
     [data, navigation]

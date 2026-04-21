@@ -3,7 +3,7 @@ import { IfInSessionMode } from '@react-three/xr';
 
 import QuestShell from './QuestShell';
 
-const QuestScene = () => {
+const QuestScene = ({ data, navigation }) => {
   return (
     <>
       <color attach="background" args={['#071019']} />
@@ -18,6 +18,10 @@ const QuestScene = () => {
           <planeGeometry args={[12, 8]} />
           <meshBasicMaterial color="#102433" />
         </mesh>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}>
+          <circleGeometry args={[10, 64]} />
+          <meshBasicMaterial color="#08131a" />
+        </mesh>
       </IfInSessionMode>
 
       <IfInSessionMode allow="immersive-vr">
@@ -27,7 +31,7 @@ const QuestScene = () => {
         </mesh>
       </IfInSessionMode>
 
-      <QuestShell />
+      <QuestShell data={data} navigation={navigation} />
     </>
   );
 };

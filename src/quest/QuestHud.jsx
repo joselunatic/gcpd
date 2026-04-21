@@ -1,8 +1,4 @@
-import { useQuestData } from './hooks/useQuestData';
-
-const QuestHud = () => {
-  const data = useQuestData();
-
+const QuestHud = ({ data, navigation }) => {
   return (
     <div className="quest-hud">
       <div className="quest-hud__card">
@@ -17,6 +13,23 @@ const QuestHud = () => {
           <span>cases {data.cases.length}</span>
           <span>pois {data.pois.length}</span>
           <span>villains {data.villains.length}</span>
+        </div>
+        <div className="quest-hud__nav">
+          <button type="button" onClick={navigation.goHome}>
+            Home
+          </button>
+          <button type="button" onClick={navigation.openCases}>
+            Cases
+          </button>
+          <button type="button" onClick={navigation.openPois}>
+            POIs
+          </button>
+          <button type="button" onClick={navigation.openVillains}>
+            Villains
+          </button>
+          <button type="button" onClick={navigation.goBack}>
+            Back
+          </button>
         </div>
         {data.error ? (
           <p className="quest-hud__status quest-hud__status--error">

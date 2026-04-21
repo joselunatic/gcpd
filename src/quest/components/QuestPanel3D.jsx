@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unknown-property */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 
 const createLabelTexture = ({
@@ -52,13 +52,35 @@ const useLabelTexture = (config) => {
 };
 
 const QuestButton = ({ title, subtitle, position, onClick, accent = false }) => {
+  const [hovered, setHovered] = useState(false);
   const texture = useLabelTexture({ title, subtitle, accent });
 
   return (
-    <mesh position={position} onClick={onClick}>
+    <group position={position}>
+      <mesh position={[0, 0, -0.012]}>
+        <planeGeometry args={[1.58, 0.42]} />
+        <meshBasicMaterial
+          color={hovered ? '#1d4a63' : '#0a1822'}
+          transparent
+          opacity={hovered ? 0.95 : 0.82}
+        />
+      </mesh>
+      <mesh
+        onClick={onClick}
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+        scale={hovered ? 1.03 : 1}
+      >
       <planeGeometry args={[1.52, 0.36]} />
       <meshBasicMaterial map={texture || null} transparent />
-    </mesh>
+      </mesh>
+      {hovered ? (
+        <mesh position={[0.84, 0, 0.015]}>
+          <planeGeometry args={[0.08, 0.08]} />
+          <meshBasicMaterial color="#b4efff" transparent opacity={0.95} />
+        </mesh>
+      ) : null}
+    </group>
   );
 };
 

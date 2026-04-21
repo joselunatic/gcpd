@@ -101,6 +101,29 @@
   letter-spacing: 0.08em;
 }
 
+.quest-hud__nav {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+}
+
+.quest-hud__nav button {
+  border: 1px solid rgba(122, 213, 255, 0.26);
+  background: rgba(8, 23, 34, 0.88);
+  color: #dff5ff;
+  padding: 0.36rem 0.54rem;
+  font: 0.72rem/1.2 "Share Tech Mono", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.quest-hud__nav button:hover {
+  border-color: rgba(180, 239, 255, 0.5);
+  background: rgba(15, 40, 57, 0.95);
+}
+
 .quest-hud__status {
   margin-top: 0.85rem !important;
   color: #7cb9d4 !important;
