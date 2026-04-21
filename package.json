@@ -13,6 +13,8 @@
     "gen-ballistics-assets": "node scripts/gen-ballistics-assets.mjs"
   },
   "dependencies": {
+    "@react-three/fiber": "^8.17.14",
+    "@react-three/xr": "^6.6.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.4.1",
     "canvas": "^3.2.1",

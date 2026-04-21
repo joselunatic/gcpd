@@ -1,3 +1,4 @@
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -52,6 +53,18 @@ const spaHistoryFallback = () => {
 export default defineConfig({
   plugins: [spaHistoryFallback(), react()],
   resolve: {
+    alias: [
+      {
+        find: /^zustand$/,
+        replacement: fileURLToPath(new URL('./src/quest/shims/zustand.js', import.meta.url)),
+      },
+      {
+        find: /^zustand\/shallow$/,
+        replacement: fileURLToPath(
+          new URL('./src/quest/shims/zustand-shallow.js', import.meta.url)
+        ),
+      },
+    ],
     dedupe: ['react', 'react-dom'],
   },
   server: {
