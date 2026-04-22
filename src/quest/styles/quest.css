@@ -14,6 +14,130 @@
   inset: 0;
 }
 
+.quest-preflight {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 1.2rem;
+  pointer-events: none;
+}
+
+.quest-preflight__panel {
+  width: min(44rem, calc(100vw - 2rem));
+  padding: 1.4rem 1.5rem;
+  border: 1px solid rgba(142, 226, 255, 0.34);
+  background:
+    linear-gradient(180deg, rgba(7, 18, 27, 0.94), rgba(4, 10, 15, 0.9)),
+    radial-gradient(circle at top left, rgba(84, 192, 230, 0.18), transparent 38%);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(155, 230, 255, 0.08);
+  backdrop-filter: blur(14px);
+  color: #e8f8ff;
+  pointer-events: auto;
+}
+
+.quest-preflight__eyebrow {
+  display: block;
+  color: #8ddcff;
+  font: 0.76rem/1.2 "Share Tech Mono", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+}
+
+.quest-preflight__panel h1 {
+  margin: 0.55rem 0 0.5rem;
+  color: #f7fdff;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 0.96;
+}
+
+.quest-preflight__summary {
+  max-width: 52ch;
+  margin: 0;
+  color: #a9c8d8;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.quest-preflight__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.quest-preflight__stats span {
+  border: 1px solid rgba(133, 220, 255, 0.22);
+  background: rgba(14, 34, 47, 0.78);
+  padding: 0.34rem 0.54rem;
+  color: #e6f7ff;
+  font: 0.72rem/1.2 "Share Tech Mono", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.quest-preflight__lead {
+  margin-top: 1rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(133, 220, 255, 0.16);
+  background: rgba(8, 20, 30, 0.84);
+}
+
+.quest-preflight__lead strong {
+  display: block;
+  color: #97deff;
+  font: 0.72rem/1.2 "Share Tech Mono", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.quest-preflight__lead p {
+  margin: 0.45rem 0 0;
+  color: #f0fbff;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.quest-preflight__actions {
+  margin-top: 1.15rem;
+}
+
+.quest-preflight__enter,
+.quest-preflight__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 4.2rem;
+  min-width: min(24rem, 100%);
+  padding: 0.95rem 1.4rem;
+  border: 1px solid rgba(168, 240, 255, 0.4);
+  background: linear-gradient(180deg, rgba(33, 106, 141, 0.98), rgba(12, 46, 63, 0.98));
+  color: #f8feff;
+  font: 700 1.02rem/1.2 "Share Tech Mono", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
+}
+
+.quest-preflight__enter {
+  cursor: pointer;
+}
+
+.quest-preflight__message {
+  margin: 1rem 0 0;
+  color: #a6c7d7;
+  font: 0.82rem/1.55 "Share Tech Mono", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.quest-preflight__message--error {
+  color: #f0a5a0;
+}
+
 .quest-session-controls {
   position: absolute;
   top: 1rem;
@@ -160,6 +284,15 @@
 }
 
 @media (max-width: 840px) {
+  .quest-preflight {
+    padding: 0.6rem;
+  }
+
+  .quest-preflight__panel {
+    width: calc(100vw - 1.2rem);
+    padding: 1rem;
+  }
+
   .quest-session-controls,
   .quest-hud {
     width: calc(100vw - 1.2rem);

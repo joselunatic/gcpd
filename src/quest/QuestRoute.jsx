@@ -4,6 +4,7 @@ import './styles/quest.css';
 
 import QuestCanvas from './QuestCanvas';
 import QuestHud from './QuestHud';
+import QuestPreflightOverlay from './QuestPreflightOverlay';
 import QuestSessionControls from './QuestSessionControls';
 import { useQuestData } from './hooks/useQuestData';
 import { useQuestSession } from './hooks/useQuestSession';
@@ -24,7 +25,17 @@ const QuestRoute = () => {
         session={session}
         recenterKey={recenterKey}
       />
-      <QuestSessionControls onRecenter={handleRecenter} />
+      <QuestSessionControls onRecenter={handleRecenter}>
+        {({ supportState, message, handleEnterVr }) => (
+          <QuestPreflightOverlay
+            data={data}
+            session={session}
+            supportState={supportState}
+            message={message}
+            onEnterVr={handleEnterVr}
+          />
+        )}
+      </QuestSessionControls>
       <QuestHud data={data} session={session} />
     </div>
   );

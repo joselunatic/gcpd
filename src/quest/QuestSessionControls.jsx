@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { xrStore } from './QuestStore';
 
-const QuestSessionControls = ({ onRecenter }) => {
+const QuestSessionControls = ({ onRecenter, children = null }) => {
   const [supportState, setSupportState] = useState('checking');
   const [message, setMessage] = useState(
     'Comprobando compatibilidad de WebXR inmersivo en este navegador...'
@@ -73,25 +73,35 @@ const QuestSessionControls = ({ onRecenter }) => {
   };
 
   return (
-    <div className="quest-session-controls">
-      {supportState === 'supported' ? (
-        <button type="button" onClick={handleEnterVr}>
-          Entrar en VR
+    <>
+      {typeof children === 'function'
+        ? children({
+            supportState,
+            message,
+            handleEnterVr,
+          })
+        : null}
+
+      <div className="quest-session-controls">
+        {supportState === 'supported' ? (
+          <button type="button" onClick={handleEnterVr}>
+            Entrar en VR
+          </button>
+        ) : (
+          <div className="quest-session-controls__badge">
+            Vista previa escritorio
+          </div>
+        )}
+        <button
+          type="button"
+          className="quest-session-controls__secondary"
+          onClick={onRecenter}
+        >
+          Recentrar vista
         </button>
-      ) : (
-        <div className="quest-session-controls__badge">
-          Vista previa escritorio
-        </div>
-      )}
-      <button
-        type="button"
-        className="quest-session-controls__secondary"
-        onClick={onRecenter}
-      >
-        Recentrar vista
-      </button>
-      <p>{message}</p>
-    </div>
+        <p>{message}</p>
+      </div>
+    </>
   );
 };
 
