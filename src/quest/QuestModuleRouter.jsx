@@ -11,11 +11,18 @@ const QuestModuleRouter = ({ data, session }) => {
 
   return (
     <QuestPanel3D
+      layout={model.layout}
       title={model.title}
       subtitle={model.subtitle}
+      focusTitle={model.focusTitle}
+      focusBody={model.focusBody}
+      detailTitle={model.detailTitle}
+      detailBody={model.detailBody}
       items={model.items}
+      actions={model.actions}
       hint={model.hint}
       onSelect={model.onSelect}
+      onAction={model.onAction}
       onBack={model.onBack}
       onHome={model.onHome}
       position={[0, 0, 0]}

@@ -21,20 +21,27 @@ const EMPTY_SESSION = {
 };
 
 const QuestHud = ({ data = EMPTY_DATA, session = EMPTY_SESSION }) => {
+  const primaryLead = session.openLeads?.[0] || null;
+
   return (
     <div className="quest-hud">
       <div className="quest-hud__card">
         <span className="quest-hud__eyebrow">Nodo auxiliar Wayne / Quest</span>
-        <h1>Estado de sesión</h1>
+        <h1>Operación en curso</h1>
         <p className="quest-hud__summary">
-          El monitor central sigue siendo la interfaz principal. Este HUD solo
-          mantiene contexto operativo y acceso rápido en escritorio.
+          El monitor central lleva la interacción principal. Este HUD mantiene
+          foco de caso, lead sugerida y acceso rápido en escritorio.
         </p>
         <div className="quest-hud__stats">
           <span>caso {session.activeCase?.title || 'sin foco'}</span>
           <span>alerta {session.alertLevel}</span>
           <span>sincronía {session.syncState}</span>
         </div>
+        {primaryLead ? (
+          <p className="quest-hud__status">
+            lead {primaryLead.titulo}
+          </p>
+        ) : null}
         <div className="quest-hud__nav">
           <button type="button" onClick={session.actions.goToOperacion}>
             Operación

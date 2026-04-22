@@ -13,115 +13,311 @@ const summarize = (value, fallback = 'Sin datos disponibles.') => {
   return text.length > 180 ? `${text.slice(0, 177)}...` : text;
 };
 
+const formatLeadType = (leadType) => {
+  if (leadType === 'mapa') return 'Ubicación';
+  if (leadType === 'perfil') return 'Perfil';
+  if (leadType === 'herramienta') return 'Herramienta';
+  return 'Lead';
+};
+
+const buildOperationItems = ({ session }) => {
+  const focusItem = {
+    id: 'operacion:casos',
+    label: 'CASO EN FOCO',
+    description: session.activeCase
+      ? `${session.activeCase.title} · ${session.activeCase.status || 'sin estado'}`
+      : 'Abrir expedientes disponibles',
+    accent: true,
+  };
+
+  const leadItems = session.openLeads.slice(0, 2).map((lead) => ({
+    id: `lead:${lead.id}`,
+    label: `${formatLeadType(lead.tipo).toUpperCase()} ABIERTA`,
+    description: `${lead.titulo} · ${summarize(lead.resumenBreve, 'Sin detalle.')}`,
+    accent: false,
+  }));
+
+  const utilityItem = {
+    id: 'operacion:herramientas',
+    label: 'BAHÍA INSTRUMENTAL',
+    description: 'Abrir herramientas contextualizadas sin perder el hilo del caso.',
+    accent: false,
+  };
+
+  const changesItem = {
+    id: 'operacion:cambios',
+    label: 'CAMBIOS RECIENTES',
+    description: session.recentChanges[0]?.detail || 'Sin deltas operativos relevantes.',
+    accent: false,
+  };
+
+  return [focusItem, ...leadItems, utilityItem, changesItem].slice(0, 5);
+};
+
 const buildOperacionModel = ({ session }) => ({
+  layout: 'operations',
   title: 'OPERACIÓN ACTUAL',
   subtitle: session.activeCase
-    ? `${session.activeCase.title} · alerta ${session.alertLevel}`
-    : 'Sin caso activo',
+    ? `${session.activeCase.title} · alerta ${session.alertLevel} · sincronía ${session.syncState}`
+    : `Sin caso activo · sincronía ${session.syncState}`,
+  focusTitle: session.activeCase ? 'CASO ACTIVO' : 'SIN FOCO',
+  focusBody: session.activeCase
+    ? summarize(session.activeCase.summary, 'Sin resumen de caso.')
+    : 'Selecciona un expediente para comenzar la sesión operativa.',
+  detailTitle: session.openLeads[0]
+    ? `${formatLeadType(session.openLeads[0].tipo).toUpperCase()} SUGERIDA`
+    : 'LEAD SUGERIDA',
+  detailBody: session.openLeads[0]
+    ? `${session.openLeads[0].titulo} · ${summarize(session.openLeads[0].resumenBreve, 'Sin detalle.')}`
+    : 'No hay leads abiertas todavía.',
   hint: session.activeCase
-    ? summarize(session.activeCase.summary, 'Selecciona un expediente para comenzar.')
+    ? summarize(
+        `${session.activeCase.summary || 'Sin resumen.'} Lead recomendado: ${session.openLeads[0]?.titulo || 'abrir expedientes.'}`,
+        'Selecciona un expediente para comenzar.'
+      )
     : 'Selecciona un expediente para comenzar.',
-  items: [
-    {
-      id: 'operacion:casos',
-      label: 'CASOS',
-      description: session.activeCase
-        ? `Abrir ${session.activeCase.title}`
-        : 'Abrir expedientes disponibles',
-      accent: true,
-    },
-    {
-      id: 'operacion:mapa',
-      label: 'MAPA',
-      description: session.openLeads[0]?.titulo || 'Revisar ubicaciones activas',
-    },
-    {
-      id: 'operacion:perfiles',
-      label: 'PERFILES',
-      description: session.openLeads[1]?.titulo || 'Consultar perfiles de amenaza',
-    },
-    {
-      id: 'operacion:herramientas',
-      label: 'HERRAMIENTAS',
-      description: 'Abrir bahías instrumentales y modos de análisis',
-    },
-  ],
+  items: buildOperationItems({ session }),
   onSelect: (id) => {
-    if (id === 'operacion:casos') session.actions.goToCasos();
-    if (id === 'operacion:mapa') session.actions.goToMapa();
-    if (id === 'operacion:perfiles') session.actions.goToPerfiles();
+    if (id === 'operacion:casos') {
+      session.actions.goToCasos();
+      return;
+    }
+
     if (id === 'operacion:herramientas') {
       session.actions.goToHerramientas({
         tool: 'evidencias',
         originModule: QUEST_MODULE_OPERACION,
       });
+      return;
+    }
+
+    if (id === 'operacion:cambios') {
+      session.actions.goToCasos();
+      return;
+    }
+
+    if (id.startsWith('lead:')) {
+      const leadId = id.slice(5);
+      const lead = session.openLeads.find((entry) => entry.id === leadId);
+      if (!lead) return;
+
+      if (lead.destino === QUEST_MODULE_MAPA) {
+        session.actions.goToMapa({ poiId: lead.destinoId });
+        return;
+      }
+
+      if (lead.destino === QUEST_MODULE_PERFILES) {
+        session.actions.goToPerfiles({ profileId: lead.destinoId });
+        return;
+      }
+
+      if (lead.destino === QUEST_MODULE_HERRAMIENTAS) {
+        session.actions.goToHerramientas({
+          tool: lead.destinoId || 'evidencias',
+          originModule: QUEST_MODULE_OPERACION,
+        });
+      }
     }
   },
   onBack: null,
   onHome: null,
+  actions: [],
+  onAction: null,
 });
 
-const buildCasosModel = ({ data, session }) => ({
-  title: 'CASOS',
-  subtitle: session.selectedCase
-    ? `${session.selectedCase.title} · ${session.selectedCase.status || 'sin estado'}`
-    : `${data.cases.length} expedientes disponibles`,
-  hint: session.selectedCase
-    ? summarize(session.selectedCase.summary, 'Expediente sin resumen.')
-    : 'Selecciona un expediente para fijarlo como foco operativo.',
-  items: data.cases.slice(0, 6).map((entry) => ({
-    id: entry.id,
-    label: entry.title || entry.id,
-    description: `${entry.status || 'sin estado'} · ${summarize(entry.summary, 'Sin resumen.')}`,
-    accent: entry.id === session.selectedCase?.id,
-  })),
-  onSelect: (id) => session.actions.selectCase(id),
-  onBack: session.actions.goToOperacion,
-  onHome: session.actions.goToOperacion,
-});
+const buildCasosModel = ({ data, session }) => {
+  const selectedCase = session.selectedCase;
 
-const buildMapaModel = ({ data, session }) => ({
-  title: 'MAPA',
-  subtitle: session.selectedPoi
-    ? `${session.selectedPoi.name} · ${session.selectedPoi.district || 'sin distrito'}`
-    : `${data.pois.length} ubicaciones indexadas`,
-  hint: session.selectedPoi
-    ? summarize(session.selectedPoi.details || session.selectedPoi.summary, 'Ubicación sin detalle.')
-    : 'Selecciona un punto de interés para leer su contexto.',
-  items: data.pois.slice(0, 6).map((entry) => ({
-    id: entry.id,
-    label: entry.name || entry.id,
-    description: `${entry.district || 'sin distrito'} · ${summarize(entry.summary, 'Sin resumen.')}`,
-    accent: entry.id === session.selectedPoi?.id,
-  })),
-  onSelect: (id) => session.actions.selectPoi(id),
-  onBack: session.actions.goToOperacion,
-  onHome: session.actions.goToOperacion,
-});
+  return {
+    layout: 'dossier',
+    title: 'CASOS',
+    subtitle: selectedCase
+      ? `${selectedCase.title} · ${selectedCase.status || 'sin estado'}`
+      : `${data.cases.length} expedientes disponibles`,
+    focusTitle: selectedCase?.title || 'SIN EXPEDIENTE',
+    focusBody: selectedCase
+      ? summarize(selectedCase.summary, 'Expediente sin resumen.')
+      : 'Selecciona un expediente para fijarlo como foco operativo.',
+    detailTitle: 'INTELIGENCIA',
+    detailBody: selectedCase
+      ? `Estado ${selectedCase.status || 'sin estado'} · tags ${(selectedCase.tags || []).join(', ') || 'sin tags'}`
+      : 'Sin expediente seleccionado.',
+    hint: selectedCase
+      ? summarize(selectedCase.summary, 'Expediente sin resumen.')
+      : 'Selecciona un expediente para fijarlo como foco operativo.',
+    items: data.cases.slice(0, 6).map((entry) => ({
+      id: entry.id,
+      label: entry.title || entry.id,
+      description: `${entry.status || 'sin estado'} · ${summarize(entry.summary, 'Sin resumen.')}`,
+      accent: entry.id === selectedCase?.id,
+    })),
+    actions: [
+      {
+        id: 'case:mapa',
+        label: 'VER MAPA',
+        description: session.selectedPoi?.name || 'Abrir contexto espacial',
+      },
+      {
+        id: 'case:perfiles',
+        label: 'VER PERFILES',
+        description: session.selectedProfile?.alias || 'Consultar amenaza vinculada',
+      },
+      {
+        id: 'case:herramientas',
+        label: 'ABRIR HERRAMIENTA',
+        description: 'Entrar en bahía de evidencias',
+      },
+    ],
+    onSelect: (id) => session.actions.selectCase(id),
+    onAction: (id) => {
+      if (id === 'case:mapa') session.actions.goToMapa({ poiId: session.selectedPoi?.id });
+      if (id === 'case:perfiles') session.actions.goToPerfiles({ profileId: session.selectedProfile?.id });
+      if (id === 'case:herramientas') {
+        session.actions.goToHerramientas({
+          tool: 'evidencias',
+          originModule: QUEST_MODULE_CASOS,
+        });
+      }
+    },
+    onBack: session.actions.goToOperacion,
+    onHome: session.actions.goToOperacion,
+  };
+};
 
-const buildPerfilesModel = ({ data, session }) => ({
-  title: 'PERFILES',
-  subtitle: session.selectedProfile
-    ? `${session.selectedProfile.alias} · ${session.selectedProfile.threatLevel || session.selectedProfile.status || 'sin nivel'}`
-    : `${data.villains.length} perfiles cargados`,
-  hint: session.selectedProfile
-    ? summarize(
-        session.selectedProfile.summary ||
-          session.selectedProfile.patterns ||
-          session.selectedProfile.notes,
-        'Perfil sin detalle.'
-      )
-    : 'Selecciona un perfil para consultar su amenaza.',
-  items: data.villains.slice(0, 6).map((entry) => ({
-    id: entry.id,
-    label: entry.alias || entry.id,
-    description: `${entry.threatLevel || entry.status || 'sin nivel'} · ${summarize(entry.summary, 'Sin resumen.')}`,
-    accent: entry.id === session.selectedProfile?.id,
-  })),
-  onSelect: (id) => session.actions.selectProfile(id),
-  onBack: session.actions.goToOperacion,
-  onHome: session.actions.goToOperacion,
-});
+const buildMapaModel = ({ data, session }) => {
+  const selectedPoi = session.selectedPoi;
+
+  return {
+    layout: 'dossier',
+    title: 'MAPA',
+    subtitle: selectedPoi
+      ? `${selectedPoi.name} · ${selectedPoi.district || 'sin distrito'}`
+      : `${data.pois.length} ubicaciones indexadas`,
+    focusTitle: selectedPoi?.name || 'SIN UBICACIÓN',
+    focusBody: selectedPoi
+      ? summarize(selectedPoi.summary, 'Ubicación sin resumen.')
+      : 'Selecciona un punto de interés para leer su contexto.',
+    detailTitle: 'CONTEXTO ESPACIAL',
+    detailBody: selectedPoi
+      ? summarize(
+          `${selectedPoi.district || 'Sin distrito'} · ${selectedPoi.details || selectedPoi.contacts || selectedPoi.summary}`,
+          'Sin detalle espacial.'
+        )
+      : 'Sin punto de interés seleccionado.',
+    hint: selectedPoi
+      ? summarize(selectedPoi.details || selectedPoi.summary, 'Ubicación sin detalle.')
+      : 'Selecciona un punto de interés para leer su contexto.',
+    items: data.pois.slice(0, 6).map((entry) => ({
+      id: entry.id,
+      label: entry.name || entry.id,
+      description: `${entry.district || 'sin distrito'} · ${summarize(entry.summary, 'Sin resumen.')}`,
+      accent: entry.id === selectedPoi?.id,
+    })),
+    actions: [
+      {
+        id: 'map:casos',
+        label: 'VER CASO',
+        description: session.selectedCase?.title || 'Volver al expediente en foco',
+      },
+      {
+        id: 'map:perfiles',
+        label: 'VER PERFIL',
+        description: session.selectedProfile?.alias || 'Consultar entidad vinculada',
+      },
+      {
+        id: 'map:rastreo',
+        label: 'RASTREO',
+        description: 'Abrir rastreo contextual',
+      },
+    ],
+    onSelect: (id) => session.actions.selectPoi(id),
+    onAction: (id) => {
+      if (id === 'map:casos') session.actions.goToCasos({ caseId: session.selectedCase?.id });
+      if (id === 'map:perfiles') session.actions.goToPerfiles({ profileId: session.selectedProfile?.id });
+      if (id === 'map:rastreo') {
+        session.actions.goToHerramientas({
+          tool: 'rastreo',
+          originModule: QUEST_MODULE_MAPA,
+          originEntityType: 'poi',
+          originEntityId: selectedPoi?.id || null,
+        });
+      }
+    },
+    onBack: session.actions.goToOperacion,
+    onHome: session.actions.goToOperacion,
+  };
+};
+
+const buildPerfilesModel = ({ data, session }) => {
+  const selectedProfile = session.selectedProfile;
+
+  return {
+    layout: 'dossier',
+    title: 'PERFILES',
+    subtitle: selectedProfile
+      ? `${selectedProfile.alias} · ${selectedProfile.threatLevel || selectedProfile.status || 'sin nivel'}`
+      : `${data.villains.length} perfiles cargados`,
+    focusTitle: selectedProfile?.alias || 'SIN PERFIL',
+    focusBody: selectedProfile
+      ? summarize(selectedProfile.summary, 'Perfil sin detalle.')
+      : 'Selecciona un perfil para consultar su amenaza.',
+    detailTitle: 'PATRONES',
+    detailBody: selectedProfile
+      ? summarize(
+          selectedProfile.patterns ||
+            selectedProfile.knownAssociates ||
+            selectedProfile.notes,
+          'Sin patrones registrados.'
+        )
+      : 'Sin perfil seleccionado.',
+    hint: selectedProfile
+      ? summarize(
+          selectedProfile.summary ||
+            selectedProfile.patterns ||
+            selectedProfile.notes,
+          'Perfil sin detalle.'
+        )
+      : 'Selecciona un perfil para consultar su amenaza.',
+    items: data.villains.slice(0, 6).map((entry) => ({
+      id: entry.id,
+      label: entry.alias || entry.id,
+      description: `${entry.threatLevel || entry.status || 'sin nivel'} · ${summarize(entry.summary, 'Sin resumen.')}`,
+      accent: entry.id === selectedProfile?.id,
+    })),
+    actions: [
+      {
+        id: 'profile:mapa',
+        label: 'VER MAPA',
+        description: session.selectedPoi?.name || 'Abrir última ubicación monitorizada',
+      },
+      {
+        id: 'profile:casos',
+        label: 'VER EXPEDIENTE',
+        description: session.selectedCase?.title || 'Volver al caso en foco',
+      },
+      {
+        id: 'profile:comms',
+        label: 'COMUNICACIONES',
+        description: 'Abrir línea contextual',
+      },
+    ],
+    onSelect: (id) => session.actions.selectProfile(id),
+    onAction: (id) => {
+      if (id === 'profile:mapa') session.actions.goToMapa({ poiId: session.selectedPoi?.id });
+      if (id === 'profile:casos') session.actions.goToCasos({ caseId: session.selectedCase?.id });
+      if (id === 'profile:comms') {
+        session.actions.goToHerramientas({
+          tool: 'comunicaciones',
+          originModule: QUEST_MODULE_PERFILES,
+          originEntityType: 'profile',
+          originEntityId: selectedProfile?.id || null,
+        });
+      }
+    },
+    onBack: session.actions.goToOperacion,
+    onHome: session.actions.goToOperacion,
+  };
+};
 
 const TOOLS = [
   {
@@ -154,19 +350,72 @@ const TOOLS = [
 const buildHerramientasModel = ({ session }) => {
   const activeTool = session.selection.herramientas.activeTool || 'evidencias';
   const activeToolData = TOOLS.find((entry) => entry.id === activeTool) || TOOLS[0];
+  const originModule =
+    session.toolContext?.originModule || session.lastPrimaryModule || QUEST_MODULE_OPERACION;
+
+  const toolDetailById = {
+    evidencias: session.selectedCase
+      ? `Caso ${session.selectedCase.title}. Bahía de inspección lista para abrir activos relacionados.`
+      : 'Bahía de inspección preparada. Selecciona un expediente para precargar una pieza.',
+    audio: session.selectedCase
+      ? `Escucha forense asociada a ${session.selectedCase.title}. Transporte listo para reproducir una pista.`
+      : 'Estación de escucha forense preparada para pistas de audio.',
+    balistica: session.selectedCase
+      ? `Comparación instrumental asociada a ${session.selectedCase.title}. Preparada para muestra A/B.`
+      : 'Comparador balístico preparado para seleccionar dos muestras.',
+    comunicaciones: session.selectedProfile
+      ? `Línea contextual vinculada a ${session.selectedProfile.alias}. Consola lista para escucha o replay.`
+      : 'Consola de comunicaciones lista para operar una línea contextual.',
+    rastreo: session.selectedPoi
+      ? `Rastreo contextual sobre ${session.selectedPoi.name}. Triangulación preparada desde mapa operativo.`
+      : 'Rastreo progresivo preparado para un objetivo activo.',
+  };
 
   return {
+    layout: 'instrument',
     title: 'HERRAMIENTAS',
-    subtitle: `${activeToolData.label} · ${session.toolContext?.originModule || session.lastPrimaryModule}`,
-    hint: activeToolData.description,
+    subtitle: `${activeToolData.label} · ${originModule}`,
+    focusTitle: activeToolData.label,
+    focusBody: activeToolData.description,
+    detailTitle: 'CONSOLA ACTIVA',
+    detailBody: toolDetailById[activeTool] || activeToolData.description,
+    hint: `Origen ${originModule} · volver conserva el contexto operativo.`,
     items: TOOLS.map((entry) => ({
       ...entry,
       accent: entry.id === activeTool,
     })),
+    actions: [
+      {
+        id: 'tool:return',
+        label: 'VOLVER',
+        description: `Retornar a ${originModule}`,
+      },
+      {
+        id: 'tool:casos',
+        label: 'CASO',
+        description: session.selectedCase?.title || 'Ir a expediente en foco',
+      },
+      {
+        id: 'tool:mapa',
+        label: 'MAPA',
+        description: session.selectedPoi?.name || 'Ir a ubicación monitorizada',
+      },
+      {
+        id: 'tool:perfiles',
+        label: 'PERFIL',
+        description: session.selectedProfile?.alias || 'Ir a perfil destacado',
+      },
+    ],
     onSelect: (id) =>
       session.actions.openTool(id, {
-        originModule: session.toolContext?.originModule || session.lastPrimaryModule || QUEST_MODULE_OPERACION,
+        originModule,
       }),
+    onAction: (id) => {
+      if (id === 'tool:return') session.actions.returnToOperationalContext();
+      if (id === 'tool:casos') session.actions.goToCasos({ caseId: session.selectedCase?.id });
+      if (id === 'tool:mapa') session.actions.goToMapa({ poiId: session.selectedPoi?.id });
+      if (id === 'tool:perfiles') session.actions.goToPerfiles({ profileId: session.selectedProfile?.id });
+    },
     onBack: session.actions.returnToOperationalContext,
     onHome: session.actions.goToOperacion,
   };

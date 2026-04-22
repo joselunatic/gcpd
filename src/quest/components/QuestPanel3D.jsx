@@ -176,12 +176,38 @@ const QuestButton = ({ title, subtitle, position, onClick, accent = false }) => 
   );
 };
 
+const QuestActionChip = ({ title, position, onClick, accent = false }) => {
+  const texture = useLabelTexture({
+    title,
+    subtitle: '',
+    width: 520,
+    height: 120,
+    accent,
+  });
+
+  return (
+    <group position={position}>
+      <mesh onClick={onClick}>
+        <planeGeometry args={[0.34, 0.11]} />
+        <meshBasicMaterial map={texture || null} transparent side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+};
+
 const QuestPanel3D = ({
+  layout = 'operations',
   title,
   subtitle,
+  focusTitle = '',
+  focusBody = '',
+  detailTitle = '',
+  detailBody = '',
   items = [],
+  actions = [],
   hint = '',
   onSelect,
+  onAction,
   onBack,
   onHome,
   position = [0, 1.6, -1.4],
@@ -199,6 +225,20 @@ const QuestPanel3D = ({
     subtitle: hint,
     width: 1400,
     height: 260,
+    accent: false,
+  });
+  const focusTexture = useLabelTexture({
+    title: focusTitle,
+    subtitle: focusBody,
+    width: 980,
+    height: layout === 'operations' ? 320 : 520,
+    accent: layout === 'operations',
+  });
+  const detailTexture = useLabelTexture({
+    title: detailTitle,
+    subtitle: detailBody,
+    width: 980,
+    height: 520,
     accent: false,
   });
 
@@ -243,27 +283,68 @@ const QuestPanel3D = ({
         <meshBasicMaterial map={titleTexture || null} transparent side={THREE.DoubleSide} />
       </mesh>
 
-      {items.map((item, index) => (
-        <QuestButton
-          key={item.id || index}
-          title={item.label}
-          subtitle={item.description}
-          position={[0, 0.22 - index * 0.4, 0.02]}
-          onClick={() => onSelect?.(item.id)}
-          accent={item.accent}
-        />
-      ))}
+      {layout === 'operations' ? (
+        <>
+          <mesh position={[0, 0.2, 0.01]}>
+            <planeGeometry args={[1.58, 0.4]} />
+            <meshBasicMaterial map={focusTexture || null} transparent side={THREE.DoubleSide} />
+          </mesh>
+
+          {items.map((item, index) => (
+            <QuestButton
+              key={item.id || index}
+              title={item.label}
+              subtitle={item.description}
+              position={[0, -0.16 - index * 0.4, 0.02]}
+              onClick={() => onSelect?.(item.id)}
+              accent={item.accent}
+            />
+          ))}
+        </>
+      ) : (
+        <>
+          <mesh position={[0.38, layout === 'instrument' ? 0.2 : 0.12, 0.01]}>
+            <planeGeometry args={[0.84, 0.74]} />
+            <meshBasicMaterial map={focusTexture || null} transparent side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[0.38, layout === 'instrument' ? -0.34 : -0.44, 0.01]}>
+            <planeGeometry args={[0.84, layout === 'instrument' ? 0.62 : 0.42]} />
+            <meshBasicMaterial map={detailTexture || null} transparent side={THREE.DoubleSide} />
+          </mesh>
+
+          {items.slice(0, layout === 'instrument' ? 5 : 4).map((item, index) => (
+            <QuestButton
+              key={item.id || index}
+              title={item.label}
+              subtitle={item.description}
+              position={[-0.52, layout === 'instrument' ? 0.42 - index * 0.28 : 0.34 - index * 0.34, 0.02]}
+              onClick={() => onSelect?.(item.id)}
+              accent={item.accent}
+            />
+          ))}
+        </>
+      )}
 
       <mesh position={[0, -0.62, 0]}>
         <planeGeometry args={[1.58, 0.27]} />
         <meshBasicMaterial map={hintTexture || null} transparent side={THREE.DoubleSide} />
       </mesh>
 
+      {actions.slice(0, 4).map((action, index) => (
+        <QuestActionChip
+          key={action.id || index}
+          title={action.label}
+          position={[-0.51 + index * 0.34, -0.92, 0.03]}
+          onClick={() => onAction?.(action.id)}
+          accent={action.accent}
+        />
+      ))}
+
       {onBack ? (
         <QuestButton
           title="VOLVER"
           subtitle="Regresar al contexto anterior"
-          position={[-0.44, -0.94, 0.03]}
+          position={[-0.44, -1.15, 0.03]}
           onClick={onBack}
         />
       ) : null}
@@ -272,7 +353,7 @@ const QuestPanel3D = ({
         <QuestButton
           title="OPERACIÓN"
           subtitle="Volver al nodo operativo"
-          position={[0.44, -0.94, 0.03]}
+          position={[0.44, -1.15, 0.03]}
           onClick={onHome}
         />
       ) : null}

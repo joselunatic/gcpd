@@ -26,6 +26,12 @@ const buildSyncState = (data) => {
   return 'en línea';
 };
 
+const summarizeText = (value, fallback = '') => {
+  const source = Array.isArray(value) ? value.join(' ') : value;
+  const text = String(source || fallback).trim();
+  return text;
+};
+
 const useQuestSession = (data) => {
   const [currentModule, setCurrentModule] = useState(QUEST_MODULE_OPERACION);
   const [lastPrimaryModule, setLastPrimaryModule] = useState(QUEST_MODULE_OPERACION);
@@ -233,6 +239,7 @@ const useQuestSession = (data) => {
           id: `poi:${data.pois[0].id}`,
           tipo: 'mapa',
           titulo: data.pois[0].name,
+          resumenBreve: summarizeText(data.pois[0].summary, 'Sin resumen de ubicación.'),
           destino: QUEST_MODULE_MAPA,
           destinoId: data.pois[0].id,
         }
@@ -242,6 +249,7 @@ const useQuestSession = (data) => {
           id: `perfil:${data.villains[0].id}`,
           tipo: 'perfil',
           titulo: data.villains[0].alias,
+          resumenBreve: summarizeText(data.villains[0].summary, 'Sin resumen de perfil.'),
           destino: QUEST_MODULE_PERFILES,
           destinoId: data.villains[0].id,
         }
@@ -250,12 +258,56 @@ const useQuestSession = (data) => {
       id: 'tool:evidencias',
       tipo: 'herramienta',
       titulo: 'Bahía de evidencias',
+      resumenBreve: 'Inspección instrumental preparada para el caso en foco.',
       destino: QUEST_MODULE_HERRAMIENTAS,
       destinoId: 'evidencias',
     };
 
     return [poiLead, profileLead, toolLead].filter(Boolean);
   }, [data.pois, data.villains]);
+
+  const recentChanges = useMemo(() => {
+    const changes = [];
+
+    if (activeCase) {
+      changes.push({
+        id: `case:${activeCase.id}`,
+        label: 'Caso activo',
+        detail: `${activeCase.title} · ${activeCase.status || 'sin estado'}`,
+      });
+    }
+
+    if (selectedPoi) {
+      changes.push({
+        id: `poi:${selectedPoi.id}`,
+        label: 'Ubicación monitorizada',
+        detail: `${selectedPoi.name} · ${selectedPoi.district || 'sin distrito'}`,
+      });
+    }
+
+    if (selectedProfile) {
+      changes.push({
+        id: `profile:${selectedProfile.id}`,
+        label: 'Perfil destacado',
+        detail: `${selectedProfile.alias} · ${selectedProfile.threatLevel || selectedProfile.status || 'sin nivel'}`,
+      });
+    }
+
+    if (selection.herramientas.activeTool) {
+      changes.push({
+        id: `tool:${selection.herramientas.activeTool}`,
+        label: 'Herramienta preparada',
+        detail: selection.herramientas.activeTool,
+      });
+    }
+
+    return changes.slice(0, 4);
+  }, [
+    activeCase,
+    selectedPoi,
+    selectedProfile,
+    selection.herramientas.activeTool,
+  ]);
 
   const alertLevel = STATUS_TO_ALERT[activeCase?.status] || 'media';
   const syncState = buildSyncState(data);
@@ -273,6 +325,7 @@ const useQuestSession = (data) => {
     syncState,
     alertLevel,
     openLeads,
+    recentChanges,
     actions: {
       goToOperacion,
       goToCasos,
