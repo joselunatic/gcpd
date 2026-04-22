@@ -2257,6 +2257,132 @@ Se puede empezar a implementar ya cuando:
 
 Ese criterio ya se considera cumplido en esta iteración.
 
+## Estado actual y siguientes pasos
+
+### Estado actual de la rama `quest`
+
+A fecha de 2026-04-22, la rama `quest` tiene ya este primer corte implementado:
+
+- escena base Blender integrada como entorno runtime
+- monitor 3D alineado con el hueco del panel del `glb`
+- capa de sesión inicial en `useQuestSession.js`
+- módulos canónicos:
+  - `operacion`
+  - `casos`
+  - `mapa`
+  - `perfiles`
+  - `herramientas`
+- HUD operativo básico en español
+- controles de sesión WebXR en español
+- router de módulos inicial dentro del monitor
+
+Build verificado:
+
+- `npm run build` pasa
+
+### Limitaciones conocidas del estado actual
+
+- los módulos aún comparten un panel 3D genérico como soporte temporal
+- no existe todavía layout específico por módulo
+- `Herramientas` ya existe como módulo, pero no como bahías funcionales completas
+- el retorno contextual está iniciado a nivel de sesión, pero todavía no está explotado en profundidad entre entidades reales
+- la parte visual del entorno aún está en fase de primera integración, sin assets externos ya colocados en Blender
+
+### Assets ya revisados y clasificados
+
+Inventario operativo:
+
+- `C:\Repos\gcpd\assets\quest_vr_asset_inventory.md`
+
+Brief curatorial de referencia:
+
+- `C:\Repos\gcpd\assets\quest_vr_asset_sourcing_brief.md`
+
+Selección prioritaria ya decidida:
+
+- `PaintedMetal002_1K-PNG`
+- `MetalWalkway001_1K-PNG`
+- `empty_warehouse_01_1k.exr`
+- `server_rack.glb`
+- `electrical_boxes.glb`
+
+Donors inmediatos ya decididos:
+
+- `industrial_switches_and_buttons_-_free_sample.glb`
+- `modular_electric_cables_1k.blend`
+- `cc0_-_tray.glb`
+
+### Siguientes pasos recomendados
+
+#### Paso 1. Integración visual en Blender
+
+Objetivo:
+
+- hacer la primera pasada de assets reales sobre la escena base
+
+Orden recomendado:
+
+1. aplicar `PaintedMetal002` como material maestro oscuro
+2. aplicar `MetalWalkway001` a suelo/pasarela/base funcional
+3. cargar `empty_warehouse_01_1k.exr` como probe suave de lookdev
+4. validar `server_rack.glb` como rack lateral único
+5. validar `electrical_boxes.glb` como caja técnica mural
+6. extraer uno o dos controles de `industrial_switches_and_buttons` como donor
+
+Entregables de este paso:
+
+- nueva versión de la escena `.blend`
+- export `.glb`
+- 2 a 4 capturas de viewport
+- actualización de la documentación de assets usados
+
+#### Paso 2. Segunda pasada de UI espacial en `/quest`
+
+Objetivo:
+
+- dejar atrás el panel genérico y empezar a construir vistas reales de módulo
+
+Orden recomendado:
+
+1. `QuestOperacionActualView`
+2. `QuestCasosView`
+3. `QuestMapaView`
+4. `QuestPerfilesView`
+5. `QuestHerramientasView`
+
+Regla:
+
+- no tocar aún capacidades avanzadas textuales
+- no introducir `Consola de análisis`
+
+#### Paso 3. Validación desktop y Quest Browser
+
+Objetivo:
+
+- comprobar escala, framing y legibilidad
+
+Validaciones mínimas:
+
+- alineación del monitor con la UI runtime
+- tamaño y distancia del panel
+- lectura de texto en navegador de escritorio
+- lectura y confort en Quest Browser
+
+### Regla de continuidad
+
+La siguiente iteración no debe reabrir estas decisiones:
+
+- Quest no porta `TerminalOS`
+- Quest no porta `Brother-MK0` como interfaz
+- `Consola de análisis` queda fuera de v1
+- no se usan modos ASCII en Quest
+- la arquitectura debe seguir centrada en:
+  - `Operación actual`
+  - `Casos`
+  - `Mapa`
+  - `Perfiles`
+  - `Herramientas`
+
 ## Decisiones ya tomadas en esta iteración
 
 - Quest no replicará `TerminalOS`
