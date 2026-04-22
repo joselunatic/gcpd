@@ -143,12 +143,19 @@ const useLabelTexture = (config) => {
   return texture;
 };
 
-const QuestButton = ({ title, subtitle, position, onClick, accent = false }) => {
+const QuestButton = ({
+  title,
+  subtitle,
+  position,
+  onClick,
+  accent = false,
+  buttonScale = 1,
+}) => {
   const [hovered, setHovered] = useState(false);
   const texture = useLabelTexture({ title, subtitle, accent });
 
   return (
-    <group position={position}>
+    <group position={position} scale={buttonScale}>
       <mesh position={[0, 0, -0.04]} renderOrder={1}>
         <planeGeometry args={[1.62, 0.44]} />
         <meshStandardMaterial
@@ -231,6 +238,7 @@ const QuestPanel3D = ({
   position = [0, 1.6, -1.4],
   scale = 1,
 }) => {
+  const isInstrumentLayout = layout === 'instrument';
   const titleTexture = useLabelTexture({
     title,
     subtitle,
@@ -325,35 +333,39 @@ const QuestPanel3D = ({
       ) : (
         <>
           <mesh
-            position={[0.38, layout === 'instrument' ? 0.2 : 0.12, 0.03]}
+            position={[0.38, isInstrumentLayout ? 0.26 : 0.12, 0.03]}
             renderOrder={3}
           >
-            <planeGeometry args={[0.84, 0.74]} />
+            <planeGeometry args={[0.84, isInstrumentLayout ? 0.52 : 0.74]} />
             <meshBasicMaterial map={focusTexture || null} {...UI_MATERIAL_PROPS} />
           </mesh>
           <mesh
-            position={[0.38, layout === 'instrument' ? -0.34 : -0.44, 0.045]}
+            position={[0.38, isInstrumentLayout ? -0.16 : -0.44, 0.045]}
             renderOrder={4}
           >
-            <planeGeometry args={[0.84, layout === 'instrument' ? 0.62 : 0.42]} />
+            <planeGeometry args={[0.84, isInstrumentLayout ? 0.3 : 0.42]} />
             <meshBasicMaterial map={detailTexture || null} {...UI_MATERIAL_PROPS} />
           </mesh>
 
-          {items.slice(0, layout === 'instrument' ? 5 : 4).map((item, index) => (
+          {items.slice(0, isInstrumentLayout ? 5 : 4).map((item, index) => (
             <QuestButton
               key={item.id || index}
               title={item.label}
               subtitle={item.description}
-              position={[-0.52, layout === 'instrument' ? 0.42 - index * 0.28 : 0.34 - index * 0.34, 0.02]}
+              position={[-0.5, isInstrumentLayout ? 0.46 - index * 0.2 : 0.34 - index * 0.34, 0.02]}
               onClick={() => onSelect?.(item.id)}
               accent={item.accent}
+              buttonScale={isInstrumentLayout ? 0.7 : 1}
             />
           ))}
         </>
       )}
 
-      <mesh position={[0, -0.62, 0.05]} renderOrder={5}>
-        <planeGeometry args={[1.58, 0.27]} />
+      <mesh
+        position={[isInstrumentLayout ? 0.18 : 0, isInstrumentLayout ? -0.48 : -0.62, 0.05]}
+        renderOrder={5}
+      >
+        <planeGeometry args={[isInstrumentLayout ? 1.22 : 1.58, isInstrumentLayout ? 0.18 : 0.27]} />
         <meshBasicMaterial map={hintTexture || null} {...UI_MATERIAL_PROPS} />
       </mesh>
 
@@ -361,7 +373,7 @@ const QuestPanel3D = ({
         <QuestActionChip
           key={action.id || index}
           title={action.label}
-          position={[-0.51 + index * 0.34, -0.92, 0.03]}
+          position={[-0.51 + index * 0.34, isInstrumentLayout ? -0.84 : -0.92, 0.03]}
           onClick={() => onAction?.(action.id)}
           accent={action.accent}
         />
@@ -371,8 +383,9 @@ const QuestPanel3D = ({
         <QuestButton
           title="VOLVER"
           subtitle="Regresar al contexto anterior"
-          position={[-0.44, -1.15, 0.03]}
+          position={[-0.44, isInstrumentLayout ? -1.06 : -1.15, 0.03]}
           onClick={onBack}
+          buttonScale={isInstrumentLayout ? 0.84 : 1}
         />
       ) : null}
 
@@ -380,8 +393,9 @@ const QuestPanel3D = ({
         <QuestButton
           title="OPERACIÓN"
           subtitle="Volver al nodo operativo"
-          position={[0.44, -1.15, 0.03]}
+          position={[0.44, isInstrumentLayout ? -1.06 : -1.15, 0.03]}
           onClick={onHome}
+          buttonScale={isInstrumentLayout ? 0.84 : 1}
         />
       ) : null}
     </group>
