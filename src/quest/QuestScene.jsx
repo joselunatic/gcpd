@@ -4,7 +4,6 @@ import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import QuestEnvironment from './QuestEnvironment';
-import QuestHdriEnvironment from './QuestHdriEnvironment';
 import QuestMonitorSurface from './QuestMonitorSurface';
 
 const DEFAULT_CAMERA_POSITION = [0, 1.52, 3.15];
@@ -55,7 +54,6 @@ const QuestScene = ({ data, session, recenterKey }) => {
   return (
     <>
       <QuestCameraRig recenterKey={recenterKey} anchors={environmentAnchors} />
-      <QuestHdriEnvironment />
 
       <color attach="background" args={['#071019']} />
       <fog attach="fog" args={['#071019', 3.2, 10.5]} />
