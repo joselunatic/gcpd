@@ -20,9 +20,10 @@ const PHONE_KEY_PREFIX = 'QuestPhoneKey_';
 const PHONE_HANDSET_NAME = 'QuestPhoneHandset';
 const PHONE_MODEL_NAME = 'QuestPhoneModel';
 const PHONE_RIG_NAME = 'QuestPhoneRig';
-const PHONE_FOCUS_OFFSET = new THREE.Vector3(0.16, -0.06, -0.5);
-const PHONE_FOCUS_ROTATION = new THREE.Euler(-1.08, 0, 0.06, 'YXZ');
-const PHONE_FOCUS_SCALE = 4.2;
+const PHONE_FOCUS_OFFSET = new THREE.Vector3(0, -0.03, -0.48);
+const PHONE_FOCUS_TILT = -0.38;
+const PHONE_FOCUS_ROLL = 0.03;
+const PHONE_FOCUS_SCALE = 3.55;
 
 const snapshotTransform = (object) => {
   if (!object) return null;
@@ -303,6 +304,10 @@ const QuestEnvironment = ({
   const focusAnchorRef = useRef(null);
   const focusBackdropRef = useRef(null);
   const wasFocusedRef = useRef(false);
+  const focusLookHelperRef = useRef(new THREE.Object3D());
+  const focusTargetPositionRef = useRef(new THREE.Vector3());
+  const focusTargetQuaternionRef = useRef(new THREE.Quaternion());
+  const focusTargetScaleRef = useRef(new THREE.Vector3());
 
   useEffect(() => {
     onAnchorsChange?.(runtimeEnvironment.anchors);
@@ -324,17 +329,23 @@ const QuestEnvironment = ({
     if (!focusAnchor) return;
 
     const cameraPosition = new THREE.Vector3();
-    const cameraDirection = new THREE.Vector3();
     camera.getWorldPosition(cameraPosition);
-    camera.getWorldDirection(cameraDirection);
-    const focusPosition = cameraPosition.clone().add(
+    const focusPosition = focusTargetPositionRef.current
+      .copy(cameraPosition)
+      .add(
       PHONE_FOCUS_OFFSET.clone().applyQuaternion(camera.quaternion)
     );
-    const focusQuaternion = camera.quaternion.clone().multiply(
-      new THREE.Quaternion().setFromEuler(PHONE_FOCUS_ROTATION)
-    );
+    const focusHelper = focusLookHelperRef.current;
+    focusHelper.position.copy(focusPosition);
+    focusHelper.quaternion.identity();
+    focusHelper.lookAt(cameraPosition);
+    focusHelper.rotateY(Math.PI);
+    focusHelper.rotateX(PHONE_FOCUS_TILT);
+    focusHelper.rotateZ(PHONE_FOCUS_ROLL);
+
+    const focusQuaternion = focusTargetQuaternionRef.current.copy(focusHelper.quaternion);
     const baseScale = runtimeEnvironment.phone.rig?.scale || new THREE.Vector3(1, 1, 1);
-    const focusScale = baseScale.clone().multiplyScalar(PHONE_FOCUS_SCALE);
+    const focusScale = focusTargetScaleRef.current.copy(baseScale).multiplyScalar(PHONE_FOCUS_SCALE);
 
     focusAnchor.visible = true;
     if (focusBackdropRef.current) {
@@ -448,10 +459,10 @@ const QuestEnvironment = ({
           <mesh
             ref={focusBackdropRef}
             visible={false}
-            position={[0, 0, -0.18]}
+            position={[0, 0, -0.12]}
             onPointerDown={handleFocusBackdropDown}
           >
-            <planeGeometry args={[0.8, 0.7]} />
+            <planeGeometry args={[1.1, 0.95]} />
             <meshBasicMaterial transparent opacity={0.001} depthWrite={false} />
           </mesh>
           <primitive
