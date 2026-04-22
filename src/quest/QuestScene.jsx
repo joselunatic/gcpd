@@ -70,10 +70,37 @@ const QuestScene = ({ data, session, recenterKey }) => {
       <pointLight position={[2.1, 1.4, 1.1]} intensity={0.62} color="#63d7ff" />
       <pointLight position={[1.6, 1.2, 0.1]} intensity={0.24} color="#ff9b54" />
       <pointLight position={[0, 1.9, 0.65]} intensity={1.35} distance={5.5} color="#d9f7ff" />
+      <pointLight position={[0, 2.6, -4.2]} intensity={0.48} distance={7.5} color="#8fcfff" />
+      <pointLight position={[-3.6, 2.4, -1.2]} intensity={0.24} distance={6.2} color="#56cfff" />
+      <pointLight position={[3.6, 2.4, -1.2]} intensity={0.24} distance={6.2} color="#56cfff" />
 
       <mesh position={[0, 1.9, -0.8]} renderOrder={-10}>
         <sphereGeometry args={[8.5, 32, 24]} />
-        <meshBasicMaterial color="#071019" side={THREE.BackSide} toneMapped={false} fog={false} />
+        <meshBasicMaterial color="#09131b" side={THREE.BackSide} toneMapped={false} fog={false} />
+      </mesh>
+      <mesh position={[0, 2.9, -5.1]} renderOrder={-9}>
+        <planeGeometry args={[4.8, 2.4]} />
+        <meshBasicMaterial color="#1d3442" transparent opacity={0.16} toneMapped={false} />
+      </mesh>
+      <mesh position={[-4.05, 2.2, -0.9]} rotation={[0, Math.PI / 2.2, 0]} renderOrder={-9}>
+        <planeGeometry args={[3.2, 2]} />
+        <meshBasicMaterial color="#163646" transparent opacity={0.12} toneMapped={false} />
+      </mesh>
+      <mesh position={[4.05, 2.2, -0.9]} rotation={[0, -Math.PI / 2.2, 0]} renderOrder={-9}>
+        <planeGeometry args={[3.2, 2]} />
+        <meshBasicMaterial color="#163646" transparent opacity={0.12} toneMapped={false} />
+      </mesh>
+      <mesh position={[0, 3.3, -4.8]} renderOrder={-8}>
+        <planeGeometry args={[2.6, 0.24]} />
+        <meshBasicMaterial color="#9fd9ff" transparent opacity={0.16} toneMapped={false} />
+      </mesh>
+      <mesh position={[-2.45, 3.05, -4.7]} renderOrder={-8}>
+        <planeGeometry args={[0.16, 1.3]} />
+        <meshBasicMaterial color="#7fcfff" transparent opacity={0.12} toneMapped={false} />
+      </mesh>
+      <mesh position={[2.45, 3.05, -4.7]} renderOrder={-8}>
+        <planeGeometry args={[0.16, 1.3]} />
+        <meshBasicMaterial color="#7fcfff" transparent opacity={0.12} toneMapped={false} />
       </mesh>
 
       <mesh position={[0, 2.1, -3.9]} receiveShadow>
@@ -109,7 +136,12 @@ const QuestScene = ({ data, session, recenterKey }) => {
         <meshStandardMaterial color="#111b24" roughness={0.96} metalness={0.05} />
       </mesh>
 
-      <QuestEnvironment onAnchorsChange={setEnvironmentAnchors} />
+      <QuestEnvironment
+        onAnchorsChange={setEnvironmentAnchors}
+        onPhoneKeyPress={session.actions.pressPhoneKey}
+        onPhoneHandsetToggle={session.actions.togglePhoneHandset}
+        phoneState={session.phoneState}
+      />
 
       <QuestMonitorSurface
         data={data}

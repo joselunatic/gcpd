@@ -13,6 +13,19 @@ const summarize = (value, fallback = 'Sin datos disponibles.') => {
   return text.length > 180 ? `${text.slice(0, 177)}...` : text;
 };
 
+const summarizeList = (value, fallback = 'Sin datos disponibles.') => {
+  if (!Array.isArray(value) || !value.length) return fallback;
+  return summarize(value.join(' '), fallback);
+};
+
+const formatStatusLabel = (status) => {
+  if (status === 'active') return 'Activo';
+  if (status === 'locked') return 'Restringido';
+  if (status === 'resolved') return 'Resuelto';
+  if (status === 'critical') return 'Crítico';
+  return status || 'Sin estado';
+};
+
 const formatLeadType = (leadType) => {
   if (leadType === 'mapa') return 'Ubicación';
   if (leadType === 'perfil') return 'Perfil';
@@ -127,35 +140,77 @@ const buildOperacionModel = ({ session }) => ({
 
 const buildCasosModel = ({ data, session }) => {
   const selectedCase = session.selectedCase;
+  const caseBrief = selectedCase?.commands?.brief || [];
+  const caseIntel = selectedCase?.commands?.intel || [];
+  const objectiveLine =
+    caseBrief.find((entry) => String(entry).toUpperCase().includes('OBJETIVO')) ||
+    caseBrief[0] ||
+    selectedCase?.summary;
+  const incidentLine =
+    caseBrief.find((entry) => String(entry).toUpperCase().includes('INCIDENTE')) ||
+    caseBrief[1] ||
+    selectedCase?.summary;
+  const intelLead = caseIntel[0] || selectedCase?.summary;
+  const unlockLine = selectedCase?.unlockConditions?.length
+    ? `Acceso ${selectedCase.unlockConditions.join(', ')}`
+    : null;
+  const dossierSummary = [
+    objectiveLine,
+    intelLead,
+    selectedCase?.dm?.notes,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const caseItems = data.cases.slice(0, 6).map((entry) => ({
+    id: entry.id,
+    label: entry.title || entry.id,
+    description: `${formatStatusLabel(entry.status)} · ${(entry.tags || []).slice(0, 2).join(', ') || 'sin tags'} · ${summarize(
+      entry.commands?.brief?.[0] || entry.summary,
+      'Sin resumen.'
+    )}`,
+    accent: entry.id === selectedCase?.id,
+  }));
 
   return {
     layout: 'dossier',
     title: 'CASOS',
     subtitle: selectedCase
-      ? `${selectedCase.title} · ${selectedCase.status || 'sin estado'}`
+      ? `${selectedCase.title} · ${formatStatusLabel(selectedCase.status)} · ${selectedCase.tags?.join(', ') || 'sin tags'}`
       : `${data.cases.length} expedientes disponibles`,
     focusTitle: selectedCase?.title || 'SIN EXPEDIENTE',
     focusBody: selectedCase
-      ? summarize(selectedCase.summary, 'Expediente sin resumen.')
+      ? summarize(
+          [selectedCase.summary, objectiveLine, incidentLine].filter(Boolean).join(' '),
+          'Expediente sin resumen.'
+        )
       : 'Selecciona un expediente para fijarlo como foco operativo.',
-    detailTitle: 'INTELIGENCIA',
+    detailTitle: selectedCase?.commands?.brief?.[0]?.replace('CASE ID: ', '') || 'DOSSIER ACTIVO',
     detailBody: selectedCase
-      ? `Estado ${selectedCase.status || 'sin estado'} · tags ${(selectedCase.tags || []).join(', ') || 'sin tags'}`
+      ? summarize(
+          [
+            `Estado ${formatStatusLabel(selectedCase.status)}.`,
+            incidentLine,
+            summarizeList(caseIntel, ''),
+            unlockLine,
+          ]
+            .filter(Boolean)
+            .join(' '),
+          'Sin inteligencia adicional para este expediente.'
+        )
       : 'Sin expediente seleccionado.',
     hint: selectedCase
-      ? summarize(selectedCase.summary, 'Expediente sin resumen.')
+      ? summarize(
+          dossierSummary || selectedCase.summary,
+          'Expediente sin resumen.'
+        )
       : 'Selecciona un expediente para fijarlo como foco operativo.',
-    items: data.cases.slice(0, 6).map((entry) => ({
-      id: entry.id,
-      label: entry.title || entry.id,
-      description: `${entry.status || 'sin estado'} · ${summarize(entry.summary, 'Sin resumen.')}`,
-      accent: entry.id === selectedCase?.id,
-    })),
+    items: caseItems,
     actions: [
       {
         id: 'case:mapa',
         label: 'VER MAPA',
-        description: session.selectedPoi?.name || 'Abrir contexto espacial',
+        description: session.selectedPoi?.name || 'Abrir despliegue espacial del caso',
       },
       {
         id: 'case:perfiles',
@@ -164,8 +219,8 @@ const buildCasosModel = ({ data, session }) => {
       },
       {
         id: 'case:herramientas',
-        label: 'ABRIR HERRAMIENTA',
-        description: 'Entrar en bahía de evidencias',
+        label: 'EVIDENCIAS',
+        description: objectiveLine ? summarize(objectiveLine, 'Entrar en bahía de evidencias') : 'Entrar en bahía de evidencias',
       },
     ],
     onSelect: (id) => session.actions.selectCase(id),
@@ -364,8 +419,8 @@ const buildHerramientasModel = ({ session }) => {
       ? `Comparación instrumental asociada a ${session.selectedCase.title}. Preparada para muestra A/B.`
       : 'Comparador balístico preparado para seleccionar dos muestras.',
     comunicaciones: session.selectedProfile
-      ? `Línea contextual vinculada a ${session.selectedProfile.alias}. Consola lista para escucha o replay.`
-      : 'Consola de comunicaciones lista para operar una línea contextual.',
+      ? `Línea contextual vinculada a ${session.selectedProfile.alias}. ${session.phoneState?.isOffHook ? `Estado ${session.phoneState.lineStatus}. Marcación ${session.phoneState.dialedDigits || session.phoneState.lastDialedNumber || 'vacía'}.` : 'Auricular colgado y consola en espera.'} Bridge ${session.phoneState?.tracerWsState || 'offline'}.`
+      : `Consola de comunicaciones lista para operar una línea contextual. ${session.phoneState?.isOffHook ? `Estado ${session.phoneState.lineStatus}.` : 'Auricular colgado.'} Bridge ${session.phoneState?.tracerWsState || 'offline'}.`,
     rastreo: session.selectedPoi
       ? `Rastreo contextual sobre ${session.selectedPoi.name}. Triangulación preparada desde mapa operativo.`
       : 'Rastreo progresivo preparado para un objetivo activo.',
@@ -379,7 +434,10 @@ const buildHerramientasModel = ({ session }) => {
     focusBody: activeToolData.description,
     detailTitle: 'CONSOLA ACTIVA',
     detailBody: toolDetailById[activeTool] || activeToolData.description,
-    hint: `Origen ${originModule} · volver conserva el contexto operativo.`,
+    hint:
+      activeTool === 'comunicaciones'
+        ? `Línea ${session.phoneState?.lineStatus || 'colgada'} · ws ${session.phoneState?.tracerWsState || 'offline'} · buffer ${session.phoneState?.dialedDigits || session.phoneState?.lastDialedNumber || 'vacío'}${session.phoneState?.hotspotLabel ? ` · hotspot ${session.phoneState.hotspotLabel}` : ''} · volver conserva el contexto operativo.`
+        : `Origen ${originModule} · volver conserva el contexto operativo.`,
     items: TOOLS.map((entry) => ({
       ...entry,
       accent: entry.id === activeTool,

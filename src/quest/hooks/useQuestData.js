@@ -20,6 +20,35 @@ const normalizeList = (payload, key) => {
   return [];
 };
 
+const hydrateCases = async (cases) => {
+  const enrichedCases = await Promise.all(
+    cases.map(async (entry) => {
+      if (!entry?.file) return entry;
+
+      try {
+        const detail = await fetchJson(entry.file, entry.file);
+        return {
+          ...entry,
+          ...detail,
+          commands: {
+            ...(entry.commands || {}),
+            ...(detail?.commands || {}),
+          },
+          dm: {
+            ...(entry.dm || {}),
+            ...(detail?.dm || {}),
+          },
+        };
+      } catch (error) {
+        console.debug('[Quest] case detail hydration failed', entry.file, error);
+        return entry;
+      }
+    })
+  );
+
+  return enrichedCases;
+};
+
 const useQuestData = () => {
   const [state, setState] = useState({
     loading: true,
@@ -40,12 +69,14 @@ const useQuestData = () => {
           fetchJson('/api/villains-data', '/data/villains/gallery.json'),
         ]);
 
+        const cases = await hydrateCases(normalizeList(casesPayload, 'cases'));
+
         if (cancelled) return;
 
         setState({
           loading: false,
           error: '',
-          cases: normalizeList(casesPayload, 'cases'),
+          cases,
           pois: normalizeList(poisPayload, 'pois'),
           villains: normalizeList(villainsPayload, 'villains'),
         });

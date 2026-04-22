@@ -367,14 +367,14 @@ const QuestPanel3D = ({
             position={[isInstrumentLayout ? 0.5 : 0.42, isInstrumentLayout ? 0.28 : 0.08, 0.03]}
             renderOrder={3}
           >
-            <planeGeometry args={[isInstrumentLayout ? 1.04 : 1.08, isInstrumentLayout ? 0.52 : 0.76]} />
+            <planeGeometry args={[isInstrumentLayout ? 1.04 : 1.14, isInstrumentLayout ? 0.52 : 0.82]} />
             <meshBasicMaterial map={focusTexture || null} {...UI_MATERIAL_PROPS} />
           </mesh>
           <mesh
             position={[isInstrumentLayout ? 0.5 : 0.42, isInstrumentLayout ? -0.23 : -0.46, 0.045]}
             renderOrder={4}
           >
-            <planeGeometry args={[isInstrumentLayout ? 1.04 : 1.08, isInstrumentLayout ? 0.36 : 0.48]} />
+            <planeGeometry args={[isInstrumentLayout ? 1.04 : 1.14, isInstrumentLayout ? 0.36 : 0.54]} />
             <meshBasicMaterial map={detailTexture || null} {...UI_MATERIAL_PROPS} />
           </mesh>
 
@@ -384,13 +384,13 @@ const QuestPanel3D = ({
               title={item.label}
               subtitle={item.description}
               position={[
-                isInstrumentLayout ? -0.63 : -0.56,
-                isInstrumentLayout ? 0.46 - index * 0.2 : 0.36 - index * 0.32,
+                isInstrumentLayout ? -0.63 : -0.61,
+                isInstrumentLayout ? 0.46 - index * 0.2 : 0.4 - index * 0.29,
                 0.02,
               ]}
               onClick={() => onSelect?.(item.id)}
               accent={item.accent}
-              buttonScale={isInstrumentLayout ? 0.76 : 0.9}
+              buttonScale={isInstrumentLayout ? 0.76 : 0.82}
             />
           ))}
         </>
@@ -398,8 +398,8 @@ const QuestPanel3D = ({
 
       <mesh
         position={[
-          isInstrumentLayout ? 0.22 : isDossierLayout ? 0.08 : 0,
-          isInstrumentLayout ? -0.66 : isDossierLayout ? -0.74 : -0.62,
+          isInstrumentLayout ? 0.22 : isDossierLayout ? 0.1 : 0,
+          isInstrumentLayout ? -0.66 : isDossierLayout ? -0.78 : -0.62,
           0.05,
         ]}
         renderOrder={5}

@@ -11,6 +11,13 @@ const EMPTY_SESSION = {
   alertLevel: 'media',
   syncState: 'sincronizando',
   currentModule: 'operacion',
+  phoneState: {
+    isOffHook: false,
+    dialedDigits: '',
+    lastDialedNumber: '',
+    lineStatus: 'colgada',
+    tracerWsState: 'offline',
+  },
   actions: {
     goToOperacion: () => {},
     goToCasos: () => {},
@@ -42,6 +49,12 @@ const QuestHud = ({ data = EMPTY_DATA, session = EMPTY_SESSION }) => {
             lead {primaryLead.titulo}
           </p>
         ) : null}
+        <p className="quest-hud__status">
+          línea {session.phoneState?.lineStatus || 'colgada'} · {session.phoneState?.dialedDigits || session.phoneState?.lastDialedNumber || 'sin marcación'}
+        </p>
+        <p className="quest-hud__status">
+          tracer ws {session.phoneState?.tracerWsState || 'offline'}
+        </p>
         <div className="quest-hud__nav">
           <button type="button" onClick={session.actions.goToOperacion}>
             Operación
