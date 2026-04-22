@@ -4,7 +4,7 @@ import { XR } from '@react-three/xr';
 import QuestScene from './QuestScene';
 import { xrStore } from './QuestStore';
 
-const QuestCanvas = ({ data, navigation }) => {
+const QuestCanvas = ({ data, navigation, recenterKey }) => {
   return (
     <div className="quest-canvas-shell">
       <Canvas
@@ -13,7 +13,11 @@ const QuestCanvas = ({ data, navigation }) => {
         gl={{ antialias: true, alpha: true }}
       >
         <XR store={xrStore}>
-          <QuestScene data={data} navigation={navigation} />
+          <QuestScene
+            data={data}
+            navigation={navigation}
+            recenterKey={recenterKey}
+          />
         </XR>
       </Canvas>
     </div>

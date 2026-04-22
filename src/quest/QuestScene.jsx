@@ -1,11 +1,28 @@
 /* eslint-disable react/no-unknown-property */
+import { useEffect } from 'react';
+import { useThree } from '@react-three/fiber';
 import { IfInSessionMode } from '@react-three/xr';
 
 import QuestShell from './QuestShell';
 
-const QuestScene = ({ data, navigation }) => {
+const QuestCameraRig = ({ recenterKey }) => {
+  const { camera, gl } = useThree();
+
+  useEffect(() => {
+    if (gl.xr?.isPresenting) return;
+    camera.position.set(0, 1.52, 3.15);
+    camera.lookAt(0, 1.18, -1.45);
+    camera.updateProjectionMatrix();
+  }, [camera, gl, recenterKey]);
+
+  return null;
+};
+
+const QuestScene = ({ data, navigation, recenterKey }) => {
   return (
     <>
+      <QuestCameraRig recenterKey={recenterKey} />
+
       <color attach="background" args={['#071019']} />
       <fog attach="fog" args={['#071019', 4, 14]} />
 

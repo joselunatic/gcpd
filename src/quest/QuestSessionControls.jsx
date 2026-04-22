@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { xrStore } from './QuestStore';
 
-const QuestSessionControls = () => {
+const QuestSessionControls = ({ onRecenter }) => {
   const [supportState, setSupportState] = useState('checking');
   const [message, setMessage] = useState(
     'Checking immersive VR support for this browser...'
@@ -83,6 +83,13 @@ const QuestSessionControls = () => {
           Desktop Preview
         </div>
       )}
+      <button
+        type="button"
+        className="quest-session-controls__secondary"
+        onClick={onRecenter}
+      >
+        Recenter View
+      </button>
       <p>{message}</p>
     </div>
   );

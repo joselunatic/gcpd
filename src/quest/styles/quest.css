@@ -50,6 +50,13 @@
   letter-spacing: 0.12em;
 }
 
+.quest-session-controls__secondary {
+  border-color: rgba(122, 213, 255, 0.24) !important;
+  background: rgba(8, 22, 31, 0.9) !important;
+  color: #d9f4ff !important;
+  font-size: 0.8rem !important;
+}
+
 .quest-session-controls p {
   margin: 0;
   color: #8cb9d4;
