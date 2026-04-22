@@ -68,6 +68,27 @@ const QuestScene = ({ data, session, recenterKey }) => {
       <pointLight position={[2.1, 1.4, 1.1]} intensity={0.38} color="#4ab8e9" />
       <pointLight position={[1.6, 1.2, 0.1]} intensity={0.18} color="#ff9b54" />
 
+      <mesh position={[0, 2.1, -3.9]} receiveShadow>
+        <planeGeometry args={[10.5, 5.2]} />
+        <meshStandardMaterial color="#09111a" roughness={0.96} metalness={0.08} />
+      </mesh>
+      <mesh position={[-4.4, 2.0, -0.4]} rotation={[0, Math.PI / 2.7, 0]}>
+        <planeGeometry args={[8.6, 5.0]} />
+        <meshStandardMaterial color="#060d14" roughness={0.98} metalness={0.04} />
+      </mesh>
+      <mesh position={[4.4, 2.0, -0.4]} rotation={[0, -Math.PI / 2.7, 0]}>
+        <planeGeometry args={[8.6, 5.0]} />
+        <meshStandardMaterial color="#060d14" roughness={0.98} metalness={0.04} />
+      </mesh>
+      <mesh position={[0, 4.45, -1.0]} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[10.5, 8.6]} />
+        <meshStandardMaterial color="#050b11" roughness={1} metalness={0.02} />
+      </mesh>
+      <mesh position={[0, 0.02, -0.8]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[10.5, 8.6]} />
+        <meshStandardMaterial color="#050b10" roughness={1} metalness={0.03} />
+      </mesh>
+
       <QuestEnvironment onAnchorsChange={setEnvironmentAnchors} />
 
       <QuestMonitorSurface

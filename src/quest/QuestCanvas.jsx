@@ -12,7 +12,7 @@ const QuestCanvas = ({ data, session, recenterKey }) => {
       <Canvas
         camera={{ position: [0, 1.52, 3.15], fov: 46 }}
         dpr={[1, 1.75]}
-        gl={{ antialias: true, alpha: true }}
+        gl={{ antialias: true, alpha: false }}
       >
         <XR store={xrStore}>
           <Suspense fallback={null}>

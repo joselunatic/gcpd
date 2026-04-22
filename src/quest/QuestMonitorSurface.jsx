@@ -1,31 +1,19 @@
 import QuestModuleRouter from './QuestModuleRouter';
 
-const FALLBACK_PANEL_POSITION = [0, 1.22, -1.45];
-const PANEL_SURFACE_LOCAL_OFFSET = [0, 0, 0.018];
-const PANEL_SURFACE_SCALE = [0.64, 0.64, 0.64];
+const PANEL_FIXED_POSITION = [0, 1.58, -1.16];
+const PANEL_FIXED_ROTATION = [-0.24, 0, 0];
+const PANEL_FIXED_SCALE = [0.58, 0.58, 0.58];
 
 const QuestMonitorSurface = ({ data, session, panelAnchor = null }) => {
   const panel = <QuestModuleRouter data={data} session={session} />;
-
-  if (panelAnchor?.position && panelAnchor?.quaternion) {
-    return (
-      <group
-        position={panelAnchor.position}
-        quaternion={panelAnchor.quaternion}
-      >
-        <group
-          position={PANEL_SURFACE_LOCAL_OFFSET}
-          rotation={[0, Math.PI, 0]}
-          scale={PANEL_SURFACE_SCALE}
-        >
-          {panel}
-        </group>
-      </group>
-    );
-  }
+  const panelPosition = panelAnchor?.position || PANEL_FIXED_POSITION;
 
   return (
-    <group position={FALLBACK_PANEL_POSITION} scale={0.82}>
+    <group
+      position={panelPosition}
+      rotation={PANEL_FIXED_ROTATION}
+      scale={PANEL_FIXED_SCALE}
+    >
       {panel}
     </group>
   );
