@@ -71,9 +71,18 @@ const QuestScene = ({ data, session, recenterKey }) => {
       <pointLight position={[1.6, 1.2, 0.1]} intensity={0.24} color="#ff9b54" />
       <pointLight position={[0, 1.9, 0.65]} intensity={1.35} distance={5.5} color="#d9f7ff" />
 
+      <mesh position={[0, 1.9, -0.8]} renderOrder={-10}>
+        <sphereGeometry args={[8.5, 32, 24]} />
+        <meshBasicMaterial color="#071019" side={THREE.BackSide} toneMapped={false} fog={false} />
+      </mesh>
+
       <mesh position={[0, 2.1, -3.9]} receiveShadow>
         <planeGeometry args={[10.5, 5.2]} />
         <meshStandardMaterial color="#101c28" roughness={0.9} metalness={0.08} />
+      </mesh>
+      <mesh position={[0, 2.1, 3.9]} rotation={[0, Math.PI, 0]}>
+        <planeGeometry args={[10.5, 5.2]} />
+        <meshStandardMaterial color="#0b151e" roughness={0.94} metalness={0.03} />
       </mesh>
       <mesh position={[-4.4, 2.0, -0.4]} rotation={[0, Math.PI / 2.7, 0]}>
         <planeGeometry args={[8.6, 5.0]} />
@@ -82,6 +91,14 @@ const QuestScene = ({ data, session, recenterKey }) => {
       <mesh position={[4.4, 2.0, -0.4]} rotation={[0, -Math.PI / 2.7, 0]}>
         <planeGeometry args={[8.6, 5.0]} />
         <meshStandardMaterial color="#0d1822" roughness={0.94} metalness={0.04} />
+      </mesh>
+      <mesh position={[-4.4, 2.0, -0.4]} rotation={[0, -Math.PI / 2.7, 0]}>
+        <planeGeometry args={[8.6, 5.0]} />
+        <meshStandardMaterial color="#0a131b" roughness={0.98} metalness={0.02} />
+      </mesh>
+      <mesh position={[4.4, 2.0, -0.4]} rotation={[0, Math.PI / 2.7, 0]}>
+        <planeGeometry args={[8.6, 5.0]} />
+        <meshStandardMaterial color="#0a131b" roughness={0.98} metalness={0.02} />
       </mesh>
       <mesh position={[0, 4.45, -1.0]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[10.5, 8.6]} />

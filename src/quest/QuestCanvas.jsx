@@ -13,6 +13,9 @@ const QuestCanvas = ({ data, session, recenterKey }) => {
         camera={{ position: [0, 1.52, 3.15], fov: 46 }}
         dpr={[1, 1.75]}
         gl={{ antialias: true, alpha: false }}
+        onCreated={({ gl }) => {
+          gl.setClearColor('#071019', 1);
+        }}
       >
         <XR store={xrStore}>
           <Suspense fallback={null}>
