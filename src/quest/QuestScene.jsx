@@ -4,7 +4,7 @@ import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import QuestEnvironment from './QuestEnvironment';
-import QuestShell from './QuestShell';
+import QuestMonitorSurface from './QuestMonitorSurface';
 
 const DEFAULT_CAMERA_POSITION = [0, 1.52, 3.15];
 const DEFAULT_CAMERA_TARGET = [0, 1.18, -1.45];
@@ -48,7 +48,7 @@ const QuestCameraRig = ({ recenterKey, anchors }) => {
   return null;
 };
 
-const QuestScene = ({ data, navigation, recenterKey }) => {
+const QuestScene = ({ data, session, recenterKey }) => {
   const [environmentAnchors, setEnvironmentAnchors] = useState(null);
 
   return (
@@ -70,9 +70,9 @@ const QuestScene = ({ data, navigation, recenterKey }) => {
 
       <QuestEnvironment onAnchorsChange={setEnvironmentAnchors} />
 
-      <QuestShell
+      <QuestMonitorSurface
         data={data}
-        navigation={navigation}
+        session={session}
         panelAnchor={environmentAnchors?.panel}
       />
     </>

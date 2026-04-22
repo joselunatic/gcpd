@@ -6,54 +6,59 @@ const EMPTY_DATA = {
   villains: [],
 };
 
-const EMPTY_NAVIGATION = {
-  goHome: () => {},
-  openCases: () => {},
-  openPois: () => {},
-  openVillains: () => {},
-  goBack: () => {},
+const EMPTY_SESSION = {
+  activeCase: null,
+  alertLevel: 'media',
+  syncState: 'sincronizando',
+  currentModule: 'operacion',
+  actions: {
+    goToOperacion: () => {},
+    goToCasos: () => {},
+    goToMapa: () => {},
+    goToPerfiles: () => {},
+    goToHerramientas: () => {},
+  },
 };
 
-const QuestHud = ({ data = EMPTY_DATA, navigation = EMPTY_NAVIGATION }) => {
+const QuestHud = ({ data = EMPTY_DATA, session = EMPTY_SESSION }) => {
   return (
     <div className="quest-hud">
       <div className="quest-hud__card">
-        <span className="quest-hud__eyebrow">BROTHER-MK0 / QUEST VARIANT</span>
-        <h1>Spatial agent console prototype</h1>
-        <p>
-          This route is isolated from the legacy IMSAI shell. It reuses campaign
-          data, but replaces keyboard-first terminal interaction with panel
-          navigation suitable for Meta Quest Browser.
+        <span className="quest-hud__eyebrow">Nodo auxiliar Wayne / Quest</span>
+        <h1>Estado de sesión</h1>
+        <p className="quest-hud__summary">
+          El monitor central sigue siendo la interfaz principal. Este HUD solo
+          mantiene contexto operativo y acceso rápido en escritorio.
         </p>
         <div className="quest-hud__stats">
-          <span>cases {data.cases.length}</span>
-          <span>pois {data.pois.length}</span>
-          <span>villains {data.villains.length}</span>
+          <span>caso {session.activeCase?.title || 'sin foco'}</span>
+          <span>alerta {session.alertLevel}</span>
+          <span>sincronía {session.syncState}</span>
         </div>
         <div className="quest-hud__nav">
-          <button type="button" onClick={navigation.goHome}>
-            Home
+          <button type="button" onClick={session.actions.goToOperacion}>
+            Operación
           </button>
-          <button type="button" onClick={navigation.openCases}>
-            Cases
+          <button type="button" onClick={session.actions.goToCasos}>
+            Casos
           </button>
-          <button type="button" onClick={navigation.openPois}>
-            POIs
+          <button type="button" onClick={session.actions.goToMapa}>
+            Mapa
           </button>
-          <button type="button" onClick={navigation.openVillains}>
-            Villains
+          <button type="button" onClick={session.actions.goToPerfiles}>
+            Perfiles
           </button>
-          <button type="button" onClick={navigation.goBack}>
-            Back
+          <button type="button" onClick={() => session.actions.goToHerramientas({ tool: 'evidencias' })}>
+            Herramientas
           </button>
         </div>
         {data.error ? (
           <p className="quest-hud__status quest-hud__status--error">
-            api fallback active: {data.error}
+            datos locales activos: {data.error}
           </p>
         ) : (
           <p className="quest-hud__status">
-            {data.loading ? 'loading spatial dataset...' : 'dataset online'}
+            {data.loading ? 'sincronizando datasets...' : `módulo activo: ${session.currentModule}`}
           </p>
         )}
       </div>

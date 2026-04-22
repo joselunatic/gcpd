@@ -6,7 +6,7 @@ import { XR } from '@react-three/xr';
 import QuestScene from './QuestScene';
 import { xrStore } from './QuestStore';
 
-const QuestCanvas = ({ data, navigation, recenterKey }) => {
+const QuestCanvas = ({ data, session, recenterKey }) => {
   return (
     <div className="quest-canvas-shell">
       <Canvas
@@ -18,7 +18,7 @@ const QuestCanvas = ({ data, navigation, recenterKey }) => {
           <Suspense fallback={null}>
             <QuestScene
               data={data}
-              navigation={navigation}
+              session={session}
               recenterKey={recenterKey}
             />
           </Suspense>

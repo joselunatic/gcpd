@@ -4,8 +4,8 @@ import QuestPanel3D from './components/QuestPanel3D';
 import { buildQuestScreen } from './domain/mapTerminalToQuest';
 
 const FALLBACK_PANEL_POSITION = [0, 1.22, -1.45];
-const PANEL_SURFACE_OFFSET = [0, 0.035, 0];
-const PANEL_SURFACE_SCALE = [0.66, 0.66, 0.66];
+const PANEL_SURFACE_OFFSET = [0, 0, -0.035];
+const PANEL_SURFACE_SCALE = [0.64, 0.64, 0.64];
 
 const QuestShell = ({ data, navigation, panelAnchor = null }) => {
   const screen = useMemo(
@@ -27,17 +27,17 @@ const QuestShell = ({ data, navigation, panelAnchor = null }) => {
     />
   );
 
-  if (panelAnchor?.position && panelAnchor?.quaternion) {
+  if (panelAnchor?.position) {
     return (
       <group
-        position={panelAnchor.position}
-        quaternion={panelAnchor.quaternion}
+        position={[
+          panelAnchor.position[0],
+          panelAnchor.position[1],
+          panelAnchor.position[2] + PANEL_SURFACE_OFFSET[2],
+        ]}
+        rotation={[0, Math.PI, 0]}
       >
-        <group
-          position={PANEL_SURFACE_OFFSET}
-          rotation={[-Math.PI / 2, 0, 0]}
-          scale={PANEL_SURFACE_SCALE}
-        >
+        <group scale={PANEL_SURFACE_SCALE}>
           {panel}
         </group>
       </group>

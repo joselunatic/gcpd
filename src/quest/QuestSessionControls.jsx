@@ -5,7 +5,7 @@ import { xrStore } from './QuestStore';
 const QuestSessionControls = ({ onRecenter }) => {
   const [supportState, setSupportState] = useState('checking');
   const [message, setMessage] = useState(
-    'Checking immersive VR support for this browser...'
+    'Comprobando compatibilidad de WebXR inmersivo en este navegador...'
   );
 
   useEffect(() => {
@@ -16,7 +16,7 @@ const QuestSessionControls = ({ onRecenter }) => {
         if (cancelled) return;
         setSupportState('unsupported');
         setMessage(
-          'WebXR immersive VR is not available here. Desktop preview mode is active.'
+          'WebXR inmersivo no está disponible aquí. Se mantiene la vista previa de escritorio.'
         );
         return;
       }
@@ -27,19 +27,19 @@ const QuestSessionControls = ({ onRecenter }) => {
         if (supported) {
           setSupportState('supported');
           setMessage(
-            'Immersive VR is supported. Use Meta Quest Browser to enter the headset session.'
+            'VR inmersiva disponible. Usa Meta Quest Browser para entrar en la sesión del visor.'
           );
         } else {
           setSupportState('unsupported');
           setMessage(
-            'This browser does not support immersive VR. Desktop preview mode is active.'
+            'Este navegador no soporta VR inmersiva. Se mantiene la vista previa de escritorio.'
           );
         }
       } catch (error) {
         if (cancelled) return;
         setSupportState('unsupported');
         setMessage(
-          'Immersive VR support could not be confirmed. Desktop preview mode is active.'
+          'No se ha podido confirmar la compatibilidad VR inmersiva. Se mantiene la vista previa de escritorio.'
         );
       }
     };
@@ -53,21 +53,21 @@ const QuestSessionControls = ({ onRecenter }) => {
 
   const handleEnterVr = async () => {
     if (supportState !== 'supported') {
-      setMessage('Immersive VR is not available in this browser/device.');
+      setMessage('La VR inmersiva no está disponible en este navegador o dispositivo.');
       return;
     }
 
-    setMessage('Requesting immersive VR session...');
+    setMessage('Solicitando sesión inmersiva VR...');
     try {
       const session = await xrStore.enterVR();
       if (!session) {
-        setMessage('Immersive VR is not available in this browser/device.');
+        setMessage('La VR inmersiva no está disponible en este navegador o dispositivo.');
         return;
       }
-      setMessage('Immersive VR session active.');
+      setMessage('Sesión VR inmersiva activa.');
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : 'Failed to enter immersive VR.'
+        error instanceof Error ? error.message : 'No se ha podido entrar en VR inmersiva.'
       );
     }
   };
@@ -76,11 +76,11 @@ const QuestSessionControls = ({ onRecenter }) => {
     <div className="quest-session-controls">
       {supportState === 'supported' ? (
         <button type="button" onClick={handleEnterVr}>
-          Enter VR
+          Entrar en VR
         </button>
       ) : (
         <div className="quest-session-controls__badge">
-          Desktop Preview
+          Vista previa escritorio
         </div>
       )}
       <button
@@ -88,7 +88,7 @@ const QuestSessionControls = ({ onRecenter }) => {
         className="quest-session-controls__secondary"
         onClick={onRecenter}
       >
-        Recenter View
+        Recentrar vista
       </button>
       <p>{message}</p>
     </div>

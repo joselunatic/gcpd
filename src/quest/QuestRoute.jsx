@@ -6,11 +6,11 @@ import QuestCanvas from './QuestCanvas';
 import QuestHud from './QuestHud';
 import QuestSessionControls from './QuestSessionControls';
 import { useQuestData } from './hooks/useQuestData';
-import { useQuestNavigation } from './hooks/useQuestNavigation';
+import { useQuestSession } from './hooks/useQuestSession';
 
 const QuestRoute = () => {
   const data = useQuestData();
-  const navigation = useQuestNavigation();
+  const session = useQuestSession(data);
   const [recenterKey, setRecenterKey] = useState(0);
 
   const handleRecenter = () => {
@@ -21,11 +21,11 @@ const QuestRoute = () => {
     <div className="quest-route">
       <QuestCanvas
         data={data}
-        navigation={navigation}
+        session={session}
         recenterKey={recenterKey}
       />
       <QuestSessionControls onRecenter={handleRecenter} />
-      <QuestHud data={data} navigation={navigation} />
+      <QuestHud data={data} session={session} />
     </div>
   );
 };

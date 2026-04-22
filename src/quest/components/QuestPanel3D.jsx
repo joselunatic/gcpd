@@ -2,6 +2,56 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 
+const drawWrappedText = ({
+  context,
+  text,
+  x,
+  y,
+  maxWidth,
+  lineHeight,
+  maxLines = 2,
+}) => {
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  if (!words.length) return;
+
+  const lines = [];
+  let currentLine = words[0];
+
+  for (let index = 1; index < words.length; index += 1) {
+    const candidate = `${currentLine} ${words[index]}`;
+    if (context.measureText(candidate).width <= maxWidth) {
+      currentLine = candidate;
+      continue;
+    }
+
+    lines.push(currentLine);
+    currentLine = words[index];
+
+    if (lines.length === maxLines - 1) {
+      break;
+    }
+  }
+
+  if (lines.length < maxLines) {
+    lines.push(currentLine);
+  }
+
+  const visibleLines = lines.slice(0, maxLines);
+  const sourceExhausted = visibleLines.join(' ').split(/\s+/).length >= words.length;
+  if (!sourceExhausted) {
+    const lastIndex = visibleLines.length - 1;
+    let clipped = visibleLines[lastIndex];
+    while (`${clipped}...`.length > 3 && context.measureText(`${clipped}...`).width > maxWidth) {
+      clipped = clipped.slice(0, -1);
+    }
+    visibleLines[lastIndex] = `${clipped}...`;
+  }
+
+  visibleLines.forEach((line, lineIndex) => {
+    context.fillText(line, x, y + lineIndex * lineHeight);
+  });
+};
+
 const createLabelTexture = ({
   title = '',
   subtitle = '',
@@ -16,12 +66,28 @@ const createLabelTexture = ({
   const context = canvas.getContext('2d');
   if (!context) return null;
 
-  context.fillStyle = accent ? '#14384a' : '#0a1822';
+  const background = context.createLinearGradient(0, 0, width, height);
+  background.addColorStop(0, accent ? '#12384f' : '#08131d');
+  background.addColorStop(1, accent ? '#0b2230' : '#050c13');
+  context.fillStyle = background;
   context.fillRect(0, 0, width, height);
 
-  context.strokeStyle = accent ? '#9ad7ff' : '#3f6d8b';
-  context.lineWidth = 8;
-  context.strokeRect(8, 8, width - 16, height - 16);
+  context.strokeStyle = accent ? '#9ad7ff' : '#315d76';
+  context.lineWidth = 6;
+  context.strokeRect(14, 14, width - 28, height - 28);
+
+  context.fillStyle = accent ? 'rgba(122, 213, 255, 0.14)' : 'rgba(122, 213, 255, 0.08)';
+  context.fillRect(24, 24, width - 48, 8);
+  context.fillRect(24, height - 32, width * 0.24, 4);
+
+  context.strokeStyle = 'rgba(122, 213, 255, 0.08)';
+  context.lineWidth = 1;
+  for (let y = 42; y < height - 20; y += 12) {
+    context.beginPath();
+    context.moveTo(24, y);
+    context.lineTo(width - 24, y);
+    context.stroke();
+  }
 
   context.fillStyle = '#d8f2ff';
   context.font = 'bold 72px monospace';
@@ -30,8 +96,16 @@ const createLabelTexture = ({
 
   if (subtitle) {
     context.fillStyle = '#8eb7cf';
-    context.font = '38px monospace';
-    context.fillText(String(subtitle), 44, 140);
+    context.font = '30px monospace';
+    drawWrappedText({
+      context,
+      text: String(subtitle),
+      x: 44,
+      y: 138,
+      maxWidth: width - 92,
+      lineHeight: 38,
+      maxLines: 2,
+    });
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -57,28 +131,44 @@ const QuestButton = ({ title, subtitle, position, onClick, accent = false }) => 
 
   return (
     <group position={position}>
-      <mesh position={[0, 0, -0.012]}>
-        <planeGeometry args={[1.58, 0.42]} />
-        <meshBasicMaterial
-          color={hovered ? '#1d4a63' : '#0a1822'}
+      <mesh position={[0, 0, -0.02]}>
+        <planeGeometry args={[1.62, 0.44]} />
+        <meshStandardMaterial
+          color={hovered ? '#15384b' : '#071018'}
           transparent
-          opacity={hovered ? 0.95 : 0.82}
+          opacity={0.96}
+          metalness={0.2}
+          roughness={0.68}
+        />
+      </mesh>
+      <mesh position={[0, 0.165, -0.01]}>
+        <planeGeometry args={[1.48, 0.02]} />
+        <meshBasicMaterial
+          color={hovered || accent ? '#9ad7ff' : '#2a556d'}
+          transparent
+          opacity={hovered || accent ? 0.95 : 0.55}
         />
       </mesh>
       <mesh
         onClick={onClick}
         onPointerEnter={() => setHovered(true)}
         onPointerLeave={() => setHovered(false)}
-        scale={hovered ? 1.03 : 1}
+        scale={hovered ? 1.018 : 1}
       >
-      <planeGeometry args={[1.52, 0.36]} />
-      <meshBasicMaterial map={texture || null} transparent />
+        <planeGeometry args={[1.5, 0.34]} />
+        <meshBasicMaterial map={texture || null} transparent />
       </mesh>
       {hovered ? (
-        <mesh position={[0.84, 0, 0.015]}>
-          <planeGeometry args={[0.08, 0.08]} />
-          <meshBasicMaterial color="#b4efff" transparent opacity={0.95} />
-        </mesh>
+        <>
+          <mesh position={[0.78, 0, 0.015]}>
+            <planeGeometry args={[0.12, 0.018]} />
+            <meshBasicMaterial color="#b4efff" transparent opacity={0.95} />
+          </mesh>
+          <mesh position={[-0.78, 0, 0.015]}>
+            <planeGeometry args={[0.12, 0.018]} />
+            <meshBasicMaterial color="#b4efff" transparent opacity={0.95} />
+          </mesh>
+        </>
       ) : null}
     </group>
   );
@@ -112,15 +202,36 @@ const QuestPanel3D = ({
 
   return (
     <group position={position} scale={scale}>
-      <mesh position={[0, 0, -0.02]}>
-        <planeGeometry args={[1.84, 1.72]} />
+      <mesh position={[0, 0, -0.05]}>
+        <planeGeometry args={[1.9, 1.82]} />
+        <meshStandardMaterial
+          color="#040a10"
+          transparent
+          opacity={0.95}
+          metalness={0.28}
+          roughness={0.82}
+        />
+      </mesh>
+
+      <mesh position={[0, 0, -0.025]}>
+        <planeGeometry args={[1.82, 1.74]} />
         <meshStandardMaterial
           color="#061018"
           transparent
-          opacity={0.96}
-          metalness={0.1}
-          roughness={0.72}
+          opacity={0.92}
+          metalness={0.14}
+          roughness={0.64}
         />
+      </mesh>
+
+      <mesh position={[0, 0.83, -0.01]}>
+        <planeGeometry args={[1.72, 0.04]} />
+        <meshBasicMaterial color="#8ed9ff" transparent opacity={0.74} />
+      </mesh>
+
+      <mesh position={[0, -0.79, -0.01]}>
+        <planeGeometry args={[1.72, 0.022]} />
+        <meshBasicMaterial color="#2b5a74" transparent opacity={0.58} />
       </mesh>
 
       <mesh position={[0, 0.73, 0]}>
@@ -135,6 +246,7 @@ const QuestPanel3D = ({
           subtitle={item.description}
           position={[0, 0.22 - index * 0.4, 0.02]}
           onClick={() => onSelect?.(item.id)}
+          accent={item.accent}
         />
       ))}
 
@@ -145,8 +257,8 @@ const QuestPanel3D = ({
 
       {onBack ? (
         <QuestButton
-          title="BACK"
-          subtitle="Return to previous panel"
+          title="VOLVER"
+          subtitle="Regresar al contexto anterior"
           position={[-0.44, -0.94, 0.03]}
           onClick={onBack}
         />
@@ -154,8 +266,8 @@ const QuestPanel3D = ({
 
       {onHome ? (
         <QuestButton
-          title="HOME"
-          subtitle="Return to quest root"
+          title="OPERACIÓN"
+          subtitle="Volver al nodo operativo"
           position={[0.44, -0.94, 0.03]}
           onClick={onHome}
         />
