@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unknown-property */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -20,6 +20,9 @@ const PHONE_KEY_PREFIX = 'QuestPhoneKey_';
 const PHONE_HANDSET_NAME = 'QuestPhoneHandset';
 const PHONE_MODEL_NAME = 'QuestPhoneModel';
 const PHONE_RIG_NAME = 'QuestPhoneRig';
+const PHONE_FOCUS_OFFSET = new THREE.Vector3(0.16, -0.06, -0.5);
+const PHONE_FOCUS_ROTATION = new THREE.Euler(-1.08, 0, 0.06, 'YXZ');
+const PHONE_FOCUS_SCALE = 4.2;
 
 const snapshotTransform = (object) => {
   if (!object) return null;
@@ -69,43 +72,16 @@ const cloneNodeMaterial = (node) => {
   node.material = node.material.clone();
 };
 
-const prepareEnvironment = (gltf) => {
-  const environment = gltf.scene.clone(true);
+const collectPhoneNodes = (root) => {
   const phone = {
     keys: {},
     handset: null,
     model: null,
-    rig: null,
+    rig: root.getObjectByName(PHONE_RIG_NAME),
   };
 
-  environment.traverse((node) => {
+  root.traverse((node) => {
     if (!node.isMesh) return;
-
-    node.castShadow = false;
-    node.receiveShadow =
-      node.name === 'BasePlatform' ||
-      node.name === 'InnerPlatform' ||
-      node.name === 'LeftPlinth' ||
-      node.name === 'RightPlinth';
-    node.frustumCulled = true;
-
-    if (shouldHideNode(node.name)) {
-      node.visible = false;
-    }
-
-    if (node.name.startsWith(PHONE_KEY_PREFIX) || node.name === PHONE_HANDSET_NAME) {
-      cloneNodeMaterial(node);
-      node.renderOrder = 25;
-
-      const material = Array.isArray(node.material) ? node.material[0] : node.material;
-      if (material) {
-        material.transparent = true;
-        material.opacity = 0.08;
-        material.depthWrite = false;
-        material.toneMapped = false;
-        material.color = new THREE.Color(node.name === PHONE_HANDSET_NAME ? '#8fdcff' : '#6ad7ff');
-      }
-    }
 
     if (node.name.startsWith(PHONE_KEY_PREFIX)) {
       phone.keys[node.name.replace(PHONE_KEY_PREFIX, '')] = {
@@ -124,12 +100,177 @@ const prepareEnvironment = (gltf) => {
     }
 
     if (node.name === PHONE_MODEL_NAME) {
-      phone.model = node;
+      phone.model = {
+        node,
+        basePosition: node.position.clone(),
+        baseScale: node.scale.clone(),
+      };
+    }
+  });
+
+  return phone;
+};
+
+const stylePhoneNode = (node, type) => {
+  cloneNodeMaterial(node);
+  node.frustumCulled = false;
+  node.renderOrder = 25;
+
+  const material = Array.isArray(node.material) ? node.material[0] : node.material;
+  if (!material) return;
+
+  material.transparent = true;
+  material.depthWrite = false;
+  material.toneMapped = false;
+
+  if (type === 'model') {
+    material.opacity = 1;
+    return;
+  }
+
+  material.opacity = 0.08;
+  material.color = new THREE.Color(type === 'handset' ? '#8fdcff' : '#6ad7ff');
+};
+
+const createFocusPhone = (sourcePhone) => {
+  if (!sourcePhone?.rig) return null;
+
+  const focusRig = sourcePhone.rig.clone(true);
+  focusRig.name = 'QuestPhoneFocusRig';
+  focusRig.position.set(0, 0, 0);
+  focusRig.quaternion.identity();
+  focusRig.scale.set(1, 1, 1);
+
+  focusRig.traverse((node) => {
+    if (!node.isMesh) return;
+    node.castShadow = false;
+    node.receiveShadow = false;
+
+    if (node.name.startsWith(PHONE_KEY_PREFIX)) {
+      stylePhoneNode(node, 'key');
+    } else if (node.name === PHONE_HANDSET_NAME) {
+      stylePhoneNode(node, 'handset');
+    } else if (node.name === PHONE_MODEL_NAME) {
+      stylePhoneNode(node, 'model');
+    } else {
+      cloneNodeMaterial(node);
+    }
+  });
+
+  const phone = collectPhoneNodes(focusRig);
+  return {
+    rig: focusRig,
+    phone,
+  };
+};
+
+const updatePhoneVisuals = ({ phone, hoveredTarget, phoneState, focusedView = false }) => {
+  if (!phone) return;
+
+  Object.entries(phone.keys).forEach(([keyName, entry]) => {
+    const material = Array.isArray(entry.node.material)
+      ? entry.node.material[0]
+      : entry.node.material;
+    const pressed = phoneState?.pressedKey === keyName;
+    const hovered = hoveredTarget === entry.node.name;
+
+    entry.node.position.copy(entry.basePosition);
+    entry.node.scale.copy(entry.baseScale);
+
+    if (pressed) {
+      entry.node.position.z = entry.basePosition.z - 0.06;
+      entry.node.scale.set(
+        entry.baseScale.x * 0.98,
+        entry.baseScale.y * 0.7,
+        entry.baseScale.z * 0.98
+      );
+    }
+
+    if (material) {
+      const idleOpacity = focusedView ? 0.26 : phoneState?.focusMode ? 0 : 0.08;
+      material.opacity = pressed
+        ? 0.58
+        : hovered
+          ? focusedView ? 0.46 : 0.22
+          : idleOpacity;
+      material.color.set(pressed ? '#c8f6ff' : hovered ? '#9ee7ff' : '#67d7ff');
+    }
+  });
+
+  if (phone.handset) {
+    const { node, basePosition, baseScale } = phone.handset;
+    const material = Array.isArray(node.material) ? node.material[0] : node.material;
+    const hovered = hoveredTarget === PHONE_HANDSET_NAME;
+
+    node.position.copy(basePosition);
+    node.scale.copy(baseScale);
+
+    if (phoneState?.isOffHook) {
+      node.position.y = basePosition.y + 0.22;
+      node.position.z = basePosition.z + 0.08;
+    }
+
+    if (material) {
+      const idleOpacity = focusedView ? 0.22 : phoneState?.focusMode ? 0 : 0.08;
+      material.opacity = phoneState?.isOffHook
+        ? focusedView ? 0.38 : 0.3
+        : hovered
+          ? focusedView ? 0.34 : 0.16
+          : idleOpacity;
+      material.color.set(phoneState?.isOffHook ? '#c2f4ff' : '#8fdcff');
+    }
+  }
+
+  if (phone.model) {
+    const material = Array.isArray(phone.model.node.material)
+      ? phone.model.node.material[0]
+      : phone.model.node.material;
+    const hovered = hoveredTarget === PHONE_MODEL_NAME;
+
+    if (material) {
+      if (focusedView) {
+        material.emissive = material.emissive || new THREE.Color('#000000');
+        material.emissive.set(hovered ? '#0f2434' : '#071520');
+        material.emissiveIntensity = hovered ? 1.1 : 0.4;
+      } else {
+        material.emissive = material.emissive || new THREE.Color('#000000');
+        material.emissive.set('#000000');
+        material.emissiveIntensity = 0;
+      }
+    }
+  }
+};
+
+const prepareEnvironment = (gltf) => {
+  const environment = gltf.scene.clone(true);
+
+  environment.traverse((node) => {
+    if (!node.isMesh) return;
+
+    node.castShadow = false;
+    node.receiveShadow =
+      node.name === 'BasePlatform' ||
+      node.name === 'InnerPlatform' ||
+      node.name === 'LeftPlinth' ||
+      node.name === 'RightPlinth';
+    node.frustumCulled = true;
+
+    if (shouldHideNode(node.name)) {
+      node.visible = false;
+    }
+
+    if (node.name.startsWith(PHONE_KEY_PREFIX)) {
+      stylePhoneNode(node, 'key');
+    } else if (node.name === PHONE_HANDSET_NAME) {
+      stylePhoneNode(node, 'handset');
+    } else if (node.name === PHONE_MODEL_NAME) {
+      cloneNodeMaterial(node);
     }
   });
 
   environment.updateMatrixWorld(true);
-  phone.rig = environment.getObjectByName(PHONE_RIG_NAME);
+  const phone = collectPhoneNodes(environment);
+  const focusPhone = createFocusPhone(phone);
 
   return {
     scene: environment,
@@ -143,6 +284,7 @@ const prepareEnvironment = (gltf) => {
       ),
     },
     phone,
+    focusPhone,
   };
 };
 
@@ -158,126 +300,79 @@ const QuestEnvironment = ({
   const gltf = useLoader(GLTFLoader, QUEST_ENVIRONMENT_MODEL_URL);
   const runtimeEnvironment = useMemo(() => prepareEnvironment(gltf), [gltf]);
   const [hoveredPhoneTarget, setHoveredPhoneTarget] = useState('');
+  const focusAnchorRef = useRef(null);
+  const focusBackdropRef = useRef(null);
+  const wasFocusedRef = useRef(false);
 
   useEffect(() => {
     onAnchorsChange?.(runtimeEnvironment.anchors);
   }, [onAnchorsChange, runtimeEnvironment]);
 
-  useEffect(() => {
-    const rig = runtimeEnvironment.phone.rig;
-    if (!rig) return;
-
-    if (!rig.userData.questBaseTransform) {
-      rig.userData.questBaseTransform = {
-        position: rig.position.clone(),
-        quaternion: rig.quaternion.clone(),
-        scale: rig.scale.clone(),
-      };
-    }
-  }, [runtimeEnvironment]);
-
   useFrame(() => {
-    const rig = runtimeEnvironment.phone.rig;
-    const baseTransform = rig?.userData?.questBaseTransform;
-    if (!rig || !baseTransform) return;
-
     if (!phoneState?.focusMode) {
-      rig.position.copy(baseTransform.position);
-      rig.quaternion.copy(baseTransform.quaternion);
-      rig.scale.copy(baseTransform.scale);
+      if (focusAnchorRef.current) {
+        focusAnchorRef.current.visible = false;
+      }
+      if (focusBackdropRef.current) {
+        focusBackdropRef.current.visible = false;
+      }
+      wasFocusedRef.current = false;
       return;
     }
 
+    const focusAnchor = focusAnchorRef.current;
+    if (!focusAnchor) return;
+
     const cameraPosition = new THREE.Vector3();
     const cameraDirection = new THREE.Vector3();
-    const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
-    const normal = new THREE.Vector3();
-    const xAxis = new THREE.Vector3();
-    const zAxis = new THREE.Vector3();
-    const focusMatrix = new THREE.Matrix4();
-
     camera.getWorldPosition(cameraPosition);
     camera.getWorldDirection(cameraDirection);
+    const focusPosition = cameraPosition.clone().add(
+      PHONE_FOCUS_OFFSET.clone().applyQuaternion(camera.quaternion)
+    );
+    const focusQuaternion = camera.quaternion.clone().multiply(
+      new THREE.Quaternion().setFromEuler(PHONE_FOCUS_ROTATION)
+    );
+    const baseScale = runtimeEnvironment.phone.rig?.scale || new THREE.Vector3(1, 1, 1);
+    const focusScale = baseScale.clone().multiplyScalar(PHONE_FOCUS_SCALE);
 
-    const focusPosition = cameraPosition
-      .clone()
-      .add(cameraDirection.clone().multiplyScalar(0.62))
-      .add(cameraUp.clone().multiplyScalar(-0.1));
-
-    normal.copy(cameraDirection).multiplyScalar(-1).normalize();
-    xAxis.crossVectors(cameraUp, normal).normalize();
-    if (xAxis.lengthSq() < 0.0001) {
-      xAxis.set(1, 0, 0);
+    focusAnchor.visible = true;
+    if (focusBackdropRef.current) {
+      focusBackdropRef.current.visible = true;
     }
-    zAxis.crossVectors(normal, xAxis).normalize();
 
-    focusMatrix.makeBasis(xAxis, normal, zAxis);
-    rig.position.lerp(focusPosition, 0.22);
-    rig.quaternion.slerp(new THREE.Quaternion().setFromRotationMatrix(focusMatrix), 0.22);
+    if (!wasFocusedRef.current) {
+      focusAnchor.position.copy(focusPosition);
+      focusAnchor.quaternion.copy(focusQuaternion);
+      focusAnchor.scale.copy(focusScale);
+      wasFocusedRef.current = true;
+      return;
+    }
 
-    const focusScale = baseTransform.scale.clone().multiplyScalar(2.85);
-    rig.scale.lerp(focusScale, 0.22);
+    focusAnchor.position.lerp(focusPosition, 0.24);
+    focusAnchor.quaternion.slerp(focusQuaternion, 0.24);
+    focusAnchor.scale.lerp(focusScale, 0.24);
   });
 
   useEffect(() => {
-    Object.entries(runtimeEnvironment.phone.keys).forEach(([keyName, entry]) => {
-      const material = Array.isArray(entry.node.material)
-        ? entry.node.material[0]
-        : entry.node.material;
-      const normalizedPressedKey = phoneState?.pressedKey === keyName;
-      const hovered = hoveredPhoneTarget === entry.node.name;
-
-      entry.node.position.copy(entry.basePosition);
-      entry.node.scale.copy(entry.baseScale);
-
-      if (normalizedPressedKey) {
-        entry.node.position.z = entry.basePosition.z - 0.06;
-        entry.node.scale.set(
-          entry.baseScale.x * 0.98,
-          entry.baseScale.y * 0.7,
-          entry.baseScale.z * 0.98
-        );
-      }
-
-      if (material) {
-        material.opacity = normalizedPressedKey
-          ? 0.52
-          : phoneState?.focusMode
-            ? hovered ? 0.34 : 0.18
-            : hovered ? 0.22 : 0.08;
-        material.color.set(
-          normalizedPressedKey ? '#c8f6ff' : hovered ? '#8fe5ff' : '#67d7ff'
-        );
-      }
+    updatePhoneVisuals({
+      phone: runtimeEnvironment.phone,
+      hoveredTarget: phoneState?.focusMode ? '' : hoveredPhoneTarget,
+      phoneState,
+      focusedView: false,
     });
-
-    if (runtimeEnvironment.phone.handset) {
-      const { node, basePosition, baseScale } = runtimeEnvironment.phone.handset;
-      const material = Array.isArray(node.material) ? node.material[0] : node.material;
-      const hovered = hoveredPhoneTarget === PHONE_HANDSET_NAME;
-
-      node.position.copy(basePosition);
-      node.scale.copy(baseScale);
-
-      if (phoneState?.isOffHook) {
-        node.position.y = basePosition.y + 0.22;
-        node.position.z = basePosition.z + 0.08;
-      }
-
-      if (material) {
-        material.opacity = phoneState?.isOffHook
-          ? 0.3
-          : phoneState?.focusMode
-            ? hovered ? 0.24 : 0.14
-            : hovered ? 0.16 : 0.08;
-        material.color.set(phoneState?.isOffHook ? '#c2f4ff' : '#8fdcff');
-      }
-    }
+    updatePhoneVisuals({
+      phone: runtimeEnvironment.focusPhone?.phone,
+      hoveredTarget: phoneState?.focusMode ? hoveredPhoneTarget : '',
+      phoneState,
+      focusedView: true,
+    });
   }, [hoveredPhoneTarget, phoneState, runtimeEnvironment]);
 
   const handlePointerMove = useCallback((event) => {
     const objectName = event.object?.name || '';
     if (
+      objectName === PHONE_MODEL_NAME ||
       objectName.startsWith(PHONE_KEY_PREFIX) ||
       objectName === PHONE_HANDSET_NAME
     ) {
@@ -290,57 +385,84 @@ const QuestEnvironment = ({
     }
   }, [hoveredPhoneTarget]);
 
-  const handlePointerMiss = useCallback(() => {
+  const clearHover = useCallback(() => {
     setHoveredPhoneTarget('');
-    if (phoneState?.focusMode) {
-      onPhoneFocusExit?.();
-    }
-  }, [onPhoneFocusExit, phoneState?.focusMode]);
+  }, []);
 
-  const handlePointerDown = useCallback((event) => {
+  const handleEnvironmentPointerDown = useCallback((event) => {
     const objectName = event.object?.name || '';
 
-    if (objectName === PHONE_MODEL_NAME) {
+    if (
+      objectName === PHONE_MODEL_NAME ||
+      objectName === PHONE_HANDSET_NAME ||
+      objectName.startsWith(PHONE_KEY_PREFIX)
+    ) {
       event.stopPropagation();
       if (!phoneState?.focusMode) {
         onPhoneFocusEnter?.();
       }
+      return;
+    }
+  }, [onPhoneFocusEnter, phoneState?.focusMode]);
+
+  const handleFocusPointerDown = useCallback((event) => {
+    const objectName = event.object?.name || '';
+    event.stopPropagation();
+
+    if (!phoneState?.focusMode) {
+      return;
+    }
+
+    if (objectName === PHONE_MODEL_NAME) {
+      onPhoneFocusExit?.();
       return;
     }
 
     if (objectName === PHONE_HANDSET_NAME) {
-      event.stopPropagation();
-      if (!phoneState?.focusMode) {
-        onPhoneFocusEnter?.();
-        return;
-      }
       onPhoneHandsetToggle?.();
       return;
     }
 
-    if (!objectName.startsWith(PHONE_KEY_PREFIX)) {
-      if (phoneState?.focusMode) {
-        onPhoneFocusExit?.();
-      }
-      return;
+    if (objectName.startsWith(PHONE_KEY_PREFIX)) {
+      onPhoneKeyPress?.(objectName.replace(PHONE_KEY_PREFIX, ''));
     }
+  }, [onPhoneFocusExit, onPhoneHandsetToggle, onPhoneKeyPress, phoneState?.focusMode]);
 
+  const handleFocusBackdropDown = useCallback((event) => {
     event.stopPropagation();
-    if (!phoneState?.focusMode) {
-      onPhoneFocusEnter?.();
-      return;
-    }
-    onPhoneKeyPress?.(objectName.replace(PHONE_KEY_PREFIX, ''));
-  }, [onPhoneFocusEnter, onPhoneFocusExit, onPhoneHandsetToggle, onPhoneKeyPress, phoneState?.focusMode]);
+    clearHover();
+    onPhoneFocusExit?.();
+  }, [clearHover, onPhoneFocusExit]);
 
   return (
-    <primitive
-      object={runtimeEnvironment.scene}
-      onPointerMove={handlePointerMove}
-      onPointerOut={handlePointerMiss}
-      onPointerMissed={handlePointerMiss}
-      onPointerDown={handlePointerDown}
-    />
+    <>
+      <primitive
+        object={runtimeEnvironment.scene}
+        onPointerMove={handlePointerMove}
+        onPointerOut={clearHover}
+        onPointerDown={handleEnvironmentPointerDown}
+      />
+
+      {runtimeEnvironment.focusPhone?.rig ? (
+        <group ref={focusAnchorRef} visible={false}>
+          <mesh
+            ref={focusBackdropRef}
+            visible={false}
+            position={[0, 0, -0.18]}
+            onPointerDown={handleFocusBackdropDown}
+          >
+            <planeGeometry args={[0.8, 0.7]} />
+            <meshBasicMaterial transparent opacity={0.001} depthWrite={false} />
+          </mesh>
+          <primitive
+            object={runtimeEnvironment.focusPhone.rig}
+            onPointerMove={handlePointerMove}
+            onPointerOut={clearHover}
+            onPointerDown={handleFocusPointerDown}
+          />
+        </group>
+      ) : null}
+    </>
   );
 };
 
