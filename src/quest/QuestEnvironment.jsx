@@ -40,6 +40,16 @@ const snapshotPosition = (object) => {
   return position.toArray();
 };
 
+const snapshotBounds = (object) => {
+  if (!object) return null;
+
+  const bounds = new THREE.Box3().setFromObject(object);
+  const size = new THREE.Vector3();
+  bounds.getSize(size);
+
+  return size.toArray();
+};
+
 const shouldHideNode = (name = '') =>
   RUNTIME_HIDDEN_NAMES.has(name) ||
   RUNTIME_HIDDEN_PREFIXES.some((prefix) => name.startsWith(prefix));
@@ -68,7 +78,10 @@ const prepareEnvironment = (gltf) => {
   return {
     scene: environment,
     anchors: {
-      panel: snapshotTransform(environment.getObjectByName(PANEL_ANCHOR_NAME)),
+      panel: {
+        ...snapshotTransform(environment.getObjectByName(PANEL_ANCHOR_NAME)),
+        size: snapshotBounds(environment.getObjectByName(PANEL_ANCHOR_NAME)),
+      },
       viewerPosition: snapshotPosition(
         environment.getObjectByName(VIEWER_ANCHOR_NAME)
       ),

@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
 const UI_MATERIAL_PROPS = {
   transparent: true,
   side: THREE.DoubleSide,
@@ -107,22 +109,31 @@ const createLabelTexture = ({
     context.stroke();
   }
 
+  const titleFontSize = clamp(Math.round(height * (subtitle ? 0.28 : 0.4)), 30, 86);
+  const subtitleFontSize = clamp(Math.round(height * 0.12), 18, 34);
+  const availableSubtitleHeight = Math.max(height - 150, subtitleFontSize * 2);
+  const maxSubtitleLines = clamp(
+    Math.floor(availableSubtitleHeight / Math.max(subtitleFontSize * 1.2, 1)),
+    1,
+    4
+  );
+
   context.fillStyle = '#d8f2ff';
-  context.font = 'bold 72px monospace';
+  context.font = `bold ${titleFontSize}px monospace`;
   context.textBaseline = 'top';
   context.fillText(String(title || '').toUpperCase(), 44, 36);
 
   if (subtitle) {
     context.fillStyle = '#8eb7cf';
-    context.font = '30px monospace';
+    context.font = `${subtitleFontSize}px monospace`;
     drawWrappedText({
       context,
       text: String(subtitle),
       x: 44,
-      y: 138,
+      y: Math.max(112, titleFontSize + 54),
       maxWidth: width - 92,
-      lineHeight: 38,
-      maxLines: 2,
+      lineHeight: Math.round(subtitleFontSize * 1.28),
+      maxLines: maxSubtitleLines,
     });
   }
 
@@ -239,10 +250,11 @@ const QuestPanel3D = ({
   scale = 1,
 }) => {
   const isInstrumentLayout = layout === 'instrument';
+  const isDossierLayout = layout === 'dossier';
   const titleTexture = useLabelTexture({
     title,
     subtitle,
-    width: 1400,
+    width: 1600,
     height: 300,
     accent: true,
   });
@@ -256,22 +268,22 @@ const QuestPanel3D = ({
   const focusTexture = useLabelTexture({
     title: focusTitle,
     subtitle: focusBody,
-    width: 980,
-    height: layout === 'operations' ? 320 : 520,
+    width: 1100,
+    height: layout === 'operations' ? 340 : isInstrumentLayout ? 430 : 560,
     accent: layout === 'operations',
   });
   const detailTexture = useLabelTexture({
     title: detailTitle,
     subtitle: detailBody,
-    width: 980,
-    height: 520,
+    width: 1100,
+    height: isInstrumentLayout ? 360 : 520,
     accent: false,
   });
 
   return (
     <group position={position} scale={scale}>
       <mesh position={[0, 0, -0.08]} renderOrder={0}>
-        <planeGeometry args={[1.9, 1.82]} />
+        <planeGeometry args={[2.24, 1.92]} />
         <meshStandardMaterial
           color="#08141e"
           opacity={0.98}
@@ -282,7 +294,7 @@ const QuestPanel3D = ({
       </mesh>
 
       <mesh position={[0, 0, -0.05]} renderOrder={0}>
-        <planeGeometry args={[1.82, 1.74]} />
+        <planeGeometry args={[2.12, 1.8]} />
         <meshStandardMaterial
           color="#0b1b26"
           opacity={0.96}
@@ -292,30 +304,48 @@ const QuestPanel3D = ({
         />
       </mesh>
 
-      <mesh position={[0, 0.9, -0.03]} renderOrder={1}>
-        <planeGeometry args={[1.76, 0.08]} />
+      <mesh position={[0, 0.95, -0.03]} renderOrder={1}>
+        <planeGeometry args={[2.04, 0.08]} />
         <meshBasicMaterial color="#67dfff" opacity={0.92} {...UI_MATERIAL_PROPS} />
       </mesh>
 
-      <mesh position={[0, 0.83, -0.025]} renderOrder={1}>
-        <planeGeometry args={[1.72, 0.04]} />
+      <mesh position={[0, 0.88, -0.025]} renderOrder={1}>
+        <planeGeometry args={[1.98, 0.04]} />
         <meshBasicMaterial color="#c1f4ff" opacity={0.94} {...UI_MATERIAL_PROPS} />
       </mesh>
 
-      <mesh position={[0, -0.79, -0.02]} renderOrder={1}>
-        <planeGeometry args={[1.72, 0.022]} />
+      <mesh position={[0, -0.89, -0.02]} renderOrder={1}>
+        <planeGeometry args={[1.98, 0.022]} />
         <meshBasicMaterial color="#5ea3c4" opacity={0.8} {...UI_MATERIAL_PROPS} />
       </mesh>
 
       <mesh position={[0, 0.73, 0.02]} renderOrder={2}>
-        <planeGeometry args={[1.58, 0.31]} />
+        <planeGeometry args={[1.9, 0.34]} />
         <meshBasicMaterial map={titleTexture || null} {...UI_MATERIAL_PROPS} />
       </mesh>
 
+      {onBack ? (
+        <QuestActionChip
+          title="ATRÁS"
+          position={[-0.8, 1.08, 0.04]}
+          onClick={onBack}
+          accent={false}
+        />
+      ) : null}
+
+      {onHome ? (
+        <QuestActionChip
+          title="OPERACIÓN"
+          position={[0.8, 1.08, 0.04]}
+          onClick={onHome}
+          accent
+        />
+      ) : null}
+
       {layout === 'operations' ? (
         <>
-          <mesh position={[0, 0.2, 0.03]} renderOrder={3}>
-            <planeGeometry args={[1.58, 0.4]} />
+          <mesh position={[0, 0.26, 0.03]} renderOrder={3}>
+            <planeGeometry args={[1.9, 0.42]} />
             <meshBasicMaterial map={focusTexture || null} {...UI_MATERIAL_PROPS} />
           </mesh>
 
@@ -324,26 +354,27 @@ const QuestPanel3D = ({
               key={item.id || index}
               title={item.label}
               subtitle={item.description}
-              position={[0, -0.16 - index * 0.4, 0.02]}
+              position={[0, -0.1 - index * 0.32, 0.02]}
               onClick={() => onSelect?.(item.id)}
               accent={item.accent}
+              buttonScale={0.96}
             />
           ))}
         </>
       ) : (
         <>
           <mesh
-            position={[0.38, isInstrumentLayout ? 0.26 : 0.12, 0.03]}
+            position={[isInstrumentLayout ? 0.5 : 0.42, isInstrumentLayout ? 0.28 : 0.08, 0.03]}
             renderOrder={3}
           >
-            <planeGeometry args={[0.84, isInstrumentLayout ? 0.52 : 0.74]} />
+            <planeGeometry args={[isInstrumentLayout ? 1.04 : 1.08, isInstrumentLayout ? 0.52 : 0.76]} />
             <meshBasicMaterial map={focusTexture || null} {...UI_MATERIAL_PROPS} />
           </mesh>
           <mesh
-            position={[0.38, isInstrumentLayout ? -0.16 : -0.44, 0.045]}
+            position={[isInstrumentLayout ? 0.5 : 0.42, isInstrumentLayout ? -0.23 : -0.46, 0.045]}
             renderOrder={4}
           >
-            <planeGeometry args={[0.84, isInstrumentLayout ? 0.3 : 0.42]} />
+            <planeGeometry args={[isInstrumentLayout ? 1.04 : 1.08, isInstrumentLayout ? 0.36 : 0.48]} />
             <meshBasicMaterial map={detailTexture || null} {...UI_MATERIAL_PROPS} />
           </mesh>
 
@@ -352,20 +383,33 @@ const QuestPanel3D = ({
               key={item.id || index}
               title={item.label}
               subtitle={item.description}
-              position={[-0.5, isInstrumentLayout ? 0.46 - index * 0.2 : 0.34 - index * 0.34, 0.02]}
+              position={[
+                isInstrumentLayout ? -0.63 : -0.56,
+                isInstrumentLayout ? 0.46 - index * 0.2 : 0.36 - index * 0.32,
+                0.02,
+              ]}
               onClick={() => onSelect?.(item.id)}
               accent={item.accent}
-              buttonScale={isInstrumentLayout ? 0.7 : 1}
+              buttonScale={isInstrumentLayout ? 0.76 : 0.9}
             />
           ))}
         </>
       )}
 
       <mesh
-        position={[isInstrumentLayout ? 0.18 : 0, isInstrumentLayout ? -0.48 : -0.62, 0.05]}
+        position={[
+          isInstrumentLayout ? 0.22 : isDossierLayout ? 0.08 : 0,
+          isInstrumentLayout ? -0.66 : isDossierLayout ? -0.74 : -0.62,
+          0.05,
+        ]}
         renderOrder={5}
       >
-        <planeGeometry args={[isInstrumentLayout ? 1.22 : 1.58, isInstrumentLayout ? 0.18 : 0.27]} />
+        <planeGeometry
+          args={[
+            isInstrumentLayout ? 1.42 : isDossierLayout ? 1.82 : 1.9,
+            isInstrumentLayout ? 0.2 : isDossierLayout ? 0.22 : 0.27,
+          ]}
+        />
         <meshBasicMaterial map={hintTexture || null} {...UI_MATERIAL_PROPS} />
       </mesh>
 
@@ -373,31 +417,11 @@ const QuestPanel3D = ({
         <QuestActionChip
           key={action.id || index}
           title={action.label}
-          position={[-0.51 + index * 0.34, isInstrumentLayout ? -0.84 : -0.92, 0.03]}
+          position={[-0.6 + index * 0.4, -0.98, 0.03]}
           onClick={() => onAction?.(action.id)}
           accent={action.accent}
         />
       ))}
-
-      {onBack ? (
-        <QuestButton
-          title="VOLVER"
-          subtitle="Regresar al contexto anterior"
-          position={[-0.44, isInstrumentLayout ? -1.06 : -1.15, 0.03]}
-          onClick={onBack}
-          buttonScale={isInstrumentLayout ? 0.84 : 1}
-        />
-      ) : null}
-
-      {onHome ? (
-        <QuestButton
-          title="OPERACIÓN"
-          subtitle="Volver al nodo operativo"
-          position={[0.44, isInstrumentLayout ? -1.06 : -1.15, 0.03]}
-          onClick={onHome}
-          buttonScale={isInstrumentLayout ? 0.84 : 1}
-        />
-      ) : null}
     </group>
   );
 };
