@@ -1,6 +1,6 @@
 /* eslint-disable react/no-unknown-property */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLoader } from '@react-three/fiber';
+import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
@@ -19,6 +19,7 @@ const RUNTIME_HIDDEN_PREFIXES = ['StatusNib_'];
 const PHONE_KEY_PREFIX = 'QuestPhoneKey_';
 const PHONE_HANDSET_NAME = 'QuestPhoneHandset';
 const PHONE_MODEL_NAME = 'QuestPhoneModel';
+const PHONE_RIG_NAME = 'QuestPhoneRig';
 
 const snapshotTransform = (object) => {
   if (!object) return null;
@@ -74,6 +75,7 @@ const prepareEnvironment = (gltf) => {
     keys: {},
     handset: null,
     model: null,
+    rig: null,
   };
 
   environment.traverse((node) => {
@@ -127,6 +129,7 @@ const prepareEnvironment = (gltf) => {
   });
 
   environment.updateMatrixWorld(true);
+  phone.rig = environment.getObjectByName(PHONE_RIG_NAME);
 
   return {
     scene: environment,
@@ -143,7 +146,15 @@ const prepareEnvironment = (gltf) => {
   };
 };
 
-const QuestEnvironment = ({ onAnchorsChange, onPhoneKeyPress, onPhoneHandsetToggle, phoneState }) => {
+const QuestEnvironment = ({
+  onAnchorsChange,
+  onPhoneKeyPress,
+  onPhoneHandsetToggle,
+  onPhoneFocusEnter,
+  onPhoneFocusExit,
+  phoneState,
+}) => {
+  const { camera } = useThree();
   const gltf = useLoader(GLTFLoader, QUEST_ENVIRONMENT_MODEL_URL);
   const runtimeEnvironment = useMemo(() => prepareEnvironment(gltf), [gltf]);
   const [hoveredPhoneTarget, setHoveredPhoneTarget] = useState('');
@@ -151,6 +162,62 @@ const QuestEnvironment = ({ onAnchorsChange, onPhoneKeyPress, onPhoneHandsetTogg
   useEffect(() => {
     onAnchorsChange?.(runtimeEnvironment.anchors);
   }, [onAnchorsChange, runtimeEnvironment]);
+
+  useEffect(() => {
+    const rig = runtimeEnvironment.phone.rig;
+    if (!rig) return;
+
+    if (!rig.userData.questBaseTransform) {
+      rig.userData.questBaseTransform = {
+        position: rig.position.clone(),
+        quaternion: rig.quaternion.clone(),
+        scale: rig.scale.clone(),
+      };
+    }
+  }, [runtimeEnvironment]);
+
+  useFrame(() => {
+    const rig = runtimeEnvironment.phone.rig;
+    const baseTransform = rig?.userData?.questBaseTransform;
+    if (!rig || !baseTransform) return;
+
+    if (!phoneState?.focusMode) {
+      rig.position.copy(baseTransform.position);
+      rig.quaternion.copy(baseTransform.quaternion);
+      rig.scale.copy(baseTransform.scale);
+      return;
+    }
+
+    const cameraPosition = new THREE.Vector3();
+    const cameraDirection = new THREE.Vector3();
+    const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
+    const normal = new THREE.Vector3();
+    const xAxis = new THREE.Vector3();
+    const zAxis = new THREE.Vector3();
+    const focusMatrix = new THREE.Matrix4();
+
+    camera.getWorldPosition(cameraPosition);
+    camera.getWorldDirection(cameraDirection);
+
+    const focusPosition = cameraPosition
+      .clone()
+      .add(cameraDirection.clone().multiplyScalar(0.62))
+      .add(cameraUp.clone().multiplyScalar(-0.1));
+
+    normal.copy(cameraDirection).multiplyScalar(-1).normalize();
+    xAxis.crossVectors(cameraUp, normal).normalize();
+    if (xAxis.lengthSq() < 0.0001) {
+      xAxis.set(1, 0, 0);
+    }
+    zAxis.crossVectors(normal, xAxis).normalize();
+
+    focusMatrix.makeBasis(xAxis, normal, zAxis);
+    rig.position.lerp(focusPosition, 0.22);
+    rig.quaternion.slerp(new THREE.Quaternion().setFromRotationMatrix(focusMatrix), 0.22);
+
+    const focusScale = baseTransform.scale.clone().multiplyScalar(2.85);
+    rig.scale.lerp(focusScale, 0.22);
+  });
 
   useEffect(() => {
     Object.entries(runtimeEnvironment.phone.keys).forEach(([keyName, entry]) => {
@@ -173,7 +240,11 @@ const QuestEnvironment = ({ onAnchorsChange, onPhoneKeyPress, onPhoneHandsetTogg
       }
 
       if (material) {
-        material.opacity = normalizedPressedKey ? 0.42 : hovered ? 0.22 : 0.08;
+        material.opacity = normalizedPressedKey
+          ? 0.52
+          : phoneState?.focusMode
+            ? hovered ? 0.34 : 0.18
+            : hovered ? 0.22 : 0.08;
         material.color.set(
           normalizedPressedKey ? '#c8f6ff' : hovered ? '#8fe5ff' : '#67d7ff'
         );
@@ -194,7 +265,11 @@ const QuestEnvironment = ({ onAnchorsChange, onPhoneKeyPress, onPhoneHandsetTogg
       }
 
       if (material) {
-        material.opacity = phoneState?.isOffHook ? 0.24 : hovered ? 0.16 : 0.08;
+        material.opacity = phoneState?.isOffHook
+          ? 0.3
+          : phoneState?.focusMode
+            ? hovered ? 0.24 : 0.14
+            : hovered ? 0.16 : 0.08;
         material.color.set(phoneState?.isOffHook ? '#c2f4ff' : '#8fdcff');
       }
     }
@@ -217,22 +292,46 @@ const QuestEnvironment = ({ onAnchorsChange, onPhoneKeyPress, onPhoneHandsetTogg
 
   const handlePointerMiss = useCallback(() => {
     setHoveredPhoneTarget('');
-  }, []);
+    if (phoneState?.focusMode) {
+      onPhoneFocusExit?.();
+    }
+  }, [onPhoneFocusExit, phoneState?.focusMode]);
 
   const handlePointerDown = useCallback((event) => {
     const objectName = event.object?.name || '';
 
+    if (objectName === PHONE_MODEL_NAME) {
+      event.stopPropagation();
+      if (!phoneState?.focusMode) {
+        onPhoneFocusEnter?.();
+      }
+      return;
+    }
+
     if (objectName === PHONE_HANDSET_NAME) {
       event.stopPropagation();
+      if (!phoneState?.focusMode) {
+        onPhoneFocusEnter?.();
+        return;
+      }
       onPhoneHandsetToggle?.();
       return;
     }
 
-    if (!objectName.startsWith(PHONE_KEY_PREFIX)) return;
+    if (!objectName.startsWith(PHONE_KEY_PREFIX)) {
+      if (phoneState?.focusMode) {
+        onPhoneFocusExit?.();
+      }
+      return;
+    }
 
     event.stopPropagation();
+    if (!phoneState?.focusMode) {
+      onPhoneFocusEnter?.();
+      return;
+    }
     onPhoneKeyPress?.(objectName.replace(PHONE_KEY_PREFIX, ''));
-  }, [onPhoneHandsetToggle, onPhoneKeyPress]);
+  }, [onPhoneFocusEnter, onPhoneFocusExit, onPhoneHandsetToggle, onPhoneKeyPress, phoneState?.focusMode]);
 
   return (
     <primitive

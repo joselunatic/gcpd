@@ -12,6 +12,7 @@ const EMPTY_SESSION = {
   syncState: 'sincronizando',
   currentModule: 'operacion',
   phoneState: {
+    focusMode: false,
     isOffHook: false,
     dialedDigits: '',
     lastDialedNumber: '',
@@ -55,6 +56,11 @@ const QuestHud = ({ data = EMPTY_DATA, session = EMPTY_SESSION }) => {
         <p className="quest-hud__status">
           tracer ws {session.phoneState?.tracerWsState || 'offline'}
         </p>
+        {session.phoneState?.focusMode ? (
+          <p className="quest-hud__status">
+            teléfono enfocado
+          </p>
+        ) : null}
         <div className="quest-hud__nav">
           <button type="button" onClick={session.actions.goToOperacion}>
             Operación

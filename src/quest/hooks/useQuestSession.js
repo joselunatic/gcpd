@@ -82,6 +82,7 @@ const useQuestSession = (data) => {
     errorTone: null,
   });
   const [phoneState, setPhoneState] = useState({
+    focusMode: false,
     isOffHook: false,
     dialedDigits: '',
     lastDialedNumber: '',
@@ -245,6 +246,23 @@ const useQuestSession = (data) => {
     const fallbackModule = toolContext?.originModule || lastPrimaryModule || QUEST_MODULE_OPERACION;
     setCurrentModule(fallbackModule);
   }, [lastPrimaryModule, toolContext]);
+
+  const enterPhoneFocus = useCallback(() => {
+    setPhoneState((current) => ({
+      ...current,
+      focusMode: true,
+      lastAction: current.lastAction === 'Auricular colgado.'
+        ? 'Teléfono enfocado.'
+        : current.lastAction,
+    }));
+  }, []);
+
+  const exitPhoneFocus = useCallback(() => {
+    setPhoneState((current) => ({
+      ...current,
+      focusMode: false,
+    }));
+  }, []);
 
   const stopPhoneTone = useCallback((toneKey) => {
     const audio = phoneAudioRef.current[toneKey];
@@ -720,6 +738,8 @@ const useQuestSession = (data) => {
       openTool,
       returnToOperationalContext,
       clearPhoneDial,
+      enterPhoneFocus,
+      exitPhoneFocus,
       pressPhoneKey,
       togglePhoneHandset,
     },

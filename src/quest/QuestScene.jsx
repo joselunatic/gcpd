@@ -140,6 +140,8 @@ const QuestScene = ({ data, session, recenterKey }) => {
         onAnchorsChange={setEnvironmentAnchors}
         onPhoneKeyPress={session.actions.pressPhoneKey}
         onPhoneHandsetToggle={session.actions.togglePhoneHandset}
+        onPhoneFocusEnter={session.actions.enterPhoneFocus}
+        onPhoneFocusExit={session.actions.exitPhoneFocus}
         phoneState={session.phoneState}
       />
 
