@@ -1,0 +1,16 @@
+{
+  "href": "https://gcpd.joselun.xyz/quest",
+  "title": "BROTHER-MK0",
+  "viewport": {
+    "width": 1280,
+    "height": 587,
+    "dpr": 1
+  },
+  "canvasCount": 0,
+  "route": false,
+  "hud": false,
+  "controls": false,
+  "bodyClass": "",
+  "bodyText": "",
+  "html": "\n    <div id=\"root\"></div>\n    <script type=\"module\" src=\"/src/main.jsx?t=1776886782549\"></script>\n  \n\n<div style=\"display: none;\"></div>"
+}

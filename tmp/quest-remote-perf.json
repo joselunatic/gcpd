@@ -1,0 +1,146 @@
+[
+  {
+    "name": "Timestamp",
+    "value": 2728.099642
+  },
+  {
+    "name": "AudioHandlers",
+    "value": 0
+  },
+  {
+    "name": "AudioWorkletProcessors",
+    "value": 0
+  },
+  {
+    "name": "Documents",
+    "value": 1
+  },
+  {
+    "name": "Frames",
+    "value": 1
+  },
+  {
+    "name": "JSEventListeners",
+    "value": 164
+  },
+  {
+    "name": "LayoutObjects",
+    "value": 8
+  },
+  {
+    "name": "MediaKeySessions",
+    "value": 0
+  },
+  {
+    "name": "MediaKeys",
+    "value": 0
+  },
+  {
+    "name": "Nodes",
+    "value": 162
+  },
+  {
+    "name": "Resources",
+    "value": 8
+  },
+  {
+    "name": "ContextLifecycleStateObservers",
+    "value": 25
+  },
+  {
+    "name": "V8PerContextDatas",
+    "value": 1
+  },
+  {
+    "name": "WorkerGlobalScopes",
+    "value": 0
+  },
+  {
+    "name": "UACSSResources",
+    "value": 0
+  },
+  {
+    "name": "RTCPeerConnections",
+    "value": 0
+  },
+  {
+    "name": "ResourceFetchers",
+    "value": 1
+  },
+  {
+    "name": "AdSubframes",
+    "value": 0
+  },
+  {
+    "name": "DetachedScriptStates",
+    "value": 0
+  },
+  {
+    "name": "ArrayBufferContents",
+    "value": 118
+  },
+  {
+    "name": "LayoutCount",
+    "value": 0
+  },
+  {
+    "name": "RecalcStyleCount",
+    "value": 1
+  },
+  {
+    "name": "LayoutDuration",
+    "value": 0
+  },
+  {
+    "name": "RecalcStyleDuration",
+    "value": 0.000217
+  },
+  {
+    "name": "DevToolsCommandDuration",
+    "value": 0.000646
+  },
+  {
+    "name": "ScriptDuration",
+    "value": 0
+  },
+  {
+    "name": "V8CompileDuration",
+    "value": 0
+  },
+  {
+    "name": "TaskDuration",
+    "value": 0.000905
+  },
+  {
+    "name": "TaskOtherDuration",
+    "value": 0.000042
+  },
+  {
+    "name": "ThreadTime",
+    "value": 0.001077
+  },
+  {
+    "name": "ProcessTime",
+    "value": 8.7
+  },
+  {
+    "name": "JSHeapUsedSize",
+    "value": 9200544
+  },
+  {
+    "name": "JSHeapTotalSize",
+    "value": 10174464
+  },
+  {
+    "name": "FirstMeaningfulPaint",
+    "value": 1949.138471
+  },
+  {
+    "name": "DomContentLoaded",
+    "value": 1947.981182
+  },
+  {
+    "name": "NavigationStart",
+    "value": 1946.962994
+  }
+]

@@ -60,35 +60,36 @@ const QuestScene = ({ data, session, recenterKey }) => {
       <color attach="background" args={['#071019']} />
       <fog attach="fog" args={['#071019', 3.2, 10.5]} />
 
-      <ambientLight intensity={0.34} />
+      <ambientLight intensity={0.52} />
       <hemisphereLight
-        args={['#84dfff', '#04080c', 0.6]}
+        args={['#9ee8ff', '#091019', 0.9]}
         position={[0, 3, 0]}
       />
-      <directionalLight position={[2.8, 4.6, 3.2]} intensity={1.05} color="#eaf7ff" />
-      <pointLight position={[-2.2, 1.6, 1.4]} intensity={0.45} color="#66d8ff" />
-      <pointLight position={[2.1, 1.4, 1.1]} intensity={0.38} color="#4ab8e9" />
-      <pointLight position={[1.6, 1.2, 0.1]} intensity={0.18} color="#ff9b54" />
+      <directionalLight position={[2.8, 4.6, 3.2]} intensity={1.4} color="#f3fbff" />
+      <pointLight position={[-2.2, 1.6, 1.4]} intensity={0.72} color="#8fe9ff" />
+      <pointLight position={[2.1, 1.4, 1.1]} intensity={0.62} color="#63d7ff" />
+      <pointLight position={[1.6, 1.2, 0.1]} intensity={0.24} color="#ff9b54" />
+      <pointLight position={[0, 1.9, 0.65]} intensity={1.35} distance={5.5} color="#d9f7ff" />
 
       <mesh position={[0, 2.1, -3.9]} receiveShadow>
         <planeGeometry args={[10.5, 5.2]} />
-        <meshStandardMaterial color="#09111a" roughness={0.96} metalness={0.08} />
+        <meshStandardMaterial color="#101c28" roughness={0.9} metalness={0.08} />
       </mesh>
       <mesh position={[-4.4, 2.0, -0.4]} rotation={[0, Math.PI / 2.7, 0]}>
         <planeGeometry args={[8.6, 5.0]} />
-        <meshStandardMaterial color="#060d14" roughness={0.98} metalness={0.04} />
+        <meshStandardMaterial color="#0d1822" roughness={0.94} metalness={0.04} />
       </mesh>
       <mesh position={[4.4, 2.0, -0.4]} rotation={[0, -Math.PI / 2.7, 0]}>
         <planeGeometry args={[8.6, 5.0]} />
-        <meshStandardMaterial color="#060d14" roughness={0.98} metalness={0.04} />
+        <meshStandardMaterial color="#0d1822" roughness={0.94} metalness={0.04} />
       </mesh>
       <mesh position={[0, 4.45, -1.0]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[10.5, 8.6]} />
-        <meshStandardMaterial color="#050b11" roughness={1} metalness={0.02} />
+        <meshStandardMaterial color="#0b141c" roughness={0.98} metalness={0.02} />
       </mesh>
       <mesh position={[0, 0.02, -0.8]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[10.5, 8.6]} />
-        <meshStandardMaterial color="#050b10" roughness={1} metalness={0.03} />
+        <meshStandardMaterial color="#111b24" roughness={0.96} metalness={0.05} />
       </mesh>
 
       <QuestEnvironment onAnchorsChange={setEnvironmentAnchors} />

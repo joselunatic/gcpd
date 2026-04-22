@@ -134,20 +134,20 @@ const QuestButton = ({ title, subtitle, position, onClick, accent = false }) => 
       <mesh position={[0, 0, -0.02]}>
         <planeGeometry args={[1.62, 0.44]} />
         <meshStandardMaterial
-          color={hovered ? '#15384b' : '#071018'}
+          color={hovered ? '#1c4c64' : '#0a1721'}
           transparent
-          opacity={0.96}
-          metalness={0.2}
-          roughness={0.68}
+          opacity={0.98}
+          metalness={0.16}
+          roughness={0.52}
           side={THREE.DoubleSide}
         />
       </mesh>
       <mesh position={[0, 0.165, -0.01]}>
         <planeGeometry args={[1.48, 0.02]} />
         <meshBasicMaterial
-          color={hovered || accent ? '#9ad7ff' : '#2a556d'}
+          color={hovered || accent ? '#b9efff' : '#4f91b2'}
           transparent
-          opacity={hovered || accent ? 0.95 : 0.55}
+          opacity={hovered || accent ? 1 : 0.82}
           side={THREE.DoubleSide}
         />
       </mesh>
@@ -247,11 +247,11 @@ const QuestPanel3D = ({
       <mesh position={[0, 0, -0.05]}>
         <planeGeometry args={[1.9, 1.82]} />
         <meshStandardMaterial
-          color="#040a10"
+          color="#08141e"
           transparent
-          opacity={0.95}
-          metalness={0.28}
-          roughness={0.82}
+          opacity={0.98}
+          metalness={0.18}
+          roughness={0.58}
           side={THREE.DoubleSide}
         />
       </mesh>
@@ -259,23 +259,28 @@ const QuestPanel3D = ({
       <mesh position={[0, 0, -0.025]}>
         <planeGeometry args={[1.82, 1.74]} />
         <meshStandardMaterial
-          color="#061018"
+          color="#0b1b26"
           transparent
-          opacity={0.92}
-          metalness={0.14}
-          roughness={0.64}
+          opacity={0.96}
+          metalness={0.08}
+          roughness={0.44}
           side={THREE.DoubleSide}
         />
       </mesh>
 
+      <mesh position={[0, 0.9, -0.015]}>
+        <planeGeometry args={[1.76, 0.08]} />
+        <meshBasicMaterial color="#67dfff" transparent opacity={0.92} side={THREE.DoubleSide} />
+      </mesh>
+
       <mesh position={[0, 0.83, -0.01]}>
         <planeGeometry args={[1.72, 0.04]} />
-        <meshBasicMaterial color="#8ed9ff" transparent opacity={0.74} side={THREE.DoubleSide} />
+        <meshBasicMaterial color="#c1f4ff" transparent opacity={0.94} side={THREE.DoubleSide} />
       </mesh>
 
       <mesh position={[0, -0.79, -0.01]}>
         <planeGeometry args={[1.72, 0.022]} />
-        <meshBasicMaterial color="#2b5a74" transparent opacity={0.58} side={THREE.DoubleSide} />
+        <meshBasicMaterial color="#5ea3c4" transparent opacity={0.8} side={THREE.DoubleSide} />
       </mesh>
 
       <mesh position={[0, 0.73, 0]}>
