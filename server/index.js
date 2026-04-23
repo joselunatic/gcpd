@@ -615,23 +615,14 @@ function handleTracerStart(agentSocket, payload = {}) {
   const line = config.lines.find(
     (entry) => entry.enabled && normalizePhoneDigits(entry.number) === normalized
   );
-  if (!line) {
-    wsSend(agentSocket, {
-      type: 'tracer:error',
-      code: 'line_not_found',
-      message: `No existe linea tracer para ${inputNumber}.`,
-    });
-    return;
-  }
-  const hotspot = config.hotspots.find((entry) => entry.id === line.hotspotId);
-  if (!hotspot) {
-    wsSend(agentSocket, {
-      type: 'tracer:error',
-      code: 'hotspot_not_found',
-      message: 'La linea no tiene hotspot valido.',
-    });
-    return;
-  }
+  const hotspot = line
+    ? config.hotspots.find((entry) => entry.id === line.hotspotId) || null
+    : null;
+  const callLine = line || {
+    id: '',
+    number: inputNumber,
+    label: '',
+  };
 
   if (!tracerDmSocket || tracerDmSocket.readyState !== 1) {
     wsSend(agentSocket, {
@@ -647,9 +638,9 @@ function handleTracerStart(agentSocket, payload = {}) {
   const call = {
     callId,
     state: 'incoming',
-    number: line.number,
+    number: callLine.number,
     normalized,
-    line,
+    line: callLine,
     hotspot,
     agentSocket,
     createdAt: Date.now(),
@@ -664,18 +655,19 @@ function handleTracerStart(agentSocket, payload = {}) {
   wsSend(agentSocket, {
     type: 'tracer:ringing',
     callId,
-    number: line.number,
-    label: line.label,
+    number: callLine.number,
+    label: callLine.label,
+    hotspotLabel: hotspot?.label || '',
     timeoutMs: TRACER_RING_TIMEOUT_MS,
   });
   wsSend(tracerDmSocket, {
     type: 'tracer:incoming',
     call: {
       callId,
-      number: line.number,
-      label: line.label,
-      hotspotId: hotspot.id,
-      hotspotLabel: hotspot.label,
+      number: callLine.number,
+      label: callLine.label,
+      hotspotId: hotspot?.id || '',
+      hotspotLabel: hotspot?.label || '',
       createdAt: call.createdAt,
       timeoutMs: TRACER_RING_TIMEOUT_MS,
       stage: 0,
@@ -706,12 +698,14 @@ function handleDmAnswer(payload = {}) {
       number: call.line.number,
       label: call.line.label,
     },
-    hotspot: {
-      id: call.hotspot.id,
-      label: call.hotspot.label,
-      x: call.hotspot.x,
-      y: call.hotspot.y,
-    },
+    hotspot: call.hotspot
+      ? {
+          id: call.hotspot.id,
+          label: call.hotspot.label,
+          x: call.hotspot.x,
+          y: call.hotspot.y,
+        }
+      : null,
     timeline: {
       stepMs: TRACER_STEP_MS,
       exactMs: TRACER_EXACT_MS,
@@ -727,12 +721,14 @@ function handleDmAnswer(payload = {}) {
       number: call.line.number,
       label: call.line.label,
     },
-    hotspot: {
-      id: call.hotspot.id,
-      label: call.hotspot.label,
-      x: call.hotspot.x,
-      y: call.hotspot.y,
-    },
+    hotspot: call.hotspot
+      ? {
+          id: call.hotspot.id,
+          label: call.hotspot.label,
+          x: call.hotspot.x,
+          y: call.hotspot.y,
+        }
+      : null,
     timeline: {
       stepMs: TRACER_STEP_MS,
       exactMs: TRACER_EXACT_MS,
@@ -2388,8 +2384,8 @@ tracerWss.on('connection', (ws, request, url) => {
         state: call.state,
         number: call.line.number,
         label: call.line.label,
-        hotspotId: call.hotspot.id,
-        hotspotLabel: call.hotspot.label,
+        hotspotId: call.hotspot?.id || '',
+        hotspotLabel: call.hotspot?.label || '',
         createdAt: call.createdAt,
         answeredAt: call.answeredAt || null,
         timeoutMs: TRACER_RING_TIMEOUT_MS,

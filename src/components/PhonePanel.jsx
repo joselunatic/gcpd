@@ -261,10 +261,10 @@ const PhonePanel = () => {
                 </div>
               )}
               <div className="phone-panel__call-title">
-                #{prioritizedCall.number} · {prioritizedCall.label || 'Sin etiqueta'}
+                #{prioritizedCall.number} · {prioritizedCall.label || 'Linea sin coincidencia'}
               </div>
               <div className="phone-panel__call-meta">
-                hotspot: {prioritizedCall.hotspotLabel || prioritizedCall.hotspotId || 'n/a'}
+                hotspot: {prioritizedCall.hotspotLabel || prioritizedCall.hotspotId || 'sin hotspot asociado'}
               </div>
 
               {prioritizedCall.state !== 'answered' ? (
