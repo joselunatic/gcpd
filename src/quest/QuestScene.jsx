@@ -142,6 +142,7 @@ const QuestScene = ({ data, session, recenterKey }) => {
         onPhoneHandsetToggle={session.actions.togglePhoneHandset}
         onPhoneFocusEnter={session.actions.enterPhoneFocus}
         onPhoneFocusExit={session.actions.exitPhoneFocus}
+        onPhoneModeSelect={session.actions.setPhoneMode}
         phoneState={session.phoneState}
       />
 

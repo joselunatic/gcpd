@@ -4,6 +4,8 @@ import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
+import { PHONE_MODE_CALL, PHONE_MODE_TRACER } from './hooks/useQuestSession';
+
 const QUEST_ENVIRONMENT_MODEL_URL = '/assets/quest/quest_base_scene_v1.glb';
 
 const PANEL_ANCHOR_NAME = 'MainPanelScreen';
@@ -21,10 +23,10 @@ const PHONE_HANDSET_NAME = 'QuestPhoneHandset';
 const PHONE_MODEL_NAME = 'QuestPhoneModel';
 const PHONE_RIG_NAME = 'QuestPhoneRig';
 const PHONE_HIT_AREA_NAME = 'QuestPhoneHitArea';
-const PHONE_FOCUS_OFFSET = new THREE.Vector3(0, -0.18, -0.58);
+const PHONE_FOCUS_OFFSET = new THREE.Vector3(0, -0.26, -0.92);
 const PHONE_FOCUS_TILT = -0.42;
 const PHONE_FOCUS_ROLL = 0.03;
-const PHONE_FOCUS_SCALE = 3.55;
+const PHONE_FOCUS_SCALE = 2.25;
 const PHONE_HIT_AREA_COLOR = '#79dcff';
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
@@ -74,6 +76,40 @@ const cloneNodeMaterial = (node) => {
   }
 
   node.material = node.material.clone();
+};
+
+const createPhoneLabelTexture = ({ title, subtitle = '', active = false, width = 640, height = 180 }) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+
+  const background = context.createLinearGradient(0, 0, width, height);
+  background.addColorStop(0, active ? '#144960' : '#071823');
+  background.addColorStop(1, active ? '#0b2b3d' : '#030b12');
+  context.fillStyle = background;
+  context.fillRect(0, 0, width, height);
+
+  context.strokeStyle = active ? '#d9f8ff' : '#4a8eaa';
+  context.lineWidth = active ? 8 : 5;
+  context.strokeRect(12, 12, width - 24, height - 24);
+
+  context.fillStyle = active ? '#e8fbff' : '#a9d8e8';
+  context.font = 'bold 54px monospace';
+  context.textBaseline = 'top';
+  context.fillText(title, 38, 34);
+
+  if (subtitle) {
+    context.fillStyle = active ? '#9ee7ff' : '#6ea8bc';
+    context.font = '28px monospace';
+    context.fillText(subtitle, 40, 106);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 };
 
 const collectPhoneNodes = (root) => {
@@ -346,6 +382,98 @@ const updatePhoneVisuals = ({ phone, hoveredTarget, phoneState, focusedView = fa
   }
 };
 
+const PhoneFocusModeButton = ({
+  mode,
+  title,
+  subtitle,
+  active,
+  disabled,
+  position,
+  onSelect,
+}) => {
+  const [hovered, setHovered] = useState(false);
+  const texture = useMemo(
+    () => createPhoneLabelTexture({ title, subtitle, active: active || hovered }),
+    [active, hovered, subtitle, title]
+  );
+
+  useEffect(() => {
+    return () => texture?.dispose?.();
+  }, [texture]);
+
+  const handlePointerDown = useCallback((event) => {
+    event.stopPropagation();
+    if (!disabled) {
+      onSelect?.(mode);
+    }
+  }, [disabled, mode, onSelect]);
+
+  return (
+    <mesh
+      position={position}
+      pointerEventsType={XR_RAY_POINTER_EVENTS}
+      pointerEventsOrder={60}
+      renderOrder={70}
+      onPointerDown={handlePointerDown}
+      onPointerEnter={(event) => {
+        event.stopPropagation();
+        setHovered(true);
+      }}
+      onPointerLeave={() => setHovered(false)}
+    >
+      <planeGeometry args={[0.42, 0.13]} />
+      <meshBasicMaterial
+        map={texture || null}
+        transparent
+        opacity={disabled ? 0.42 : 0.94}
+        depthWrite={false}
+        side={THREE.DoubleSide}
+        toneMapped={false}
+      />
+    </mesh>
+  );
+};
+
+const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
+  if (!phoneState?.focusMode) return null;
+
+  const modeLocked = Boolean(phoneState.activeMode);
+
+  return (
+    <group position={[0, -0.34, 0.08]}>
+      <mesh position={[0, 0.08, -0.01]} renderOrder={68}>
+        <planeGeometry args={[0.96, 0.28]} />
+        <meshBasicMaterial
+          color="#041019"
+          transparent
+          opacity={0.86}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          toneMapped={false}
+        />
+      </mesh>
+      <PhoneFocusModeButton
+        mode={PHONE_MODE_CALL}
+        title="LLAMADA"
+        subtitle="DIAL"
+        active={phoneState.mode === PHONE_MODE_CALL}
+        disabled={modeLocked}
+        position={[-0.24, 0.08, 0]}
+        onSelect={onPhoneModeSelect}
+      />
+      <PhoneFocusModeButton
+        mode={PHONE_MODE_TRACER}
+        title="TRAZA"
+        subtitle="TRACE"
+        active={phoneState.mode === PHONE_MODE_TRACER}
+        disabled={modeLocked}
+        position={[0.24, 0.08, 0]}
+        onSelect={onPhoneModeSelect}
+      />
+    </group>
+  );
+};
+
 const prepareEnvironment = (gltf) => {
   const environment = gltf.scene.clone(true);
 
@@ -400,6 +528,7 @@ const QuestEnvironment = ({
   onPhoneHandsetToggle,
   onPhoneFocusEnter,
   onPhoneFocusExit,
+  onPhoneModeSelect,
   phoneState,
 }) => {
   const { camera } = useThree();
@@ -554,6 +683,10 @@ const QuestEnvironment = ({
 
       {runtimeEnvironment.focusPhone?.rig ? (
         <group ref={focusAnchorRef} visible={false}>
+          <PhoneFocusControls
+            phoneState={phoneState}
+            onPhoneModeSelect={onPhoneModeSelect}
+          />
           <mesh
             ref={focusBackdropRef}
             visible={false}
