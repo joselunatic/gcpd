@@ -336,21 +336,10 @@ const addFocusKeyHitAreas = (focusRig) => {
 
   keyMeshes.forEach((keyNode) => {
     const keyName = keyNode.name.replace(PHONE_KEY_PREFIX, '');
-    keyNode.geometry?.computeBoundingBox?.();
-    const bounds = keyNode.geometry?.boundingBox?.clone?.();
-    if (!bounds || bounds.isEmpty()) return;
-
-    const localCenter = new THREE.Vector3();
-    const localSize = new THREE.Vector3();
-    bounds.getCenter(localCenter);
-    bounds.getSize(localSize);
-
-    localSize.x = Math.max(localSize.x * 1.7, 0.06);
-    localSize.y = Math.max(localSize.y * 1.7, 0.06);
-    localSize.z = Math.max(localSize.z * 2.5, 0.06);
+    if (!keyNode.geometry) return;
 
     const hitArea = new THREE.Mesh(
-      new THREE.BoxGeometry(localSize.x, localSize.y, localSize.z),
+      keyNode.geometry.clone(),
       new THREE.MeshBasicMaterial({
         color: '#d9f8ff',
         transparent: true,
@@ -360,7 +349,9 @@ const addFocusKeyHitAreas = (focusRig) => {
       })
     );
     hitArea.name = `${PHONE_KEY_HIT_PREFIX}${keyName}`;
-    hitArea.position.copy(localCenter);
+    hitArea.position.set(0, 0, 0);
+    hitArea.rotation.set(0, 0, 0);
+    hitArea.scale.set(1.45, 1.45, 1.45);
     hitArea.pointerEventsType = XR_RAY_POINTER_EVENTS;
     hitArea.pointerEventsOrder = 80;
     hitArea.renderOrder = 80;
@@ -666,7 +657,7 @@ const PhoneFocusStatus = ({ phoneState, hoveredPhoneTarget }) => {
   }, [texture]);
 
   return (
-    <group position={[0, -0.98, 8.4]} scale={10.5}>
+    <group position={[0, 1.45, 8.4]} scale={10.5}>
       <mesh renderOrder={130}>
         <planeGeometry args={[1.62, 0.52]} />
         <meshBasicMaterial

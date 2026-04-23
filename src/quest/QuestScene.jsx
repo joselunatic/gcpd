@@ -7,8 +7,8 @@ import QuestEnvironment from './QuestEnvironment';
 import QuestHdriEnvironment from './QuestHdriEnvironment';
 import QuestMonitorSurface from './QuestMonitorSurface';
 
-const DEFAULT_CAMERA_POSITION = [0, 2.15, 3.15];
-const DEFAULT_CAMERA_TARGET = [0, 1.78, -1.45];
+const DEFAULT_CAMERA_POSITION = [0, 2.58, 3.15];
+const DEFAULT_CAMERA_TARGET = [0, 2.14, -1.45];
 
 const getCameraPose = (anchors) => {
   if (!anchors?.panel?.position || !anchors?.panel?.quaternion || !anchors?.viewerPosition) {
@@ -25,7 +25,7 @@ const getCameraPose = (anchors) => {
 
   const position = viewerPosition
     .clone()
-    .add(new THREE.Vector3(0, 2.18, 0))
+    .add(new THREE.Vector3(0, 2.62, 0))
     .add(panelNormal.multiplyScalar(0.08));
 
   return {
