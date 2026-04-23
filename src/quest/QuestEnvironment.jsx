@@ -969,7 +969,6 @@ const QuestEnvironment = ({
     <>
       <primitive
         object={runtimeEnvironment.scene}
-        pointerEventsType={XR_RAY_POINTER_EVENTS}
         onPointerMove={handlePointerMove}
         onPointerOut={clearHover}
         onPointerDown={handleEnvironmentPointerDown}
@@ -1003,7 +1002,6 @@ const QuestEnvironment = ({
           </mesh>
           <primitive
             object={runtimeEnvironment.focusPhone.rig}
-            pointerEventsType={XR_RAY_POINTER_EVENTS}
             onPointerMove={handlePointerMove}
             onPointerOut={clearHover}
             onPointerDown={handleFocusPointerDown}

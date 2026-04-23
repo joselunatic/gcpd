@@ -168,7 +168,7 @@ const QuestButton = ({
   const texture = useLabelTexture({ title, subtitle, accent });
 
   return (
-    <group position={position} scale={buttonScale} pointerEventsType={XR_RAY_POINTER_EVENTS}>
+    <group position={position} scale={buttonScale}>
       <mesh position={[0, 0, -0.04]} renderOrder={1}>
         <planeGeometry args={[1.62, 0.44]} />
         <meshStandardMaterial
@@ -194,6 +194,8 @@ const QuestButton = ({
         onPointerLeave={() => setHovered(false)}
         scale={hovered ? 1.018 : 1}
         renderOrder={3}
+        pointerEventsType={XR_RAY_POINTER_EVENTS}
+        pointerEventsOrder={20}
       >
         <planeGeometry args={[1.5, 0.34]} />
         <meshBasicMaterial map={texture || null} {...UI_MATERIAL_PROPS} />
@@ -283,7 +285,7 @@ const QuestPanel3D = ({
   });
 
   return (
-    <group position={position} scale={scale} pointerEventsType={XR_RAY_POINTER_EVENTS}>
+    <group position={position} scale={scale}>
       <mesh position={[0, 0, -0.08]} renderOrder={0}>
         <planeGeometry args={[2.24, 1.92]} />
         <meshStandardMaterial

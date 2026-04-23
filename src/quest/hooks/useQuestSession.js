@@ -134,6 +134,7 @@ const useQuestSession = (data) => {
     hangupTone: null,
     keypadTone: null,
     errorTone: null,
+    keyTones: {},
   });
   const [phoneState, setPhoneState] = useState({
     focusMode: false,
@@ -370,6 +371,26 @@ const useQuestSession = (data) => {
     }
   }, []);
 
+  const playPhoneKeyTone = useCallback((key) => {
+    const normalizedKey = normalizePhoneKey(key);
+    const digitTone = /^\d$/.test(normalizedKey)
+      ? phoneAudioRef.current.keyTones?.[normalizedKey]
+      : null;
+    const audio = digitTone || phoneAudioRef.current.keypadTone;
+
+    if (!audio) return;
+    try {
+      audio.loop = false;
+      audio.currentTime = 0;
+      const playback = audio.play();
+      if (playback && typeof playback.catch === 'function') {
+        playback.catch(() => {});
+      }
+    } catch {
+      // noop
+    }
+  }, []);
+
   const stopQuestCallPlayback = useCallback((options = {}) => {
     const {
       playHangup = false,
@@ -423,6 +444,12 @@ const useQuestSession = (data) => {
       hangupTone: new Audio('/assets/sounds/hangup.mp3'),
       keypadTone: new Audio('/assets/sounds/dtmf-wopr.wav'),
       errorTone: new Audio('/assets/sounds/mistake.mp3'),
+      keyTones: Object.fromEntries(
+        Array.from({ length: 10 }, (_, digit) => [
+          String(digit),
+          new Audio(`/assets/sounds/telephone-key${digit}.mp3`),
+        ])
+      ),
     };
 
     phoneAudioRef.current.callTone.volume = 0.72;
@@ -430,13 +457,19 @@ const useQuestSession = (data) => {
     phoneAudioRef.current.hangupTone.volume = 0.82;
     phoneAudioRef.current.keypadTone.volume = 0.4;
     phoneAudioRef.current.errorTone.volume = 0.6;
+    Object.values(phoneAudioRef.current.keyTones).forEach((audio) => {
+      audio.volume = 0.58;
+    });
 
     return () => {
       stopQuestCallPlayback({
         playHangup: false,
         clearPressedKey: true,
       });
-      Object.values(phoneAudioRef.current).forEach((audio) => {
+      [
+        ...Object.values(phoneAudioRef.current).filter((audio) => audio instanceof Audio),
+        ...Object.values(phoneAudioRef.current.keyTones || {}),
+      ].forEach((audio) => {
         try {
           audio?.pause?.();
           if (audio) audio.currentTime = 0;
@@ -589,7 +622,7 @@ const useQuestSession = (data) => {
   }, [playPhoneTone, stopPhoneTone]);
 
   const clearPhoneDial = useCallback(() => {
-    playPhoneTone('keypadTone', { restart: true });
+    playPhoneKeyTone('Clear');
     setPhoneState((current) => {
       if (current.activeMode) {
         return {
@@ -607,15 +640,15 @@ const useQuestSession = (data) => {
         pressedKey: 'Clear',
       };
     });
-  }, [playPhoneTone]);
+  }, [playPhoneKeyTone]);
 
   const togglePhoneHandset = useCallback(() => {
-    playPhoneTone('keypadTone', { restart: true });
+    playPhoneKeyTone('Clear');
     setPhoneState((current) => ({
       ...current,
       lastAction: 'Usa CALL para iniciar o colgar. El auricular es decorativo en VR.',
     }));
-  }, [playPhoneTone]);
+  }, [playPhoneKeyTone]);
 
   const startTracerCall = useCallback((digits) => {
     setPhoneState((current) => {
@@ -824,7 +857,7 @@ const useQuestSession = (data) => {
       return;
     }
 
-    playPhoneTone('keypadTone', { restart: true });
+    playPhoneKeyTone(normalizedKey);
     setPhoneState((current) => {
       if (current.activeMode) {
         return {
@@ -847,6 +880,7 @@ const useQuestSession = (data) => {
     clearPhoneDial,
     hangupTracerCall,
     phoneState,
+    playPhoneKeyTone,
     playPhoneTone,
     startQuestCallPlayback,
     startTracerCall,
