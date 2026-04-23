@@ -536,6 +536,7 @@ const useQuestSession = (data) => {
 
         if (payload.type === 'tracer:answered') {
           stopPhoneTone('callTone');
+          playPhoneTone('pickupTone', { restart: true });
           setPhoneState((current) => ({
             ...current,
             activeMode: phoneBridgeModeRef.current,
