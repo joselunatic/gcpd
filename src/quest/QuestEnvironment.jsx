@@ -38,15 +38,15 @@ const PHONE_FOCUS_KEY_HIT_SCALE = 2.15;
 const PHONE_FOCUS_KEY_FALLBACK_DISTANCE = 0.09;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 const PHONE_KEY_VALUE_MAP = {
-  9: '7',
-  8: '8',
-  7: '9',
+  9: '1',
+  8: '2',
+  7: '3',
   6: '4',
   5: '5',
   4: '6',
-  3: '1',
-  2: '2',
-  1: '3',
+  3: '7',
+  2: '8',
+  1: '9',
 };
 
 const getPhoneKeyValue = (keyName = '') => PHONE_KEY_VALUE_MAP[keyName] || keyName;

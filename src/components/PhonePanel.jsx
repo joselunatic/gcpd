@@ -256,7 +256,7 @@ const PhonePanel = () => {
             <>
               {shouldGuideAnswer && (
                 <div className="phone-panel__incoming-guide">
-                  LLAMADA ENTRANTE · Pulsa el boton verde <strong>ATENDER</strong> para iniciar la
+                  LLAMADA ENTRANTE · Pulsa el boton verde <strong>DESCOLGAR</strong> para iniciar la
                   traza.
                 </div>
               )}
@@ -276,7 +276,7 @@ const PhonePanel = () => {
                     }`}
                     onClick={() => sendAction('tracer:answer', prioritizedCall.callId)}
                   >
-                    Atender
+                    Descolgar
                   </button>
                   <button
                     type="button"

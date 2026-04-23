@@ -124,6 +124,7 @@ const useQuestSession = (data) => {
   const [toolContext, setToolContext] = useState(null);
   const tracerSocketRef = useRef(null);
   const tracerReconnectRef = useRef(0);
+  const phoneBridgeModeRef = useRef(PHONE_MODE_TRACER);
   const callPlaybackRef = useRef({
     audio: null,
     endedHandler: null,
@@ -523,7 +524,7 @@ const useQuestSession = (data) => {
           playPhoneTone('callTone', { restart: true, loop: true });
           setPhoneState((current) => ({
             ...current,
-            activeMode: PHONE_MODE_TRACER,
+            activeMode: phoneBridgeModeRef.current,
             activeCallId: String(payload.callId || ''),
             tracerPhase: 'ringing',
             lineStatus: 'ringing',
@@ -535,22 +536,24 @@ const useQuestSession = (data) => {
 
         if (payload.type === 'tracer:answered') {
           stopPhoneTone('callTone');
-          playPhoneTone('pickupTone', { restart: true });
           setPhoneState((current) => ({
             ...current,
-            activeMode: PHONE_MODE_TRACER,
+            activeMode: phoneBridgeModeRef.current,
             activeCallId: String(payload.callId || current.activeCallId || ''),
             tracerPhase: 'answered',
-            lineStatus: 'trazando',
+            lineStatus: phoneBridgeModeRef.current === PHONE_MODE_TRACER ? 'trazando' : 'conectada',
             hotspotLabel: String(payload.hotspot?.label || ''),
-            lastAction: `Operador respondió.${payload.hotspot?.label ? ` Hotspot ${payload.hotspot.label}.` : ' Traza en curso.'}`,
+            lastAction:
+              phoneBridgeModeRef.current === PHONE_MODE_TRACER
+                ? `Operador respondió.${payload.hotspot?.label ? ` Hotspot ${payload.hotspot.label}.` : ' Traza en curso.'}`
+                : 'DM descolgó la línea.',
           }));
           return;
         }
 
         if (payload.type === 'tracer:hangup' || payload.type === 'tracer:auto_hangup') {
           stopPhoneTone('callTone');
-          playPhoneTone('hangupTone', { restart: true });
+          playPhoneTone('pickupTone', { restart: true });
           setPhoneState((current) => ({
             ...current,
             activeMode: null,
@@ -622,7 +625,6 @@ const useQuestSession = (data) => {
   }, [playPhoneTone, stopPhoneTone]);
 
   const clearPhoneDial = useCallback(() => {
-    playPhoneKeyTone('Clear');
     setPhoneState((current) => {
       if (current.activeMode) {
         return {
@@ -640,17 +642,17 @@ const useQuestSession = (data) => {
         pressedKey: 'Clear',
       };
     });
-  }, [playPhoneKeyTone]);
+  }, []);
 
   const togglePhoneHandset = useCallback(() => {
-    playPhoneKeyTone('Clear');
     setPhoneState((current) => ({
       ...current,
       lastAction: 'Usa CALL para iniciar o colgar. El auricular es decorativo en VR.',
     }));
-  }, [playPhoneKeyTone]);
+  }, []);
 
-  const startTracerCall = useCallback((digits) => {
+  const startPhoneBridgeCall = useCallback((digits, mode = PHONE_MODE_TRACER) => {
+    phoneBridgeModeRef.current = mode;
     setPhoneState((current) => {
       if (current.tracerWsState !== 'online') {
         playPhoneTone('errorTone', { restart: true });
@@ -681,12 +683,15 @@ const useQuestSession = (data) => {
 
       return {
         ...current,
-        activeMode: PHONE_MODE_TRACER,
+        activeMode: mode,
         lastDialedNumber: digits,
         lineStatus: 'solicitando',
         tracerPhase: 'dialing',
         hotspotLabel: '',
-        lastAction: `Solicitando traza para ${digits}.`,
+        lastAction:
+          mode === PHONE_MODE_TRACER
+            ? `Solicitando traza para ${digits}.`
+            : `Llamando a ${digits}. Esperando respuesta DM.`,
         pressedKey: 'Call',
       };
     });
@@ -694,7 +699,7 @@ const useQuestSession = (data) => {
     goToHerramientas({
       tool: 'comunicaciones',
       originModule: currentModule,
-      resourceId: 'phone-tracer',
+      resourceId: mode === PHONE_MODE_TRACER ? 'phone-tracer' : 'phone-call',
     });
   }, [currentModule, goToHerramientas, playPhoneTone]);
 
@@ -790,7 +795,6 @@ const useQuestSession = (data) => {
 
   const hangupTracerCall = useCallback(() => {
     stopPhoneTone('callTone');
-    playPhoneTone('hangupTone', { restart: true });
     const socket = tracerSocketRef.current;
 
     if (socket && socket.readyState === 1 && phoneState.activeCallId) {
@@ -801,28 +805,28 @@ const useQuestSession = (data) => {
       return;
     }
 
+    playPhoneTone('pickupTone', { restart: true });
     setPhoneState((current) => ({
       ...current,
       activeMode: null,
       activeCallId: '',
       tracerPhase: 'hangup',
       lineStatus: 'colgada',
-      lastAction: 'Traza cancelada por el agente.',
+      lastAction:
+        phoneState.activeMode === PHONE_MODE_TRACER
+          ? 'Traza cancelada por el agente.'
+          : 'Llamada finalizada por el agente.',
       activeAudioLabel: '',
       pressedKey: 'Call',
     }));
-  }, [phoneState.activeCallId, playPhoneTone, stopPhoneTone]);
+  }, [phoneState.activeCallId, phoneState.activeMode, playPhoneTone, stopPhoneTone]);
 
   const pressPhoneKey = useCallback(async (key) => {
     const normalizedKey = normalizePhoneKey(key);
 
     if (normalizedKey === 'Call') {
       if (phoneState.activeMode === PHONE_MODE_CALL) {
-        stopQuestCallPlayback({
-          playHangup: true,
-          keepDigits: true,
-          message: 'Llamada finalizada por el agente.',
-        });
+        hangupTracerCall();
         return;
       }
 
@@ -844,11 +848,11 @@ const useQuestSession = (data) => {
       }
 
       if (phoneState.mode === PHONE_MODE_TRACER) {
-        startTracerCall(digits);
+        startPhoneBridgeCall(digits, PHONE_MODE_TRACER);
         return;
       }
 
-      await startQuestCallPlayback(digits);
+      startPhoneBridgeCall(digits, PHONE_MODE_CALL);
       return;
     }
 
@@ -882,8 +886,8 @@ const useQuestSession = (data) => {
     phoneState,
     playPhoneKeyTone,
     playPhoneTone,
+    startPhoneBridgeCall,
     startQuestCallPlayback,
-    startTracerCall,
     stopQuestCallPlayback,
   ]);
 
