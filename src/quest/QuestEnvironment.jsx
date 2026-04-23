@@ -21,8 +21,8 @@ const PHONE_HANDSET_NAME = 'QuestPhoneHandset';
 const PHONE_MODEL_NAME = 'QuestPhoneModel';
 const PHONE_RIG_NAME = 'QuestPhoneRig';
 const PHONE_HIT_AREA_NAME = 'QuestPhoneHitArea';
-const PHONE_FOCUS_OFFSET = new THREE.Vector3(0, -0.03, -0.48);
-const PHONE_FOCUS_TILT = -0.38;
+const PHONE_FOCUS_OFFSET = new THREE.Vector3(0, -0.18, -0.58);
+const PHONE_FOCUS_TILT = -0.42;
 const PHONE_FOCUS_ROLL = 0.03;
 const PHONE_FOCUS_SCALE = 3.55;
 const PHONE_HIT_AREA_COLOR = '#79dcff';
@@ -239,6 +239,18 @@ const createFocusPhone = (sourcePhone) => {
     }
   });
 
+  focusRig.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(focusRig);
+  if (!bounds.isEmpty()) {
+    const center = new THREE.Vector3();
+    bounds.getCenter(center);
+    focusRig.worldToLocal(center);
+    focusRig.children.forEach((child) => {
+      child.position.sub(center);
+    });
+    focusRig.updateMatrixWorld(true);
+  }
+
   const phone = collectPhoneNodes(focusRig);
   return {
     rig: focusRig,
@@ -432,7 +444,6 @@ const QuestEnvironment = ({
     focusHelper.position.copy(focusPosition);
     focusHelper.quaternion.identity();
     focusHelper.lookAt(cameraPosition);
-    focusHelper.rotateY(Math.PI);
     focusHelper.rotateX(PHONE_FOCUS_TILT);
     focusHelper.rotateZ(PHONE_FOCUS_ROLL);
 
