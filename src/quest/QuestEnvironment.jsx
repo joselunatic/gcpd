@@ -525,10 +525,10 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
   const modeLocked = Boolean(phoneState.activeMode);
 
   return (
-    <group position={[0, 0.0, 0.78]} scale={1.25}>
+    <group position={[0, 0, 7.8]} scale={12.5}>
       <mesh
         name={PHONE_FOCUS_CONTROL_TARGET}
-        position={[-1.08, 0, -0.02]}
+        position={[-1.8, 0, -0.02]}
         pointerEventsType={XR_RAY_POINTER_EVENTS}
         pointerEventsOrder={110}
         renderOrder={118}
@@ -546,7 +546,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
       </mesh>
       <mesh
         name={PHONE_FOCUS_CONTROL_TARGET}
-        position={[1.08, 0, -0.02]}
+        position={[1.8, 0, -0.02]}
         pointerEventsType={XR_RAY_POINTER_EVENTS}
         pointerEventsOrder={110}
         renderOrder={118}
@@ -568,7 +568,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
         subtitle="DIAL"
         active={phoneState.mode === PHONE_MODE_CALL}
         disabled={modeLocked}
-        position={[-1.08, 0, 0]}
+        position={[-1.8, 0, 0]}
         onSelect={onPhoneModeSelect}
       />
       <PhoneFocusModeButton
@@ -577,7 +577,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
         subtitle="TRACE"
         active={phoneState.mode === PHONE_MODE_TRACER}
         disabled={modeLocked}
-        position={[1.08, 0, 0]}
+        position={[1.8, 0, 0]}
         onSelect={onPhoneModeSelect}
       />
     </group>
