@@ -32,6 +32,9 @@ const PHONE_HIT_AREA_COLOR = '#79dcff';
 const PHONE_FOCUS_CONTROL_TARGET = 'QuestPhoneModeControl';
 const PHONE_FOCUS_CONTROL_LEFT = 'QuestPhoneModeControl_Call';
 const PHONE_FOCUS_CONTROL_RIGHT = 'QuestPhoneModeControl_Tracer';
+const PHONE_FOCUS_KEY_OFFSET = new THREE.Vector3(1.15, 0.025, 0.58);
+const PHONE_FOCUS_KEY_SCALE = 1.4;
+const PHONE_FOCUS_KEY_HIT_SCALE = 2.03;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
 const snapshotTransform = (object) => {
@@ -351,11 +354,13 @@ const addFocusKeyHitAreas = (focusRig) => {
     hitArea.name = `${PHONE_KEY_HIT_PREFIX}${keyName}`;
     hitArea.position.copy(keyNode.position);
     hitArea.quaternion.copy(keyNode.quaternion);
-    hitArea.scale.copy(keyNode.scale).multiplyScalar(1.45);
+    hitArea.scale.copy(keyNode.scale).multiplyScalar(PHONE_FOCUS_KEY_HIT_SCALE);
     hitArea.pointerEventsType = XR_RAY_POINTER_EVENTS;
     hitArea.pointerEventsOrder = 80;
     hitArea.renderOrder = 80;
     hitArea.frustumCulled = false;
+    hitArea.userData.basePosition = hitArea.position.clone();
+    hitArea.userData.baseScale = hitArea.scale.clone();
     keyNode.parent?.add(hitArea);
   });
 };
@@ -426,12 +431,28 @@ const updatePhoneVisuals = ({ phone, hoveredTarget, phoneState, focusedView = fa
     entry.node.position.copy(entry.basePosition);
     entry.node.scale.copy(entry.baseScale);
 
+    if (focusedView) {
+      entry.node.position.add(PHONE_FOCUS_KEY_OFFSET);
+      entry.node.scale.multiplyScalar(PHONE_FOCUS_KEY_SCALE);
+    }
+
+    if (entry.hitArea) {
+      entry.hitArea.position.copy(
+        focusedView
+          ? entry.basePosition.clone().add(PHONE_FOCUS_KEY_OFFSET)
+          : entry.hitArea.userData.basePosition || entry.hitArea.position
+      );
+      entry.hitArea.scale.copy(entry.baseScale).multiplyScalar(
+        focusedView ? PHONE_FOCUS_KEY_HIT_SCALE : 1
+      );
+    }
+
     if (pressed) {
-      entry.node.position.z = entry.basePosition.z - 0.06;
+      entry.node.position.y -= 0.06;
       entry.node.scale.set(
-        entry.baseScale.x * 0.98,
-        entry.baseScale.y * 0.7,
-        entry.baseScale.z * 0.98
+        entry.node.scale.x * 0.98,
+        entry.node.scale.y * 0.7,
+        entry.node.scale.z * 0.98
       );
     }
 
@@ -565,10 +586,10 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
   const modeLocked = Boolean(phoneState.activeMode);
 
   return (
-    <group position={[0, 0, 7.8]} scale={12.5}>
+    <group position={[0, 0, 7.8]} scale={11.25}>
       <mesh
         name={PHONE_FOCUS_CONTROL_TARGET}
-        position={[-1.25, 0, -0.02]}
+        position={[-1.06, 0, -0.02]}
         pointerEventsType={XR_RAY_POINTER_EVENTS}
         pointerEventsOrder={110}
         renderOrder={118}
@@ -586,7 +607,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
       </mesh>
       <mesh
         name={PHONE_FOCUS_CONTROL_TARGET}
-        position={[1.25, 0, -0.02]}
+        position={[1.06, 0, -0.02]}
         pointerEventsType={XR_RAY_POINTER_EVENTS}
         pointerEventsOrder={110}
         renderOrder={118}
@@ -608,7 +629,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
         subtitle="DIAL"
         active={phoneState.mode === PHONE_MODE_CALL}
         disabled={modeLocked}
-        position={[-1.25, 0, 0]}
+        position={[-1.06, 0, 0]}
         onSelect={onPhoneModeSelect}
       />
       <PhoneFocusModeButton
@@ -617,7 +638,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
         subtitle="TRACE"
         active={phoneState.mode === PHONE_MODE_TRACER}
         disabled={modeLocked}
-        position={[1.25, 0, 0]}
+        position={[1.06, 0, 0]}
         onSelect={onPhoneModeSelect}
       />
     </group>
