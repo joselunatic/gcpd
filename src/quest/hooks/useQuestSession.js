@@ -15,6 +15,12 @@ const STATUS_TO_ALERT = {
   resolved: 'estable',
 };
 
+const AUDIO_ENDPOINT = '/api/audio';
+const PHONE_LINES_ENDPOINT = '/api/phone-lines';
+const PHONE_CALLED_ENDPOINT = '/api/phone-lines-called';
+const PHONE_MODE_CALL = 'call';
+const PHONE_MODE_TRACER = 'tracer';
+
 const getInitialCaseId = (cases) => {
   const activeCase = cases.find((entry) => entry.status === 'active');
   return activeCase?.id || cases[0]?.id || '';
@@ -43,6 +49,50 @@ const normalizePhoneKey = (key) => {
   if (key === 'Hash') return '#';
   return String(key || '');
 };
+
+const normalizePhoneNumber = (value = '') => String(value || '').replace(/[^\d]/g, '');
+
+const loadAudioModels = async () => {
+  try {
+    const response = await fetch(AUDIO_ENDPOINT, { cache: 'no-store' });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data?.models) ? data.models : [];
+  } catch (error) {
+    console.debug('[Quest] phone audio models fetch failed', error);
+    return [];
+  }
+};
+
+const loadPhoneLines = async () => {
+  try {
+    const response = await fetch(PHONE_LINES_ENDPOINT, { cache: 'no-store' });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data?.lines) ? data.lines : [];
+  } catch (error) {
+    console.debug('[Quest] phone lines fetch failed', error);
+    return [];
+  }
+};
+
+const markPhoneLineCalled = async (number) => {
+  try {
+    await fetch(PHONE_CALLED_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ number }),
+    });
+  } catch (error) {
+    console.debug('[Quest] phone line called update failed', error);
+  }
+};
+
+const getAudioSource = (entry) => entry?.originalSrc || entry?.garbledSrc || '';
+
+const isTracerActive = (phoneState) =>
+  phoneState.activeMode === PHONE_MODE_TRACER &&
+  ['dialing', 'ringing', 'answered'].includes(phoneState.tracerPhase);
 
 const useQuestSession = (data) => {
   const [currentModule, setCurrentModule] = useState(QUEST_MODULE_OPERACION);
@@ -74,6 +124,10 @@ const useQuestSession = (data) => {
   const [toolContext, setToolContext] = useState(null);
   const tracerSocketRef = useRef(null);
   const tracerReconnectRef = useRef(0);
+  const callPlaybackRef = useRef({
+    audio: null,
+    endedHandler: null,
+  });
   const phoneAudioRef = useRef({
     callTone: null,
     pickupTone: null,
@@ -83,16 +137,19 @@ const useQuestSession = (data) => {
   });
   const [phoneState, setPhoneState] = useState({
     focusMode: false,
+    mode: PHONE_MODE_CALL,
+    activeMode: null,
     isOffHook: false,
     dialedDigits: '',
     lastDialedNumber: '',
     lineStatus: 'colgada',
-    lastAction: 'Auricular colgado.',
+    lastAction: 'Teléfono en espera.',
     pressedKey: null,
     tracerWsState: 'offline',
     activeCallId: '',
     tracerPhase: 'idle',
     hotspotLabel: '',
+    activeAudioLabel: '',
   });
 
   useEffect(() => {
@@ -247,13 +304,36 @@ const useQuestSession = (data) => {
     setCurrentModule(fallbackModule);
   }, [lastPrimaryModule, toolContext]);
 
+  const setPhoneMode = useCallback((mode) => {
+    if (mode !== PHONE_MODE_CALL && mode !== PHONE_MODE_TRACER) return;
+
+    setPhoneState((current) => {
+      if (current.activeMode) {
+        return {
+          ...current,
+          lastAction: 'CALL finaliza la sesión activa antes de cambiar de modo.',
+        };
+      }
+
+      return {
+        ...current,
+        mode,
+        lastAction:
+          mode === PHONE_MODE_CALL
+            ? 'Modo llamada preparado.'
+            : 'Modo traza preparado.',
+      };
+    });
+  }, []);
+
   const enterPhoneFocus = useCallback(() => {
     setPhoneState((current) => ({
       ...current,
       focusMode: true,
-      lastAction: current.lastAction === 'Auricular colgado.'
-        ? 'Teléfono enfocado.'
-        : current.lastAction,
+      lastAction:
+        current.lastAction === 'Teléfono en espera.'
+          ? 'Teléfono enfocado.'
+          : current.lastAction,
     }));
   }, []);
 
@@ -290,6 +370,50 @@ const useQuestSession = (data) => {
     }
   }, []);
 
+  const stopQuestCallPlayback = useCallback((options = {}) => {
+    const {
+      playHangup = false,
+      keepDigits = true,
+      message = 'Llamada finalizada.',
+      clearPressedKey = false,
+    } = options;
+    const playback = callPlaybackRef.current;
+
+    if (playback.audio && playback.endedHandler) {
+      playback.audio.removeEventListener('ended', playback.endedHandler);
+    }
+    if (playback.audio) {
+      try {
+        playback.audio.pause();
+        playback.audio.currentTime = 0;
+      } catch {
+        // noop
+      }
+    }
+
+    callPlaybackRef.current = {
+      audio: null,
+      endedHandler: null,
+    };
+
+    if (playHangup) {
+      playPhoneTone('hangupTone', { restart: true });
+    }
+
+    setPhoneState((current) => {
+      if (current.activeMode !== PHONE_MODE_CALL) return current;
+      return {
+        ...current,
+        activeMode: null,
+        lineStatus: 'colgada',
+        lastAction: message,
+        dialedDigits: keepDigits ? current.dialedDigits : '',
+        activeAudioLabel: '',
+        pressedKey: clearPressedKey ? null : 'Call',
+      };
+    });
+  }, [playPhoneTone]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
@@ -308,6 +432,10 @@ const useQuestSession = (data) => {
     phoneAudioRef.current.errorTone.volume = 0.6;
 
     return () => {
+      stopQuestCallPlayback({
+        playHangup: false,
+        clearPressedKey: true,
+      });
       Object.values(phoneAudioRef.current).forEach((audio) => {
         try {
           audio?.pause?.();
@@ -317,7 +445,7 @@ const useQuestSession = (data) => {
         }
       });
     };
-  }, []);
+  }, [stopQuestCallPlayback]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -344,7 +472,7 @@ const useQuestSession = (data) => {
           ...current,
           tracerWsState: 'online',
           lastAction:
-            current.lastAction === 'Auricular colgado.'
+            current.lastAction === 'Teléfono en espera.'
               ? 'Bridge TRACER online.'
               : current.lastAction,
         }));
@@ -362,6 +490,7 @@ const useQuestSession = (data) => {
           playPhoneTone('callTone', { restart: true, loop: true });
           setPhoneState((current) => ({
             ...current,
+            activeMode: PHONE_MODE_TRACER,
             activeCallId: String(payload.callId || ''),
             tracerPhase: 'ringing',
             lineStatus: 'ringing',
@@ -376,6 +505,7 @@ const useQuestSession = (data) => {
           playPhoneTone('pickupTone', { restart: true });
           setPhoneState((current) => ({
             ...current,
+            activeMode: PHONE_MODE_TRACER,
             activeCallId: String(payload.callId || current.activeCallId || ''),
             tracerPhase: 'answered',
             lineStatus: 'trazando',
@@ -390,16 +520,17 @@ const useQuestSession = (data) => {
           playPhoneTone('hangupTone', { restart: true });
           setPhoneState((current) => ({
             ...current,
+            activeMode: null,
             activeCallId: '',
             tracerPhase: payload.type === 'tracer:auto_hangup' ? 'timeout' : 'hangup',
-            lineStatus: current.isOffHook ? 'línea abierta' : 'colgada',
-            dialedDigits: current.isOffHook ? current.dialedDigits : '',
+            lineStatus: 'colgada',
             lastAction:
               payload.type === 'tracer:auto_hangup'
                 ? String(payload.message || 'Llamada no atendida.')
                 : current.hotspotLabel
                   ? `Traza congelada en ${current.hotspotLabel}.`
                   : 'Llamada finalizada.',
+            activeAudioLabel: '',
           }));
           return;
         }
@@ -409,9 +540,12 @@ const useQuestSession = (data) => {
           playPhoneTone('errorTone', { restart: true });
           setPhoneState((current) => ({
             ...current,
+            activeMode: null,
+            activeCallId: '',
             tracerPhase: 'error',
-            lineStatus: current.isOffHook ? 'línea abierta' : 'colgada',
+            lineStatus: 'colgada',
             lastAction: String(payload.message || 'Error operativo de tracer.'),
+            activeAudioLabel: '',
           }));
         }
       };
@@ -456,103 +590,232 @@ const useQuestSession = (data) => {
 
   const clearPhoneDial = useCallback(() => {
     playPhoneTone('keypadTone', { restart: true });
-    setPhoneState((current) => ({
-      ...current,
-      dialedDigits: '',
-      lineStatus: current.isOffHook ? 'línea abierta' : 'colgada',
-      lastAction: current.isOffHook
-        ? 'Marcación limpiada.'
-        : 'Auricular colgado. Nada que limpiar.',
-      pressedKey: 'Clear',
-    }));
+    setPhoneState((current) => {
+      if (current.activeMode) {
+        return {
+          ...current,
+          lastAction: 'CALL finaliza la sesión activa. CLEAR solo limpia la marcación en reposo.',
+          pressedKey: 'Clear',
+        };
+      }
+
+      return {
+        ...current,
+        dialedDigits: '',
+        lineStatus: 'colgada',
+        lastAction: 'Marcación limpiada.',
+        pressedKey: 'Clear',
+      };
+    });
   }, [playPhoneTone]);
 
   const togglePhoneHandset = useCallback(() => {
-    playPhoneTone('pickupTone', { restart: true });
-    stopPhoneTone('callTone');
+    playPhoneTone('keypadTone', { restart: true });
+    setPhoneState((current) => ({
+      ...current,
+      lastAction: 'Usa CALL para iniciar o colgar. El auricular es decorativo en VR.',
+    }));
+  }, [playPhoneTone]);
+
+  const startTracerCall = useCallback((digits) => {
     setPhoneState((current) => {
-      const nextOffHook = !current.isOffHook;
+      if (current.tracerWsState !== 'online') {
+        playPhoneTone('errorTone', { restart: true });
+        return {
+          ...current,
+          lineStatus: 'colgada',
+          lastAction: 'Bridge TRACER offline.',
+          pressedKey: 'Call',
+        };
+      }
+
+      const socket = tracerSocketRef.current;
+      if (!socket || socket.readyState !== 1) {
+        playPhoneTone('errorTone', { restart: true });
+        return {
+          ...current,
+          lineStatus: 'colgada',
+          lastAction: 'No se pudo contactar con el bridge TRACER.',
+          pressedKey: 'Call',
+        };
+      }
+
+      socket.send(JSON.stringify({
+        type: 'tracer:start',
+        number: digits,
+      }));
+      playPhoneTone('callTone', { restart: true, loop: true });
+
       return {
         ...current,
-        isOffHook: nextOffHook,
-        dialedDigits: nextOffHook ? current.dialedDigits : '',
-        activeCallId: nextOffHook ? current.activeCallId : '',
-        lineStatus: nextOffHook ? 'línea abierta' : 'colgada',
-        lastAction: nextOffHook
-          ? 'Auricular descolgado. Línea preparada.'
-          : 'Auricular colgado. Línea cerrada.',
-        pressedKey: null,
+        activeMode: PHONE_MODE_TRACER,
+        lastDialedNumber: digits,
+        lineStatus: 'solicitando',
+        tracerPhase: 'dialing',
+        hotspotLabel: '',
+        lastAction: `Solicitando traza para ${digits}.`,
+        pressedKey: 'Call',
       };
     });
-  }, [playPhoneTone, stopPhoneTone]);
 
-  const pressPhoneKey = useCallback((key) => {
+    goToHerramientas({
+      tool: 'comunicaciones',
+      originModule: currentModule,
+      resourceId: 'phone-tracer',
+    });
+  }, [currentModule, goToHerramientas, playPhoneTone]);
+
+  const startQuestCallPlayback = useCallback(async (digits) => {
+    const [lines, models] = await Promise.all([
+      loadPhoneLines(),
+      loadAudioModels(),
+    ]);
+
+    const line = lines.find((entry) => normalizePhoneNumber(entry.number) === digits);
+    if (!line) {
+      playPhoneTone('errorTone', { restart: true });
+      setPhoneState((current) => ({
+        ...current,
+        lineStatus: 'colgada',
+        lastAction: `Sin línea para ${digits}.`,
+        pressedKey: 'Call',
+      }));
+      return;
+    }
+
+    const audioEntry = models.find((entry) => entry.id === line.audioId);
+    const source = getAudioSource(audioEntry);
+    if (!source) {
+      playPhoneTone('errorTone', { restart: true });
+      setPhoneState((current) => ({
+        ...current,
+        lineStatus: 'colgada',
+        lastAction: `Sin audio para ${line.number || digits}.`,
+        pressedKey: 'Call',
+      }));
+      return;
+    }
+
+    stopQuestCallPlayback({
+      playHangup: false,
+      keepDigits: true,
+      clearPressedKey: true,
+    });
+
+    const audio = new Audio(source);
+    audio.preload = 'auto';
+    audio.volume = 0.85;
+
+    const endedHandler = () => {
+      stopQuestCallPlayback({
+        playHangup: true,
+        keepDigits: true,
+        message: `Línea finalizada: ${line.label || line.number || digits}.`,
+        clearPressedKey: true,
+      });
+    };
+
+    audio.addEventListener('ended', endedHandler);
+    callPlaybackRef.current = {
+      audio,
+      endedHandler,
+    };
+
+    playPhoneTone('pickupTone', { restart: true });
+    setPhoneState((current) => ({
+      ...current,
+      activeMode: PHONE_MODE_CALL,
+      lastDialedNumber: digits,
+      lineStatus: 'conectada',
+      lastAction: `Línea conectada: ${line.label || line.number || digits}.`,
+      activeAudioLabel: line.label || line.number || digits,
+      pressedKey: 'Call',
+      tracerPhase: 'idle',
+      hotspotLabel: '',
+    }));
+
+    goToHerramientas({
+      tool: 'comunicaciones',
+      originModule: currentModule,
+      resourceId: 'phone-call',
+    });
+
+    const playback = audio.play();
+    if (playback && typeof playback.catch === 'function') {
+      playback.catch(() => {
+        stopQuestCallPlayback({
+          playHangup: false,
+          keepDigits: true,
+          message: 'No se pudo iniciar el audio de la línea.',
+          clearPressedKey: true,
+        });
+      });
+    }
+
+    markPhoneLineCalled(line.number || digits);
+  }, [currentModule, goToHerramientas, playPhoneTone, stopQuestCallPlayback]);
+
+  const hangupTracerCall = useCallback(() => {
+    stopPhoneTone('callTone');
+    playPhoneTone('hangupTone', { restart: true });
+    const socket = tracerSocketRef.current;
+
+    if (socket && socket.readyState === 1 && phoneState.activeCallId) {
+      socket.send(JSON.stringify({
+        type: 'tracer:agent_hangup',
+        callId: phoneState.activeCallId,
+      }));
+      return;
+    }
+
+    setPhoneState((current) => ({
+      ...current,
+      activeMode: null,
+      activeCallId: '',
+      tracerPhase: 'hangup',
+      lineStatus: 'colgada',
+      lastAction: 'Traza cancelada por el agente.',
+      activeAudioLabel: '',
+      pressedKey: 'Call',
+    }));
+  }, [phoneState.activeCallId, playPhoneTone, stopPhoneTone]);
+
+  const pressPhoneKey = useCallback(async (key) => {
     const normalizedKey = normalizePhoneKey(key);
 
     if (normalizedKey === 'Call') {
-      setPhoneState((current) => {
-        if (!current.isOffHook) {
-          return {
-            ...current,
-            lineStatus: 'colgada',
-            lastAction: 'Descolgar para iniciar la llamada.',
-            pressedKey: 'Call',
-          };
-        }
+      if (phoneState.activeMode === PHONE_MODE_CALL) {
+        stopQuestCallPlayback({
+          playHangup: true,
+          keepDigits: true,
+          message: 'Llamada finalizada por el agente.',
+        });
+        return;
+      }
 
-        if (current.tracerWsState !== 'online') {
-          playPhoneTone('errorTone', { restart: true });
-          return {
-            ...current,
-            lineStatus: 'línea abierta',
-            lastAction: 'Bridge TRACER offline.',
-            pressedKey: 'Call',
-          };
-        }
+      if (isTracerActive(phoneState)) {
+        hangupTracerCall();
+        return;
+      }
 
-        if (!current.dialedDigits) {
-          playPhoneTone('errorTone', { restart: true });
-          return {
-            ...current,
-            lineStatus: 'línea abierta',
-            lastAction: 'Marca un número antes de llamar.',
-            pressedKey: 'Call',
-          };
-        }
-
-        const socket = tracerSocketRef.current;
-        if (!socket || socket.readyState !== 1) {
-          playPhoneTone('errorTone', { restart: true });
-          return {
-            ...current,
-            lineStatus: 'línea abierta',
-            lastAction: 'No se pudo contactar con el bridge TRACER.',
-            pressedKey: 'Call',
-          };
-        }
-
-        socket.send(JSON.stringify({
-          type: 'tracer:start',
-          number: current.dialedDigits,
-        }));
-        playPhoneTone('callTone', { restart: true, loop: true });
-
-        return {
+      const digits = normalizePhoneNumber(phoneState.dialedDigits || phoneState.lastDialedNumber);
+      if (!digits) {
+        playPhoneTone('errorTone', { restart: true });
+        setPhoneState((current) => ({
           ...current,
-          lastDialedNumber: current.dialedDigits,
-          lineStatus: 'solicitando',
-          tracerPhase: 'dialing',
-          hotspotLabel: '',
-          lastAction: `Solicitando traza para ${current.dialedDigits}.`,
+          lineStatus: 'colgada',
+          lastAction: 'Marca un número antes de llamar.',
           pressedKey: 'Call',
-        };
-      });
+        }));
+        return;
+      }
 
-      goToHerramientas({
-        tool: 'comunicaciones',
-        originModule: currentModule,
-        resourceId: 'phone-dialer',
-      });
+      if (phoneState.mode === PHONE_MODE_TRACER) {
+        startTracerCall(digits);
+        return;
+      }
+
+      await startQuestCallPlayback(digits);
       return;
     }
 
@@ -563,12 +826,10 @@ const useQuestSession = (data) => {
 
     playPhoneTone('keypadTone', { restart: true });
     setPhoneState((current) => {
-      if (!current.isOffHook) {
-        playPhoneTone('errorTone', { restart: true });
+      if (current.activeMode) {
         return {
           ...current,
-          lineStatus: 'colgada',
-          lastAction: 'Descolgar para marcar.',
+          lastAction: 'CALL finaliza la sesión actual. No se modifica la marcación en vivo.',
           pressedKey: normalizedKey,
         };
       }
@@ -582,7 +843,15 @@ const useQuestSession = (data) => {
         pressedKey: normalizedKey,
       };
     });
-  }, [clearPhoneDial, currentModule, goToHerramientas, playPhoneTone]);
+  }, [
+    clearPhoneDial,
+    hangupTracerCall,
+    phoneState,
+    playPhoneTone,
+    startQuestCallPlayback,
+    startTracerCall,
+    stopQuestCallPlayback,
+  ]);
 
   useEffect(() => {
     if (!phoneState.pressedKey) return undefined;
@@ -685,23 +954,32 @@ const useQuestSession = (data) => {
       });
     }
 
-    if (phoneState.dialedDigits || phoneState.lastDialedNumber || phoneState.isOffHook) {
+    if (
+      phoneState.dialedDigits ||
+      phoneState.lastDialedNumber ||
+      phoneState.activeMode ||
+      phoneState.activeAudioLabel
+    ) {
       changes.push({
         id: 'phone:line',
         label: 'Línea telefónica',
-        detail: phoneState.lastDialedNumber
-          ? `${phoneState.lineStatus} · ${phoneState.lastDialedNumber}`
-          : `${phoneState.lineStatus} · ${phoneState.dialedDigits || 'sin marcación'}`,
+        detail: [
+          phoneState.mode === PHONE_MODE_TRACER ? 'traza' : 'llamada',
+          phoneState.lineStatus,
+          phoneState.lastDialedNumber || phoneState.dialedDigits || 'sin marcación',
+        ].join(' · '),
       });
     }
 
     return changes.slice(0, 4);
   }, [
     activeCase,
+    phoneState.activeAudioLabel,
+    phoneState.activeMode,
     phoneState.dialedDigits,
-    phoneState.isOffHook,
     phoneState.lastDialedNumber,
     phoneState.lineStatus,
+    phoneState.mode,
     selectedPoi,
     selectedProfile,
     selection.herramientas.activeTool,
@@ -737,6 +1015,7 @@ const useQuestSession = (data) => {
       selectProfile,
       openTool,
       returnToOperationalContext,
+      setPhoneMode,
       clearPhoneDial,
       enterPhoneFocus,
       exitPhoneFocus,
@@ -746,4 +1025,4 @@ const useQuestSession = (data) => {
   };
 };
 
-export { useQuestSession };
+export { PHONE_MODE_CALL, PHONE_MODE_TRACER, useQuestSession };

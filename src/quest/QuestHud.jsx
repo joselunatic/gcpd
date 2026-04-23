@@ -13,6 +13,8 @@ const EMPTY_SESSION = {
   currentModule: 'operacion',
   phoneState: {
     focusMode: false,
+    mode: 'call',
+    activeMode: null,
     isOffHook: false,
     dialedDigits: '',
     lastDialedNumber: '',
@@ -50,6 +52,9 @@ const QuestHud = ({ data = EMPTY_DATA, session = EMPTY_SESSION }) => {
             lead {primaryLead.titulo}
           </p>
         ) : null}
+        <p className="quest-hud__status">
+          modo teléfono {session.phoneState?.mode === 'tracer' ? 'traza' : 'llamada'}
+        </p>
         <p className="quest-hud__status">
           línea {session.phoneState?.lineStatus || 'colgada'} · {session.phoneState?.dialedDigits || session.phoneState?.lastDialedNumber || 'sin marcación'}
         </p>

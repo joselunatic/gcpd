@@ -283,6 +283,101 @@
   color: #f0a5a0 !important;
 }
 
+.quest-phone-overlay {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  z-index: 25;
+  width: min(24rem, calc(100vw - 2rem));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.quest-phone-overlay__card {
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(122, 213, 255, 0.26);
+  background: linear-gradient(180deg, rgba(4, 13, 19, 0.88), rgba(3, 10, 16, 0.72));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(12px);
+  color: #daf1ff;
+  pointer-events: auto;
+}
+
+.quest-phone-overlay__eyebrow {
+  display: block;
+  color: #8acfea;
+  font: 0.66rem/1.2 "Share Tech Mono", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.quest-phone-overlay__card h2 {
+  margin: 0.45rem 0 0.55rem;
+  color: #f4fbff;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.quest-phone-overlay__mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.quest-phone-overlay__mode-switch button {
+  border: 1px solid rgba(122, 213, 255, 0.2);
+  background: rgba(10, 27, 39, 0.82);
+  color: #d8f1ff;
+  padding: 0.62rem 0.75rem;
+  font: 700 0.74rem/1.2 "Share Tech Mono", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+}
+
+.quest-phone-overlay__mode-switch button.is-active {
+  border-color: rgba(166, 239, 255, 0.56);
+  background: linear-gradient(180deg, rgba(23, 78, 105, 0.92), rgba(8, 36, 51, 0.92));
+  color: #fbfeff;
+}
+
+.quest-phone-overlay__mode-switch button:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.quest-phone-overlay__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  margin-top: 0.7rem;
+}
+
+.quest-phone-overlay__stats span {
+  border: 1px solid rgba(122, 213, 255, 0.16);
+  background: rgba(9, 24, 35, 0.76);
+  color: #dcf4ff;
+  padding: 0.2rem 0.38rem;
+  font: 0.62rem/1.2 "Share Tech Mono", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.quest-phone-overlay__primary,
+.quest-phone-overlay__status,
+.quest-phone-overlay__hint {
+  margin: 0.62rem 0 0;
+  color: #a9cade;
+  font: 0.73rem/1.45 "Share Tech Mono", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.quest-phone-overlay__primary {
+  color: #eefaff;
+  font-size: 0.78rem;
+}
+
 @media (max-width: 840px) {
   .quest-preflight {
     padding: 0.6rem;
@@ -305,6 +400,11 @@
 
   .quest-hud {
     right: 0.6rem;
+    bottom: 0.6rem;
+  }
+
+  .quest-phone-overlay {
+    width: calc(100vw - 1.2rem);
     bottom: 0.6rem;
   }
 
