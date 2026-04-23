@@ -30,6 +30,8 @@ const PHONE_FOCUS_ROLL = 0.03;
 const PHONE_FOCUS_SCALE = 1.85;
 const PHONE_HIT_AREA_COLOR = '#79dcff';
 const PHONE_FOCUS_CONTROL_TARGET = 'QuestPhoneModeControl';
+const PHONE_FOCUS_CONTROL_LEFT = 'QuestPhoneModeControl_Call';
+const PHONE_FOCUS_CONTROL_RIGHT = 'QuestPhoneModeControl_Tracer';
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
 const snapshotTransform = (object) => {
@@ -173,6 +175,8 @@ const collectPhoneNodes = (root) => {
 
 const isPhoneTargetName = (name = '') =>
   name === PHONE_FOCUS_CONTROL_TARGET ||
+  name === PHONE_FOCUS_CONTROL_LEFT ||
+  name === PHONE_FOCUS_CONTROL_RIGHT ||
   name === PHONE_MODEL_NAME ||
   name === PHONE_HANDSET_NAME ||
   name === PHONE_HIT_AREA_NAME ||
@@ -489,7 +493,7 @@ const PhoneFocusModeButton = ({
 
   return (
     <mesh
-      name={PHONE_FOCUS_CONTROL_TARGET}
+      name={mode === PHONE_MODE_CALL ? PHONE_FOCUS_CONTROL_LEFT : PHONE_FOCUS_CONTROL_RIGHT}
       position={position}
       pointerEventsType={XR_RAY_POINTER_EVENTS}
       pointerEventsOrder={120}
@@ -501,11 +505,12 @@ const PhoneFocusModeButton = ({
       }}
       onPointerLeave={() => setHovered(false)}
     >
-      <planeGeometry args={[0.66, 0.2]} />
+      <planeGeometry args={[0.95, 0.46]} />
       <meshBasicMaterial
         map={texture || null}
         transparent
         opacity={disabled ? 0.42 : 0.94}
+        depthTest={false}
         depthWrite={false}
         side={THREE.DoubleSide}
         toneMapped={false}
@@ -520,19 +525,38 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
   const modeLocked = Boolean(phoneState.activeMode);
 
   return (
-    <group position={[0, -0.48, 0.34]} scale={1.55}>
+    <group position={[0, 0.0, 0.78]} scale={1.25}>
       <mesh
         name={PHONE_FOCUS_CONTROL_TARGET}
-        position={[0, 0.08, -0.01]}
+        position={[-1.08, 0, -0.02]}
         pointerEventsType={XR_RAY_POINTER_EVENTS}
         pointerEventsOrder={110}
         renderOrder={118}
       >
-        <planeGeometry args={[1.48, 0.42]} />
+        <planeGeometry args={[1.06, 0.56]} />
         <meshBasicMaterial
           color="#041019"
           transparent
           opacity={0.86}
+          depthTest={false}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh
+        name={PHONE_FOCUS_CONTROL_TARGET}
+        position={[1.08, 0, -0.02]}
+        pointerEventsType={XR_RAY_POINTER_EVENTS}
+        pointerEventsOrder={110}
+        renderOrder={118}
+      >
+        <planeGeometry args={[1.06, 0.56]} />
+        <meshBasicMaterial
+          color="#041019"
+          transparent
+          opacity={0.86}
+          depthTest={false}
           depthWrite={false}
           side={THREE.DoubleSide}
           toneMapped={false}
@@ -544,7 +568,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
         subtitle="DIAL"
         active={phoneState.mode === PHONE_MODE_CALL}
         disabled={modeLocked}
-        position={[-0.38, 0.08, 0]}
+        position={[-1.08, 0, 0]}
         onSelect={onPhoneModeSelect}
       />
       <PhoneFocusModeButton
@@ -553,7 +577,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
         subtitle="TRACE"
         active={phoneState.mode === PHONE_MODE_TRACER}
         disabled={modeLocked}
-        position={[0.38, 0.08, 0]}
+        position={[1.08, 0, 0]}
         onSelect={onPhoneModeSelect}
       />
     </group>
@@ -742,11 +766,7 @@ const QuestEnvironment = ({
       return;
     }
 
-    if (
-      objectName === PHONE_MODEL_NAME ||
-      objectName === PHONE_HIT_AREA_NAME ||
-      objectName === PHONE_FOCUS_CONTROL_TARGET
-    ) {
+    if (objectName === PHONE_MODEL_NAME || objectName === PHONE_HIT_AREA_NAME) {
       onPhoneFocusExit?.();
       return;
     }
