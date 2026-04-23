@@ -35,6 +35,7 @@ const PHONE_FOCUS_CONTROL_RIGHT = 'QuestPhoneModeControl_Tracer';
 const PHONE_FOCUS_KEY_OFFSET = new THREE.Vector3(0, 0, 0);
 const PHONE_FOCUS_KEY_SCALE = 1;
 const PHONE_FOCUS_KEY_HIT_SCALE = 2.15;
+const PHONE_FOCUS_KEY_FALLBACK_DISTANCE = 0.09;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
 const snapshotTransform = (object) => {
@@ -382,12 +383,15 @@ const createFocusPhone = (sourcePhone) => {
 
     if (node.name.startsWith(PHONE_KEY_PREFIX)) {
       stylePhoneNode(node, 'key');
+      node.pointerEventsType = XR_RAY_POINTER_EVENTS;
+      node.pointerEventsOrder = 100;
     } else if (node.name === PHONE_HANDSET_NAME) {
       stylePhoneNode(node, 'handset');
       node.pointerEvents = 'none';
     } else if (node.name === PHONE_MODEL_NAME) {
       stylePhoneNode(node, 'model');
-      node.pointerEvents = 'none';
+      node.pointerEventsType = XR_RAY_POINTER_EVENTS;
+      node.pointerEventsOrder = 30;
     } else if (node.name === PHONE_HIT_AREA_NAME) {
       node.visible = false;
       node.pointerEvents = 'none';
@@ -525,6 +529,25 @@ const updatePhoneVisuals = ({ phone, hoveredTarget, phoneState, focusedView = fa
       material.color.set(hovered ? '#9ee7ff' : PHONE_HIT_AREA_COLOR);
     }
   }
+};
+
+const findNearestPhoneKey = (phone, point) => {
+  if (!phone || !point) return '';
+
+  let nearestKey = '';
+  let nearestDistance = Infinity;
+  const position = new THREE.Vector3();
+
+  Object.entries(phone.keys).forEach(([keyName, entry]) => {
+    entry.node.getWorldPosition(position);
+    const distance = position.distanceTo(point);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestKey = keyName;
+    }
+  });
+
+  return nearestDistance <= PHONE_FOCUS_KEY_FALLBACK_DISTANCE ? nearestKey : '';
 };
 
 const PhoneFocusModeButton = ({
@@ -842,7 +865,17 @@ const QuestEnvironment = ({
   }, [hoveredPhoneTarget, phoneState, runtimeEnvironment]);
 
   const handlePointerMove = useCallback((event) => {
-    const objectName = getPhoneTargetName(event.object);
+    let objectName = getPhoneTargetName(event.object);
+    if (
+      phoneState?.focusMode &&
+      (objectName === PHONE_MODEL_NAME || objectName === PHONE_HANDSET_NAME)
+    ) {
+      const nearestKey = findNearestPhoneKey(runtimeEnvironment.focusPhone?.phone, event.point);
+      if (nearestKey) {
+        objectName = `${PHONE_KEY_HIT_PREFIX}${nearestKey}`;
+      }
+    }
+
     if (objectName) {
       event.stopPropagation();
       setHoveredPhoneTarget(objectName);
@@ -852,7 +885,7 @@ const QuestEnvironment = ({
     if (hoveredPhoneTarget) {
       setHoveredPhoneTarget('');
     }
-  }, [hoveredPhoneTarget]);
+  }, [hoveredPhoneTarget, phoneState?.focusMode, runtimeEnvironment.focusPhone?.phone]);
 
   const clearHover = useCallback(() => {
     setHoveredPhoneTarget('');
@@ -878,7 +911,15 @@ const QuestEnvironment = ({
       return;
     }
 
-    if (objectName === PHONE_MODEL_NAME || objectName === PHONE_HIT_AREA_NAME) {
+    if (objectName === PHONE_MODEL_NAME || objectName === PHONE_HANDSET_NAME) {
+      const nearestKey = findNearestPhoneKey(runtimeEnvironment.focusPhone?.phone, event.point);
+      if (nearestKey) {
+        onPhoneKeyPress?.(nearestKey);
+      }
+      return;
+    }
+
+    if (objectName === PHONE_HIT_AREA_NAME) {
       onPhoneFocusExit?.();
       return;
     }
@@ -896,7 +937,13 @@ const QuestEnvironment = ({
     if (objectName.startsWith(PHONE_KEY_PREFIX)) {
       onPhoneKeyPress?.(objectName.replace(PHONE_KEY_PREFIX, ''));
     }
-  }, [onPhoneFocusExit, onPhoneHandsetToggle, onPhoneKeyPress, phoneState?.focusMode]);
+  }, [
+    onPhoneFocusExit,
+    onPhoneHandsetToggle,
+    onPhoneKeyPress,
+    phoneState?.focusMode,
+    runtimeEnvironment.focusPhone?.phone,
+  ]);
 
   const handleFocusBackdropDown = useCallback((event) => {
     event.stopPropagation();

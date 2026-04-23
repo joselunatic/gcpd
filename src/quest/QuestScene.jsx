@@ -1,6 +1,7 @@
 /* eslint-disable react/no-unknown-property */
 import { useEffect, useState } from 'react';
 import { useThree } from '@react-three/fiber';
+import { XROrigin } from '@react-three/xr';
 import * as THREE from 'three';
 
 import QuestEnvironment from './QuestEnvironment';
@@ -9,6 +10,7 @@ import QuestMonitorSurface from './QuestMonitorSurface';
 
 const DEFAULT_CAMERA_POSITION = [0, 3.72, 4.34];
 const DEFAULT_CAMERA_TARGET = [0, 3.08, -1.45];
+const XR_ORIGIN_OFFSET = [0, 0.9, 1.25];
 
 const getCameraPose = (anchors) => {
   if (!anchors?.panel?.position || !anchors?.panel?.quaternion || !anchors?.viewerPosition) {
@@ -54,6 +56,7 @@ const QuestScene = ({ data, session, recenterKey }) => {
 
   return (
     <>
+      <XROrigin position={XR_ORIGIN_OFFSET} />
       <QuestCameraRig recenterKey={recenterKey} anchors={environmentAnchors} />
       <QuestHdriEnvironment />
 
