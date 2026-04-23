@@ -5,7 +5,9 @@ const xrStore = createXRStore({
   controller: {
     teleportPointer: false,
   },
-  hand: false,
+  hand: {
+    teleportPointer: false,
+  },
   gaze: false,
 });
 
