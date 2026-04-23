@@ -116,6 +116,59 @@ const createPhoneLabelTexture = ({ title, subtitle = '', active = false, width =
   return texture;
 };
 
+const createPhoneStatusTexture = ({
+  modeLabel,
+  digits,
+  activeKey,
+  lineStatus,
+  lastAction,
+  width = 1100,
+  height = 360,
+}) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+
+  const background = context.createLinearGradient(0, 0, width, height);
+  background.addColorStop(0, '#06131c');
+  background.addColorStop(1, '#02070d');
+  context.fillStyle = background;
+  context.fillRect(0, 0, width, height);
+
+  context.strokeStyle = '#7edcff';
+  context.lineWidth = 8;
+  context.strokeRect(14, 14, width - 28, height - 28);
+
+  context.fillStyle = 'rgba(126, 220, 255, 0.12)';
+  context.fillRect(34, 34, width - 68, 8);
+
+  context.textBaseline = 'top';
+  context.fillStyle = '#84cce4';
+  context.font = 'bold 34px monospace';
+  context.fillText(`MODO ${modeLabel}`, 48, 58);
+  context.fillText(`LINEA ${String(lineStatus || 'colgada').toUpperCase()}`, 610, 58);
+
+  context.fillStyle = '#e8fbff';
+  context.font = 'bold 82px monospace';
+  context.fillText(digits || '----', 48, 122);
+
+  context.fillStyle = activeKey ? '#fff2b6' : '#7ba9bb';
+  context.font = 'bold 42px monospace';
+  context.fillText(`TECLA ${activeKey || '--'}`, 48, 232);
+
+  context.fillStyle = '#8bbace';
+  context.font = '28px monospace';
+  const action = String(lastAction || 'CALL inicia o cuelga. CLEAR limpia.').slice(0, 62);
+  context.fillText(action, 48, 292);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+};
+
 const collectPhoneNodes = (root) => {
   const phone = {
     keys: {},
@@ -269,36 +322,32 @@ const stylePhoneNode = (node, type) => {
 const addFocusKeyHitAreas = (focusRig) => {
   if (!focusRig) return;
 
-  const rigScale = new THREE.Vector3();
-  focusRig.getWorldScale(rigScale);
   const keyMeshes = [];
 
   focusRig.traverse((node) => {
-    if (node.isMesh && node.name.startsWith(PHONE_KEY_PREFIX)) {
+    if (
+      node.isMesh &&
+      node.name.startsWith(PHONE_KEY_PREFIX) &&
+      !node.getObjectByName(`${PHONE_KEY_HIT_PREFIX}${node.name.replace(PHONE_KEY_PREFIX, '')}`)
+    ) {
       keyMeshes.push(node);
     }
   });
 
   keyMeshes.forEach((keyNode) => {
     const keyName = keyNode.name.replace(PHONE_KEY_PREFIX, '');
-    const bounds = new THREE.Box3().setFromObject(keyNode);
-    if (bounds.isEmpty()) return;
+    keyNode.geometry?.computeBoundingBox?.();
+    const bounds = keyNode.geometry?.boundingBox?.clone?.();
+    if (!bounds || bounds.isEmpty()) return;
 
-    const worldCenter = new THREE.Vector3();
-    const worldSize = new THREE.Vector3();
-    bounds.getCenter(worldCenter);
-    bounds.getSize(worldSize);
+    const localCenter = new THREE.Vector3();
+    const localSize = new THREE.Vector3();
+    bounds.getCenter(localCenter);
+    bounds.getSize(localSize);
 
-    const localCenter = focusRig.worldToLocal(worldCenter.clone());
-    const localSize = new THREE.Vector3(
-      worldSize.x / Math.max(rigScale.x, 0.0001),
-      worldSize.y / Math.max(rigScale.y, 0.0001),
-      worldSize.z / Math.max(rigScale.z, 0.0001)
-    );
-
-    localSize.x = Math.max(localSize.x * 2.1, 0.08);
-    localSize.y = Math.max(localSize.y * 2.1, 0.08);
-    localSize.z = Math.max(localSize.z * 3.2, 0.08);
+    localSize.x = Math.max(localSize.x * 1.7, 0.06);
+    localSize.y = Math.max(localSize.y * 1.7, 0.06);
+    localSize.z = Math.max(localSize.z * 2.5, 0.06);
 
     const hitArea = new THREE.Mesh(
       new THREE.BoxGeometry(localSize.x, localSize.y, localSize.z),
@@ -316,7 +365,7 @@ const addFocusKeyHitAreas = (focusRig) => {
     hitArea.pointerEventsOrder = 80;
     hitArea.renderOrder = 80;
     hitArea.frustumCulled = false;
-    focusRig.add(hitArea);
+    keyNode.add(hitArea);
   });
 };
 
@@ -528,7 +577,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
     <group position={[0, 0, 7.8]} scale={12.5}>
       <mesh
         name={PHONE_FOCUS_CONTROL_TARGET}
-        position={[-1.8, 0, -0.02]}
+        position={[-1.25, 0, -0.02]}
         pointerEventsType={XR_RAY_POINTER_EVENTS}
         pointerEventsOrder={110}
         renderOrder={118}
@@ -546,7 +595,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
       </mesh>
       <mesh
         name={PHONE_FOCUS_CONTROL_TARGET}
-        position={[1.8, 0, -0.02]}
+        position={[1.25, 0, -0.02]}
         pointerEventsType={XR_RAY_POINTER_EVENTS}
         pointerEventsOrder={110}
         renderOrder={118}
@@ -568,7 +617,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
         subtitle="DIAL"
         active={phoneState.mode === PHONE_MODE_CALL}
         disabled={modeLocked}
-        position={[-1.8, 0, 0]}
+        position={[-1.25, 0, 0]}
         onSelect={onPhoneModeSelect}
       />
       <PhoneFocusModeButton
@@ -577,9 +626,59 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
         subtitle="TRACE"
         active={phoneState.mode === PHONE_MODE_TRACER}
         disabled={modeLocked}
-        position={[1.8, 0, 0]}
+        position={[1.25, 0, 0]}
         onSelect={onPhoneModeSelect}
       />
+    </group>
+  );
+};
+
+const getPhoneKeyDisplay = (targetName = '') => {
+  if (targetName.startsWith(PHONE_KEY_HIT_PREFIX)) {
+    return targetName.replace(PHONE_KEY_HIT_PREFIX, '');
+  }
+  if (targetName.startsWith(PHONE_KEY_PREFIX)) {
+    return targetName.replace(PHONE_KEY_PREFIX, '');
+  }
+  return '';
+};
+
+const PhoneFocusStatus = ({ phoneState, hoveredPhoneTarget }) => {
+  if (!phoneState?.focusMode) return null;
+
+  const hoveredKey = getPhoneKeyDisplay(hoveredPhoneTarget);
+  const activeKey = phoneState.pressedKey || hoveredKey;
+  const digits = phoneState.dialedDigits || phoneState.lastDialedNumber || '';
+  const modeLabel = phoneState.mode === PHONE_MODE_TRACER ? 'TRAZA' : 'LLAMADA';
+  const texture = useMemo(
+    () => createPhoneStatusTexture({
+      modeLabel,
+      digits,
+      activeKey,
+      lineStatus: phoneState.lineStatus,
+      lastAction: phoneState.lastAction,
+    }),
+    [activeKey, digits, modeLabel, phoneState.lastAction, phoneState.lineStatus]
+  );
+
+  useEffect(() => {
+    return () => texture?.dispose?.();
+  }, [texture]);
+
+  return (
+    <group position={[0, -0.98, 8.4]} scale={10.5}>
+      <mesh renderOrder={130}>
+        <planeGeometry args={[1.62, 0.52]} />
+        <meshBasicMaterial
+          map={texture || null}
+          transparent
+          opacity={0.96}
+          depthTest={false}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          toneMapped={false}
+        />
+      </mesh>
     </group>
   );
 };
@@ -807,6 +906,10 @@ const QuestEnvironment = ({
           <PhoneFocusControls
             phoneState={phoneState}
             onPhoneModeSelect={onPhoneModeSelect}
+          />
+          <PhoneFocusStatus
+            phoneState={phoneState}
+            hoveredPhoneTarget={hoveredPhoneTarget}
           />
           <mesh
             ref={focusBackdropRef}
