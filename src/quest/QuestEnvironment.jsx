@@ -34,7 +34,7 @@ const PHONE_FOCUS_CONTROL_LEFT = 'QuestPhoneModeControl_Call';
 const PHONE_FOCUS_CONTROL_RIGHT = 'QuestPhoneModeControl_Tracer';
 const PHONE_FOCUS_KEY_OFFSET = new THREE.Vector3(0, 0, 0);
 const PHONE_FOCUS_KEY_SCALE = 1;
-const PHONE_FOCUS_KEY_HIT_SCALE = 1.45;
+const PHONE_FOCUS_KEY_HIT_SCALE = 2.15;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
 const snapshotTransform = (object) => {
@@ -355,6 +355,7 @@ const addFocusKeyHitAreas = (focusRig) => {
     hitArea.position.copy(keyNode.position);
     hitArea.quaternion.copy(keyNode.quaternion);
     hitArea.scale.copy(keyNode.scale).multiplyScalar(PHONE_FOCUS_KEY_HIT_SCALE);
+    hitArea.position.y += 0.035;
     hitArea.pointerEventsType = XR_RAY_POINTER_EVENTS;
     hitArea.pointerEventsOrder = 80;
     hitArea.renderOrder = 80;
