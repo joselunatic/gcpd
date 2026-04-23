@@ -256,8 +256,8 @@ const PhonePanel = () => {
             <>
               {shouldGuideAnswer && (
                 <div className="phone-panel__incoming-guide">
-                  LLAMADA ENTRANTE · Pulsa el boton verde <strong>DESCOLGAR</strong> para iniciar la
-                  traza.
+                  LLAMADA ENTRANTE · Pulsa el boton verde <strong>DESCOLGAR</strong> para gestionar la
+                  llamada.
                 </div>
               )}
               <div className="phone-panel__call-title">

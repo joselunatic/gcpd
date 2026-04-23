@@ -676,7 +676,7 @@ const useQuestSession = (data) => {
       }
 
       socket.send(JSON.stringify({
-        type: 'tracer:start',
+        type: mode === PHONE_MODE_TRACER ? 'tracer:start' : 'phone:start',
         number: digits,
       }));
       playPhoneTone('callTone', { restart: true, loop: true });

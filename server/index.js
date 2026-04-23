@@ -2422,7 +2422,7 @@ tracerWss.on('connection', (ws, request, url) => {
       return;
     }
 
-    if (payload.type === 'tracer:start') {
+    if (payload.type === 'tracer:start' || payload.type === 'phone:start') {
       handleTracerStart(ws, payload);
       return;
     }
