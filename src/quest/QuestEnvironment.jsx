@@ -29,6 +29,7 @@ const PHONE_FOCUS_TILT = -0.42;
 const PHONE_FOCUS_ROLL = 0.03;
 const PHONE_FOCUS_SCALE = 1.85;
 const PHONE_HIT_AREA_COLOR = '#79dcff';
+const PHONE_FOCUS_CONTROL_TARGET = 'QuestPhoneModeControl';
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
 const snapshotTransform = (object) => {
@@ -171,6 +172,7 @@ const collectPhoneNodes = (root) => {
 };
 
 const isPhoneTargetName = (name = '') =>
+  name === PHONE_FOCUS_CONTROL_TARGET ||
   name === PHONE_MODEL_NAME ||
   name === PHONE_HANDSET_NAME ||
   name === PHONE_HIT_AREA_NAME ||
@@ -332,8 +334,10 @@ const createFocusPhone = (sourcePhone) => {
       stylePhoneNode(node, 'key');
     } else if (node.name === PHONE_HANDSET_NAME) {
       stylePhoneNode(node, 'handset');
+      node.pointerEvents = 'none';
     } else if (node.name === PHONE_MODEL_NAME) {
       stylePhoneNode(node, 'model');
+      node.pointerEvents = 'none';
     } else if (node.name === PHONE_HIT_AREA_NAME) {
       node.visible = false;
       node.pointerEvents = 'none';
@@ -485,10 +489,11 @@ const PhoneFocusModeButton = ({
 
   return (
     <mesh
+      name={PHONE_FOCUS_CONTROL_TARGET}
       position={position}
       pointerEventsType={XR_RAY_POINTER_EVENTS}
-      pointerEventsOrder={60}
-      renderOrder={70}
+      pointerEventsOrder={120}
+      renderOrder={120}
       onPointerDown={handlePointerDown}
       onPointerEnter={(event) => {
         event.stopPropagation();
@@ -515,8 +520,14 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
   const modeLocked = Boolean(phoneState.activeMode);
 
   return (
-    <group position={[0, 0.62, 0.24]} scale={1.25}>
-      <mesh position={[0, 0.08, -0.01]} renderOrder={68}>
+    <group position={[0, -0.48, 0.34]} scale={1.55}>
+      <mesh
+        name={PHONE_FOCUS_CONTROL_TARGET}
+        position={[0, 0.08, -0.01]}
+        pointerEventsType={XR_RAY_POINTER_EVENTS}
+        pointerEventsOrder={110}
+        renderOrder={118}
+      >
         <planeGeometry args={[1.48, 0.42]} />
         <meshBasicMaterial
           color="#041019"
@@ -622,6 +633,12 @@ const QuestEnvironment = ({
     onAnchorsChange?.(runtimeEnvironment.anchors);
   }, [onAnchorsChange, runtimeEnvironment]);
 
+  useEffect(() => {
+    if (runtimeEnvironment.phone.rig) {
+      runtimeEnvironment.phone.rig.visible = !phoneState?.focusMode;
+    }
+  }, [phoneState?.focusMode, runtimeEnvironment]);
+
   useFrame(() => {
     if (!phoneState?.focusMode) {
       if (focusAnchorRef.current) {
@@ -725,7 +742,11 @@ const QuestEnvironment = ({
       return;
     }
 
-    if (objectName === PHONE_MODEL_NAME || objectName === PHONE_HIT_AREA_NAME) {
+    if (
+      objectName === PHONE_MODEL_NAME ||
+      objectName === PHONE_HIT_AREA_NAME ||
+      objectName === PHONE_FOCUS_CONTROL_TARGET
+    ) {
       onPhoneFocusExit?.();
       return;
     }
