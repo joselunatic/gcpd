@@ -32,9 +32,9 @@ const PHONE_HIT_AREA_COLOR = '#79dcff';
 const PHONE_FOCUS_CONTROL_TARGET = 'QuestPhoneModeControl';
 const PHONE_FOCUS_CONTROL_LEFT = 'QuestPhoneModeControl_Call';
 const PHONE_FOCUS_CONTROL_RIGHT = 'QuestPhoneModeControl_Tracer';
-const PHONE_FOCUS_KEY_OFFSET = new THREE.Vector3(1.15, 0.025, 0.58);
-const PHONE_FOCUS_KEY_SCALE = 1.4;
-const PHONE_FOCUS_KEY_HIT_SCALE = 2.03;
+const PHONE_FOCUS_KEY_OFFSET = new THREE.Vector3(0, 0, 0);
+const PHONE_FOCUS_KEY_SCALE = 1;
+const PHONE_FOCUS_KEY_HIT_SCALE = 1.45;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
 const snapshotTransform = (object) => {
@@ -926,13 +926,18 @@ const QuestEnvironment = ({
           <mesh
             ref={focusBackdropRef}
             visible={false}
-            position={[0, 0, -0.12]}
+            position={[0, 0, -0.62]}
             pointerEventsType={XR_RAY_POINTER_EVENTS}
-            pointerEventsOrder={10}
+            pointerEventsOrder={1}
             onPointerDown={handleFocusBackdropDown}
           >
-            <planeGeometry args={[1.1, 0.95]} />
-            <meshBasicMaterial transparent opacity={0.001} depthWrite={false} />
+            <planeGeometry args={[9.5, 6.5]} />
+            <meshBasicMaterial
+              transparent
+              opacity={0.001}
+              depthWrite={false}
+              side={THREE.DoubleSide}
+            />
           </mesh>
           <primitive
             object={runtimeEnvironment.focusPhone.rig}
