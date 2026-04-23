@@ -22,6 +22,8 @@ const PANEL_MATERIAL_PROPS = {
   polygonOffsetUnits: 1,
 };
 
+const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
+
 const drawWrappedText = ({
   context,
   text,
@@ -166,7 +168,7 @@ const QuestButton = ({
   const texture = useLabelTexture({ title, subtitle, accent });
 
   return (
-    <group position={position} scale={buttonScale}>
+    <group position={position} scale={buttonScale} pointerEventsType={XR_RAY_POINTER_EVENTS}>
       <mesh position={[0, 0, -0.04]} renderOrder={1}>
         <planeGeometry args={[1.62, 0.44]} />
         <meshStandardMaterial
@@ -223,7 +225,7 @@ const QuestActionChip = ({ title, position, onClick, accent = false }) => {
 
   return (
     <group position={position}>
-      <mesh onClick={onClick} renderOrder={7}>
+      <mesh onClick={onClick} renderOrder={7} pointerEventsType={XR_RAY_POINTER_EVENTS}>
         <planeGeometry args={[0.34, 0.11]} />
         <meshBasicMaterial map={texture || null} {...UI_MATERIAL_PROPS} />
       </mesh>
@@ -281,7 +283,7 @@ const QuestPanel3D = ({
   });
 
   return (
-    <group position={position} scale={scale}>
+    <group position={position} scale={scale} pointerEventsType={XR_RAY_POINTER_EVENTS}>
       <mesh position={[0, 0, -0.08]} renderOrder={0}>
         <planeGeometry args={[2.24, 1.92]} />
         <meshStandardMaterial

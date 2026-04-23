@@ -26,6 +26,7 @@ const PHONE_FOCUS_TILT = -0.38;
 const PHONE_FOCUS_ROLL = 0.03;
 const PHONE_FOCUS_SCALE = 3.55;
 const PHONE_HIT_AREA_COLOR = '#79dcff';
+const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
 const snapshotTransform = (object) => {
   if (!object) return null;
@@ -173,7 +174,8 @@ const addPhoneHitArea = (phone) => {
   });
   const hitArea = new THREE.Mesh(geometry, material);
   hitArea.name = PHONE_HIT_AREA_NAME;
-  hitArea.pointerEventsType = { deny: 'grab' };
+  hitArea.pointerEventsType = XR_RAY_POINTER_EVENTS;
+  hitArea.pointerEventsOrder = 40;
   hitArea.position.copy(localCenter);
   hitArea.frustumCulled = false;
   hitArea.renderOrder = 30;
@@ -533,6 +535,7 @@ const QuestEnvironment = ({
     <>
       <primitive
         object={runtimeEnvironment.scene}
+        pointerEventsType={XR_RAY_POINTER_EVENTS}
         onPointerMove={handlePointerMove}
         onPointerOut={clearHover}
         onPointerDown={handleEnvironmentPointerDown}
@@ -544,6 +547,8 @@ const QuestEnvironment = ({
             ref={focusBackdropRef}
             visible={false}
             position={[0, 0, -0.12]}
+            pointerEventsType={XR_RAY_POINTER_EVENTS}
+            pointerEventsOrder={10}
             onPointerDown={handleFocusBackdropDown}
           >
             <planeGeometry args={[1.1, 0.95]} />
@@ -551,6 +556,7 @@ const QuestEnvironment = ({
           </mesh>
           <primitive
             object={runtimeEnvironment.focusPhone.rig}
+            pointerEventsType={XR_RAY_POINTER_EVENTS}
             onPointerMove={handlePointerMove}
             onPointerOut={clearHover}
             onPointerDown={handleFocusPointerDown}
