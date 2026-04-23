@@ -10,7 +10,7 @@ import QuestMonitorSurface from './QuestMonitorSurface';
 
 const DEFAULT_CAMERA_POSITION = [0, 3.72, 4.34];
 const DEFAULT_CAMERA_TARGET = [0, 3.08, -1.45];
-const XR_ORIGIN_OFFSET = [0, 0.9, 1.25];
+const XR_ORIGIN_OFFSET = [0, 0.675, 1.25];
 
 const getCameraPose = (anchors) => {
   if (!anchors?.panel?.position || !anchors?.panel?.quaternion || !anchors?.viewerPosition) {

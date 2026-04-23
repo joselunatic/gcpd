@@ -37,6 +37,19 @@ const PHONE_FOCUS_KEY_SCALE = 1;
 const PHONE_FOCUS_KEY_HIT_SCALE = 2.15;
 const PHONE_FOCUS_KEY_FALLBACK_DISTANCE = 0.09;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
+const PHONE_KEY_VALUE_MAP = {
+  9: '7',
+  8: '8',
+  7: '9',
+  6: '4',
+  5: '5',
+  4: '6',
+  3: '1',
+  2: '2',
+  1: '3',
+};
+
+const getPhoneKeyValue = (keyName = '') => PHONE_KEY_VALUE_MAP[keyName] || keyName;
 
 const snapshotTransform = (object) => {
   if (!object) return null;
@@ -428,7 +441,8 @@ const updatePhoneVisuals = ({ phone, hoveredTarget, phoneState, focusedView = fa
     const material = Array.isArray(entry.node.material)
       ? entry.node.material[0]
       : entry.node.material;
-    const pressed = phoneState?.pressedKey === keyName;
+    const keyValue = getPhoneKeyValue(keyName);
+    const pressed = phoneState?.pressedKey === keyValue;
     const hovered =
       hoveredTarget === entry.node.name ||
       hoveredTarget === `${PHONE_KEY_HIT_PREFIX}${keyName}`;
@@ -671,10 +685,10 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
 
 const getPhoneKeyDisplay = (targetName = '') => {
   if (targetName.startsWith(PHONE_KEY_HIT_PREFIX)) {
-    return targetName.replace(PHONE_KEY_HIT_PREFIX, '');
+    return getPhoneKeyValue(targetName.replace(PHONE_KEY_HIT_PREFIX, ''));
   }
   if (targetName.startsWith(PHONE_KEY_PREFIX)) {
-    return targetName.replace(PHONE_KEY_PREFIX, '');
+    return getPhoneKeyValue(targetName.replace(PHONE_KEY_PREFIX, ''));
   }
   return '';
 };
@@ -914,7 +928,7 @@ const QuestEnvironment = ({
     if (objectName === PHONE_MODEL_NAME || objectName === PHONE_HANDSET_NAME) {
       const nearestKey = findNearestPhoneKey(runtimeEnvironment.focusPhone?.phone, event.point);
       if (nearestKey) {
-        onPhoneKeyPress?.(nearestKey);
+        onPhoneKeyPress?.(getPhoneKeyValue(nearestKey));
       }
       return;
     }
@@ -930,12 +944,12 @@ const QuestEnvironment = ({
     }
 
     if (objectName.startsWith(PHONE_KEY_HIT_PREFIX)) {
-      onPhoneKeyPress?.(objectName.replace(PHONE_KEY_HIT_PREFIX, ''));
+      onPhoneKeyPress?.(getPhoneKeyValue(objectName.replace(PHONE_KEY_HIT_PREFIX, '')));
       return;
     }
 
     if (objectName.startsWith(PHONE_KEY_PREFIX)) {
-      onPhoneKeyPress?.(objectName.replace(PHONE_KEY_PREFIX, ''));
+      onPhoneKeyPress?.(getPhoneKeyValue(objectName.replace(PHONE_KEY_PREFIX, '')));
     }
   }, [
     onPhoneFocusExit,

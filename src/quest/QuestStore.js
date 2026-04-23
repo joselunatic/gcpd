@@ -1,13 +1,14 @@
 import { createXRStore } from '@react-three/xr';
 
 const rayPointer = {
-  minDistance: 0.02,
+  minDistance: 0.01,
+  maxDistance: 12,
   rayModel: {
     color: '#9ee7ff',
-    maxLength: 4.5,
+    maxLength: 12,
     opacity: 0.85,
     renderOrder: 80,
-    size: 0.012,
+    size: 0.018,
   },
   cursorModel: {
     color: '#d9f8ff',
