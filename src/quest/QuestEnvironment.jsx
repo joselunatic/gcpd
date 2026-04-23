@@ -328,7 +328,7 @@ const addFocusKeyHitAreas = (focusRig) => {
     if (
       node.isMesh &&
       node.name.startsWith(PHONE_KEY_PREFIX) &&
-      !node.getObjectByName(`${PHONE_KEY_HIT_PREFIX}${node.name.replace(PHONE_KEY_PREFIX, '')}`)
+      !node.parent?.getObjectByName(`${PHONE_KEY_HIT_PREFIX}${node.name.replace(PHONE_KEY_PREFIX, '')}`)
     ) {
       keyMeshes.push(node);
     }
@@ -349,14 +349,14 @@ const addFocusKeyHitAreas = (focusRig) => {
       })
     );
     hitArea.name = `${PHONE_KEY_HIT_PREFIX}${keyName}`;
-    hitArea.position.set(0, 0, 0);
-    hitArea.rotation.set(0, 0, 0);
-    hitArea.scale.set(1.45, 1.45, 1.45);
+    hitArea.position.copy(keyNode.position);
+    hitArea.quaternion.copy(keyNode.quaternion);
+    hitArea.scale.copy(keyNode.scale).multiplyScalar(1.45);
     hitArea.pointerEventsType = XR_RAY_POINTER_EVENTS;
     hitArea.pointerEventsOrder = 80;
     hitArea.renderOrder = 80;
     hitArea.frustumCulled = false;
-    keyNode.add(hitArea);
+    keyNode.parent?.add(hitArea);
   });
 };
 
@@ -657,7 +657,7 @@ const PhoneFocusStatus = ({ phoneState, hoveredPhoneTarget }) => {
   }, [texture]);
 
   return (
-    <group position={[0, 1.45, 8.4]} scale={10.5}>
+    <group position={[0, 5.2, 8.4]} scale={10.5}>
       <mesh renderOrder={130}>
         <planeGeometry args={[1.62, 0.52]} />
         <meshBasicMaterial
