@@ -20,10 +20,12 @@ const PHONE_KEY_PREFIX = 'QuestPhoneKey_';
 const PHONE_HANDSET_NAME = 'QuestPhoneHandset';
 const PHONE_MODEL_NAME = 'QuestPhoneModel';
 const PHONE_RIG_NAME = 'QuestPhoneRig';
+const PHONE_HIT_AREA_NAME = 'QuestPhoneHitArea';
 const PHONE_FOCUS_OFFSET = new THREE.Vector3(0, -0.03, -0.48);
 const PHONE_FOCUS_TILT = -0.38;
 const PHONE_FOCUS_ROLL = 0.03;
 const PHONE_FOCUS_SCALE = 3.55;
+const PHONE_HIT_AREA_COLOR = '#79dcff';
 
 const snapshotTransform = (object) => {
   if (!object) return null;
@@ -78,11 +80,19 @@ const collectPhoneNodes = (root) => {
     keys: {},
     handset: null,
     model: null,
+    hitArea: null,
     rig: root.getObjectByName(PHONE_RIG_NAME),
   };
 
   root.traverse((node) => {
     if (!node.isMesh) return;
+
+    if (node.name === PHONE_HIT_AREA_NAME) {
+      phone.hitArea = {
+        node,
+      };
+      return;
+    }
 
     if (node.name.startsWith(PHONE_KEY_PREFIX)) {
       phone.keys[node.name.replace(PHONE_KEY_PREFIX, '')] = {
@@ -112,6 +122,67 @@ const collectPhoneNodes = (root) => {
   return phone;
 };
 
+const isPhoneTargetName = (name = '') =>
+  name === PHONE_MODEL_NAME ||
+  name === PHONE_HANDSET_NAME ||
+  name === PHONE_HIT_AREA_NAME ||
+  name.startsWith(PHONE_KEY_PREFIX);
+
+const getPhoneTargetName = (object) => {
+  let current = object;
+  while (current) {
+    if (isPhoneTargetName(current.name)) return current.name;
+    if (current.name === PHONE_RIG_NAME || current.name === 'QuestPhoneFocusRig') {
+      return PHONE_HIT_AREA_NAME;
+    }
+    current = current.parent;
+  }
+  return '';
+};
+
+const addPhoneHitArea = (phone) => {
+  if (!phone?.rig || phone.rig.getObjectByName(PHONE_HIT_AREA_NAME)) return;
+
+  phone.rig.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(phone.rig);
+  if (bounds.isEmpty()) return;
+
+  const worldCenter = new THREE.Vector3();
+  const worldSize = new THREE.Vector3();
+  const worldScale = new THREE.Vector3();
+  bounds.getCenter(worldCenter);
+  bounds.getSize(worldSize);
+  phone.rig.getWorldScale(worldScale);
+
+  const localCenter = phone.rig.worldToLocal(worldCenter.clone());
+  const localSize = new THREE.Vector3(
+    worldSize.x / Math.max(worldScale.x, 0.0001),
+    worldSize.y / Math.max(worldScale.y, 0.0001),
+    worldSize.z / Math.max(worldScale.z, 0.0001)
+  );
+  localSize.multiplyScalar(1.35);
+  localSize.z = Math.max(localSize.z, 8);
+
+  const geometry = new THREE.BoxGeometry(localSize.x, localSize.y, localSize.z);
+  const material = new THREE.MeshBasicMaterial({
+    color: PHONE_HIT_AREA_COLOR,
+    transparent: true,
+    opacity: 0.001,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const hitArea = new THREE.Mesh(geometry, material);
+  hitArea.name = PHONE_HIT_AREA_NAME;
+  hitArea.pointerEventsType = { deny: 'grab' };
+  hitArea.position.copy(localCenter);
+  hitArea.frustumCulled = false;
+  hitArea.renderOrder = 30;
+  phone.rig.add(hitArea);
+  phone.hitArea = {
+    node: hitArea,
+  };
+};
+
 const stylePhoneNode = (node, type) => {
   cloneNodeMaterial(node);
   node.frustumCulled = false;
@@ -126,6 +197,12 @@ const stylePhoneNode = (node, type) => {
 
   if (type === 'model') {
     material.opacity = 1;
+    return;
+  }
+
+  if (type === 'hitArea') {
+    material.opacity = 0.001;
+    material.color = new THREE.Color(PHONE_HIT_AREA_COLOR);
     return;
   }
 
@@ -153,6 +230,8 @@ const createFocusPhone = (sourcePhone) => {
       stylePhoneNode(node, 'handset');
     } else if (node.name === PHONE_MODEL_NAME) {
       stylePhoneNode(node, 'model');
+    } else if (node.name === PHONE_HIT_AREA_NAME) {
+      stylePhoneNode(node, 'hitArea');
     } else {
       cloneNodeMaterial(node);
     }
@@ -226,7 +305,7 @@ const updatePhoneVisuals = ({ phone, hoveredTarget, phoneState, focusedView = fa
     const material = Array.isArray(phone.model.node.material)
       ? phone.model.node.material[0]
       : phone.model.node.material;
-    const hovered = hoveredTarget === PHONE_MODEL_NAME;
+    const hovered = hoveredTarget === PHONE_MODEL_NAME || hoveredTarget === PHONE_HIT_AREA_NAME;
 
     if (material) {
       if (focusedView) {
@@ -238,6 +317,17 @@ const updatePhoneVisuals = ({ phone, hoveredTarget, phoneState, focusedView = fa
         material.emissive.set('#000000');
         material.emissiveIntensity = 0;
       }
+    }
+  }
+
+  if (phone.hitArea) {
+    const material = Array.isArray(phone.hitArea.node.material)
+      ? phone.hitArea.node.material[0]
+      : phone.hitArea.node.material;
+    if (material) {
+      const hovered = hoveredTarget === PHONE_HIT_AREA_NAME || hoveredTarget === PHONE_MODEL_NAME;
+      material.opacity = hovered ? 0.08 : 0.001;
+      material.color.set(hovered ? '#9ee7ff' : PHONE_HIT_AREA_COLOR);
     }
   }
 };
@@ -271,6 +361,7 @@ const prepareEnvironment = (gltf) => {
 
   environment.updateMatrixWorld(true);
   const phone = collectPhoneNodes(environment);
+  addPhoneHitArea(phone);
   const focusPhone = createFocusPhone(phone);
 
   return {
@@ -381,12 +472,9 @@ const QuestEnvironment = ({
   }, [hoveredPhoneTarget, phoneState, runtimeEnvironment]);
 
   const handlePointerMove = useCallback((event) => {
-    const objectName = event.object?.name || '';
-    if (
-      objectName === PHONE_MODEL_NAME ||
-      objectName.startsWith(PHONE_KEY_PREFIX) ||
-      objectName === PHONE_HANDSET_NAME
-    ) {
+    const objectName = getPhoneTargetName(event.object);
+    if (objectName) {
+      event.stopPropagation();
       setHoveredPhoneTarget(objectName);
       return;
     }
@@ -401,13 +489,9 @@ const QuestEnvironment = ({
   }, []);
 
   const handleEnvironmentPointerDown = useCallback((event) => {
-    const objectName = event.object?.name || '';
+    const objectName = getPhoneTargetName(event.object);
 
-    if (
-      objectName === PHONE_MODEL_NAME ||
-      objectName === PHONE_HANDSET_NAME ||
-      objectName.startsWith(PHONE_KEY_PREFIX)
-    ) {
+    if (objectName) {
       event.stopPropagation();
       if (!phoneState?.focusMode) {
         onPhoneFocusEnter?.();
@@ -417,14 +501,14 @@ const QuestEnvironment = ({
   }, [onPhoneFocusEnter, phoneState?.focusMode]);
 
   const handleFocusPointerDown = useCallback((event) => {
-    const objectName = event.object?.name || '';
+    const objectName = getPhoneTargetName(event.object);
     event.stopPropagation();
 
     if (!phoneState?.focusMode) {
       return;
     }
 
-    if (objectName === PHONE_MODEL_NAME) {
+    if (objectName === PHONE_MODEL_NAME || objectName === PHONE_HIT_AREA_NAME) {
       onPhoneFocusExit?.();
       return;
     }
