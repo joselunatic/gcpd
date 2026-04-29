@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unknown-property */
 import { useMemo } from 'react';
 
 import QuestPanel3D from './components/QuestPanel3D';

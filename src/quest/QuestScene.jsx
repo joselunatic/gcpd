@@ -6,6 +6,7 @@ import * as THREE from 'three';
 
 import QuestEnvironment from './QuestEnvironment';
 import QuestHdriEnvironment from './QuestHdriEnvironment';
+import QuestMapSurface from './QuestMapSurface';
 import QuestMonitorSurface from './QuestMonitorSurface';
 
 const DEFAULT_CAMERA_POSITION = [0, 3.72, 4.34];
@@ -150,6 +151,11 @@ const QuestScene = ({ data, session, recenterKey }) => {
       />
 
       <QuestMonitorSurface
+        data={data}
+        session={session}
+        panelAnchor={environmentAnchors?.panel}
+      />
+      <QuestMapSurface
         data={data}
         session={session}
         panelAnchor={environmentAnchors?.panel}

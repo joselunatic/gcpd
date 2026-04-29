@@ -150,6 +150,8 @@ const useQuestSession = (data) => {
     tracerWsState: 'offline',
     activeCallId: '',
     tracerPhase: 'idle',
+    tracerAnsweredAt: 0,
+    hotspot: null,
     hotspotLabel: '',
     activeAudioLabel: '',
   });
@@ -542,7 +544,9 @@ const useQuestSession = (data) => {
             activeMode: phoneBridgeModeRef.current,
             activeCallId: String(payload.callId || current.activeCallId || ''),
             tracerPhase: 'answered',
+            tracerAnsweredAt: Number(payload.answeredAt) || Date.now(),
             lineStatus: phoneBridgeModeRef.current === PHONE_MODE_TRACER ? 'trazando' : 'conectada',
+            hotspot: payload.hotspot || null,
             hotspotLabel: String(payload.hotspot?.label || ''),
             lastAction:
               phoneBridgeModeRef.current === PHONE_MODE_TRACER
@@ -560,6 +564,7 @@ const useQuestSession = (data) => {
             activeMode: null,
             activeCallId: '',
             tracerPhase: payload.type === 'tracer:auto_hangup' ? 'timeout' : 'hangup',
+            tracerAnsweredAt: 0,
             lineStatus: 'colgada',
             lastAction:
               payload.type === 'tracer:auto_hangup'
@@ -688,6 +693,8 @@ const useQuestSession = (data) => {
         lastDialedNumber: digits,
         lineStatus: 'solicitando',
         tracerPhase: 'dialing',
+        tracerAnsweredAt: 0,
+        hotspot: null,
         hotspotLabel: '',
         lastAction:
           mode === PHONE_MODE_TRACER
@@ -812,6 +819,7 @@ const useQuestSession = (data) => {
       activeMode: null,
       activeCallId: '',
       tracerPhase: 'hangup',
+      tracerAnsweredAt: 0,
       lineStatus: 'colgada',
       lastAction:
         phoneState.activeMode === PHONE_MODE_TRACER

@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unknown-property */
 import QuestModuleRouter from './QuestModuleRouter';
 
 const PANEL_FIXED_POSITION = [0, 1.78, -0.68];

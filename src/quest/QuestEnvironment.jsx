@@ -694,8 +694,6 @@ const getPhoneKeyDisplay = (targetName = '') => {
 };
 
 const PhoneFocusStatus = ({ phoneState, hoveredPhoneTarget }) => {
-  if (!phoneState?.focusMode) return null;
-
   const hoveredKey = getPhoneKeyDisplay(hoveredPhoneTarget);
   const activeKey = phoneState.pressedKey || hoveredKey;
   const digits = phoneState.dialedDigits || phoneState.lastDialedNumber || '';
@@ -714,6 +712,8 @@ const PhoneFocusStatus = ({ phoneState, hoveredPhoneTarget }) => {
   useEffect(() => {
     return () => texture?.dispose?.();
   }, [texture]);
+
+  if (!phoneState?.focusMode) return null;
 
   return (
     <group position={[0, 5.2, 8.4]} scale={10.5}>
