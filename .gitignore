@@ -27,7 +27,9 @@ server/batconsole.db
 *.sln
 *.sw?
 .playwright-cli/
+.playwright-mcp/
 .iwsdk/
+tmp/iwsdk-runtime/
 output/
 .tmp/
 .claude/
