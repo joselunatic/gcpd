@@ -36,3 +36,4 @@ output/
 STATE.md
 vite.config.js.timestamp-*.mjs
 assets/consoles/uploads_files_2172566_sp_electricalboxes/sp_electricalboxes.spp
+/immersive-web-sdk
