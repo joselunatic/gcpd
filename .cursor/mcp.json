@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "iwsdk-runtime": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\JoseAntonioHernandez\\Repos\\gcpd\\gcpd\\node_modules\\@iwsdk\\cli\\dist\\cli.js",
+        "mcp",
+        "stdio"
+      ]
+    }
+  }
+}

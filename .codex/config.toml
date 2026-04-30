@@ -1,0 +1,6 @@
+# --- IWER managed (do not edit) ---
+[mcp_servers.iwsdk-runtime]
+command = "node"
+args = ["C:\\Users\\JoseAntonioHernandez\\Repos\\gcpd\\gcpd\\node_modules\\@iwsdk\\cli\\dist\\cli.js", "mcp", "stdio"]
+
+# --- end IWER managed ---

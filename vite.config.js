@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { iwsdkDev } from '@iwsdk/vite-plugin-dev'
 
 const spaHistoryFallback = () => {
   const attach = (middlewares) => {
@@ -49,9 +50,34 @@ const spaHistoryFallback = () => {
   };
 };
 
+const iwsdkAiModes = new Set(['agent', 'oversight', 'collaborate']);
+const iwsdkAiMode = iwsdkAiModes.has(process.env.IWSDK_AI_MODE)
+  ? process.env.IWSDK_AI_MODE
+  : 'agent';
+const isIwsdkRuntime =
+  process.env.IWSDK_DEV === '1' || process.env.npm_lifecycle_event === 'dev:runtime';
+
+const plugins = [spaHistoryFallback(), react()];
+
+if (isIwsdkRuntime) {
+  plugins.push(
+    iwsdkDev({
+      emulator: {
+        device: 'metaQuest3',
+        activation: 'localhost',
+      },
+      ai: {
+        mode: iwsdkAiMode,
+        screenshotSize: { width: 800, height: 800 },
+      },
+      verbose: process.env.IWSDK_VERBOSE === '1',
+    })
+  );
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [spaHistoryFallback(), react()],
+  plugins,
   resolve: {
     alias: [
       {

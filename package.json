@@ -5,7 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:quest": "vite",
+    "dev:runtime": "vite",
+    "dev:iwsdk": "iwsdk dev up --timeout 90000",
+    "dev:iwsdk:down": "iwsdk dev down",
+    "dev:iwsdk:status": "iwsdk dev status",
     "dev:fast": "VITE_DEV_MODE=1 vite",
+    "mcp:iwsdk": "iwsdk mcp stdio",
+    "iwsdk:sync": "iwsdk adapter sync",
     "server": "node server/index.js",
     "build": "vite build",
     "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
@@ -34,6 +41,8 @@
     "ws": "^8.19.0"
   },
   "devDependencies": {
+    "@iwsdk/cli": "0.3.2",
+    "@iwsdk/vite-plugin-dev": "0.3.2",
     "@types/react": "^18.2.14",
     "@types/react-dom": "^18.2.6",
     "@vitejs/plugin-react": "^4.0.1",
