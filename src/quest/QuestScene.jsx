@@ -5,9 +5,11 @@ import { XROrigin } from '@react-three/xr';
 import * as THREE from 'three';
 
 import QuestEnvironment from './QuestEnvironment';
+import QuestBallisticsWorkbench from './QuestBallisticsWorkbench';
 import QuestHdriEnvironment from './QuestHdriEnvironment';
 import QuestMapSurface from './QuestMapSurface';
 import QuestMonitorSurface from './QuestMonitorSurface';
+import QuestStlEvidenceViewer from './QuestStlEvidenceViewer';
 
 const DEFAULT_CAMERA_POSITION = [0, 3.72, 4.34];
 const DEFAULT_CAMERA_TARGET = [0, 3.08, -1.45];
@@ -231,6 +233,8 @@ const QuestScene = ({ data, session, recenterKey }) => {
         session={session}
         panelAnchor={environmentAnchors?.panel}
       />
+      <QuestStlEvidenceViewer session={session} />
+      <QuestBallisticsWorkbench session={session} />
     </>
   );
 };

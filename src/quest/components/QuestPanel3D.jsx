@@ -144,8 +144,17 @@ const createLabelTexture = ({
   return texture;
 };
 
-const useLabelTexture = (config) => {
-  const texture = useMemo(() => createLabelTexture(config), [config]);
+const useLabelTexture = ({
+  title = '',
+  subtitle = '',
+  width = 1024,
+  height = 256,
+  accent = false,
+}) => {
+  const texture = useMemo(
+    () => createLabelTexture({ title, subtitle, width, height, accent }),
+    [accent, height, subtitle, title, width]
+  );
 
   useEffect(() => {
     return () => {

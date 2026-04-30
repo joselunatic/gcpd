@@ -127,11 +127,13 @@ const QuestMapLabel = ({ title, body, position, scale = [0.8, 0.24, 1], accent =
   );
 };
 
-const QuestMapPoi = ({ spot, active, onSelect }) => {
+const QuestMapPoi = ({ spot, active, related, dimmed, onSelect }) => {
   const [hovered, setHovered] = useState(false);
   const [x, y] = mapPercentToLocal(spot.x, spot.y);
   const radius = Math.max(0.025, (Number(spot.radius || 1.6) / 100) * MAP_WIDTH);
-  const color = active || hovered ? '#e3fbff' : '#73e8ff';
+  const color = active || hovered ? '#e3fbff' : related ? '#8affc9' : '#73e8ff';
+  const baseOpacity = dimmed ? 0.12 : related ? 0.46 : 0.34;
+  const ringOpacity = dimmed ? 0.26 : related ? 0.82 : 0.62;
 
   return (
     <group position={[x, y, 0.045]}>
@@ -146,12 +148,18 @@ const QuestMapPoi = ({ spot, active, onSelect }) => {
         }}
       >
         <circleGeometry args={[radius * (hovered ? 1.35 : 1.1), 32]} />
-        <meshBasicMaterial color={color} opacity={active || hovered ? 0.58 : 0.34} {...UI_MATERIAL_PROPS} />
+        <meshBasicMaterial color={color} opacity={active || hovered ? 0.58 : baseOpacity} {...UI_MATERIAL_PROPS} />
       </mesh>
       <mesh position={[0, 0, 0.008]}>
         <ringGeometry args={[radius * 1.25, radius * 1.55, 32]} />
-        <meshBasicMaterial color={color} opacity={active || hovered ? 0.95 : 0.62} {...UI_MATERIAL_PROPS} />
+        <meshBasicMaterial color={color} opacity={active || hovered ? 0.95 : ringOpacity} {...UI_MATERIAL_PROPS} />
       </mesh>
+      {related && !active ? (
+        <mesh position={[0, 0, 0.018]} renderOrder={31}>
+          <ringGeometry args={[radius * 1.82, radius * 2.08, 32]} />
+          <meshBasicMaterial color="#8affc9" opacity={dimmed ? 0.32 : 0.78} {...UI_MATERIAL_PROPS} />
+        </mesh>
+      ) : null}
       {(active || hovered) && (
         <QuestMapLabel
           title={spot.label || spot.id}
@@ -257,7 +265,18 @@ const QuestMapSurface = ({ data, session, panelAnchor = null }) => {
   const mapTexture = useLoader(THREE.TextureLoader, MAP_TEXTURE_URL);
   const [fallbackHotspots, setFallbackHotspots] = useState([]);
   const selectedPoi = session?.selectedPoi;
+  const relatedPoiIds = useMemo(
+    () =>
+      new Set(
+        (session?.questContext?.relatedPoisForCase || [])
+          .map((entry) => entry.id)
+          .filter(Boolean)
+      ),
+    [session?.questContext?.relatedPoisForCase]
+  );
   const activeTool = session?.selection?.herramientas?.activeTool;
+  const activeFilter = session?.selection?.mapa?.activeFilter || 'caso-activo';
+  const isCaseFilterActive = activeFilter === 'caso-activo' && relatedPoiIds.size > 0;
   const activeTracer = session?.phoneState?.activeMode === PHONE_MODE_TRACER;
   const shouldShow =
     session?.currentModule === QUEST_MODULE_MAPA ||
@@ -284,12 +303,25 @@ const QuestMapSurface = ({ data, session, panelAnchor = null }) => {
     () => buildSpots(data?.pois || [], fallbackHotspots),
     [data?.pois, fallbackHotspots]
   );
-  const selectedSpot = spots.find((entry) => entry.id === selectedPoi?.id) || spots[0] || null;
-  const title = activeTracer ? 'TRACER MAP' : 'GOTHAM MAP';
+  const selectedSpot =
+    spots.find((entry) => entry.id === selectedPoi?.id) ||
+    spots.find((entry) => relatedPoiIds.has(entry.id)) ||
+    spots[0] ||
+    null;
+  const selectedIsRelated = selectedSpot ? relatedPoiIds.has(selectedSpot.id) : false;
+  const title = activeTracer
+    ? 'TRACER MAP'
+    : isCaseFilterActive
+      ? 'GOTHAM MAP · CASO'
+      : 'GOTHAM MAP';
   const body = activeTracer
     ? `${session.phoneState.lineStatus || 'traza'} · ${session.phoneState.hotspotLabel || session.phoneState.lastDialedNumber || 'sin hotspot'}`
     : selectedPoi
-      ? `${selectedPoi.name || selectedPoi.id} · ${selectedPoi.district || 'sin distrito'}`
+      ? [
+          selectedPoi.name || selectedPoi.id,
+          selectedPoi.district || 'sin distrito',
+          selectedIsRelated ? 'vinculado al caso' : 'fuera del foco',
+        ].join(' · ')
       : `${spots.length} POIs georreferenciados`;
 
   const position = panelAnchor?.position
@@ -329,6 +361,8 @@ const QuestMapSurface = ({ data, session, panelAnchor = null }) => {
           key={spot.id}
           spot={spot}
           active={spot.id === selectedPoi?.id}
+          related={relatedPoiIds.has(spot.id)}
+          dimmed={isCaseFilterActive && !relatedPoiIds.has(spot.id)}
           onSelect={session.actions.selectPoi}
         />
       ))}
@@ -336,7 +370,7 @@ const QuestMapSurface = ({ data, session, panelAnchor = null }) => {
       {selectedSpot && !activeTracer ? (
         <QuestMapLabel
           title={selectedSpot.label}
-          body={`${selectedSpot.status || 'sin estado'} · ${summarize(selectedSpot.summary || selectedPoi?.summary)}`}
+          body={`${selectedSpot.status || 'sin estado'} · ${selectedIsRelated ? 'caso activo' : 'sin vínculo directo'} · ${summarize(selectedSpot.summary || selectedPoi?.summary)}`}
           position={[0, -MAP_HEIGHT / 2 - 0.28, 0.06]}
           scale={[1.06, 0.24, 1]}
         />

@@ -33,7 +33,13 @@ const formatLeadType = (leadType) => {
   return 'Lead';
 };
 
+const formatEntityList = (values, getLabel, fallback = 'sin vínculos directos') => {
+  if (!Array.isArray(values) || !values.length) return fallback;
+  return values.slice(0, 3).map(getLabel).filter(Boolean).join(', ') || fallback;
+};
+
 const buildOperationItems = ({ session }) => {
+  const context = session.questContext || {};
   const focusItem = {
     id: 'operacion:casos',
     label: 'CASOS',
@@ -46,8 +52,8 @@ const buildOperationItems = ({ session }) => {
   const mapItem = {
     id: 'operacion:mapa',
     label: 'MAPA',
-    description: session.selectedPoi
-      ? `${session.selectedPoi.label || session.selectedPoi.name || session.selectedPoi.id} · POIs activos`
+    description: context.recommendedPoi
+      ? `${context.recommendedPoi.label || context.recommendedPoi.name || context.recommendedPoi.id} · vínculo del caso`
       : 'Abrir Gotham, POIs, líneas y zonas de rastreo',
     accent: false,
   };
@@ -55,8 +61,8 @@ const buildOperationItems = ({ session }) => {
   const profilesItem = {
     id: 'operacion:perfiles',
     label: 'PERFILES',
-    description: session.selectedProfile
-      ? `${session.selectedProfile.name} · ficha vinculada`
+    description: context.recommendedProfile
+      ? `${context.recommendedProfile.alias || context.recommendedProfile.id} · ficha vinculada`
       : 'Consultar sujetos, contactos y vínculos del caso',
     accent: false,
   };
@@ -149,6 +155,9 @@ const buildOperacionModel = ({ session }) => ({
 
 const buildCasosModel = ({ data, session }) => {
   const selectedCase = session.selectedCase;
+  const context = session.questContext || {};
+  const relatedPois = context.relatedPoisForCase || [];
+  const relatedProfiles = context.relatedProfilesForCase || [];
   const caseBrief = selectedCase?.commands?.brief || [];
   const caseIntel = selectedCase?.commands?.intel || [];
   const objectiveLine =
@@ -219,12 +228,12 @@ const buildCasosModel = ({ data, session }) => {
       {
         id: 'case:mapa',
         label: 'VER MAPA',
-        description: session.selectedPoi?.name || 'Abrir despliegue espacial del caso',
+        description: formatEntityList(relatedPois, (entry) => entry.name, 'Abrir despliegue espacial del caso'),
       },
       {
         id: 'case:perfiles',
         label: 'VER PERFILES',
-        description: session.selectedProfile?.alias || 'Consultar amenaza vinculada',
+        description: formatEntityList(relatedProfiles, (entry) => entry.alias, 'Consultar amenaza vinculada'),
       },
       {
         id: 'case:herramientas',
@@ -234,8 +243,14 @@ const buildCasosModel = ({ data, session }) => {
     ],
     onSelect: (id) => session.actions.selectCase(id),
     onAction: (id) => {
-      if (id === 'case:mapa') session.actions.goToMapa({ poiId: session.selectedPoi?.id });
-      if (id === 'case:perfiles') session.actions.goToPerfiles({ profileId: session.selectedProfile?.id });
+      if (id === 'case:mapa') {
+        session.actions.goToMapa({ poiId: relatedPois[0]?.id || session.selectedPoi?.id });
+      }
+      if (id === 'case:perfiles') {
+        session.actions.goToPerfiles({
+          profileId: relatedProfiles[0]?.id || session.selectedProfile?.id,
+        });
+      }
       if (id === 'case:herramientas') {
         session.actions.goToHerramientas({
           tool: 'evidencias',
@@ -250,6 +265,9 @@ const buildCasosModel = ({ data, session }) => {
 
 const buildMapaModel = ({ data, session }) => {
   const selectedPoi = session.selectedPoi;
+  const context = session.questContext || {};
+  const relatedCases = context.relatedCasesForPoi || [];
+  const relatedProfiles = context.relatedProfilesForPoi || [];
 
   return {
     layout: 'dossier',
@@ -264,7 +282,12 @@ const buildMapaModel = ({ data, session }) => {
     detailTitle: 'CONTEXTO ESPACIAL',
     detailBody: selectedPoi
       ? summarize(
-          `${selectedPoi.district || 'Sin distrito'} · ${selectedPoi.details || selectedPoi.contacts || selectedPoi.summary}`,
+          [
+            selectedPoi.district || 'Sin distrito',
+            selectedPoi.details || selectedPoi.contacts || selectedPoi.summary,
+            `Expedientes: ${formatEntityList(relatedCases, (entry) => entry.title)}`,
+            `Perfiles: ${formatEntityList(relatedProfiles, (entry) => entry.alias)}`,
+          ].join(' · '),
           'Sin detalle espacial.'
         )
       : 'Sin punto de interés seleccionado.',
@@ -281,12 +304,12 @@ const buildMapaModel = ({ data, session }) => {
       {
         id: 'map:casos',
         label: 'VER CASO',
-        description: session.selectedCase?.title || 'Volver al expediente en foco',
+        description: relatedCases[0]?.title || session.selectedCase?.title || 'Volver al expediente en foco',
       },
       {
         id: 'map:perfiles',
         label: 'VER PERFIL',
-        description: session.selectedProfile?.alias || 'Consultar entidad vinculada',
+        description: relatedProfiles[0]?.alias || session.selectedProfile?.alias || 'Consultar entidad vinculada',
       },
       {
         id: 'map:rastreo',
@@ -296,8 +319,14 @@ const buildMapaModel = ({ data, session }) => {
     ],
     onSelect: (id) => session.actions.selectPoi(id),
     onAction: (id) => {
-      if (id === 'map:casos') session.actions.goToCasos({ caseId: session.selectedCase?.id });
-      if (id === 'map:perfiles') session.actions.goToPerfiles({ profileId: session.selectedProfile?.id });
+      if (id === 'map:casos') {
+        session.actions.goToCasos({ caseId: relatedCases[0]?.id || session.selectedCase?.id });
+      }
+      if (id === 'map:perfiles') {
+        session.actions.goToPerfiles({
+          profileId: relatedProfiles[0]?.id || session.selectedProfile?.id,
+        });
+      }
       if (id === 'map:rastreo') {
         session.actions.goToHerramientas({
           tool: 'rastreo',
@@ -314,6 +343,9 @@ const buildMapaModel = ({ data, session }) => {
 
 const buildPerfilesModel = ({ data, session }) => {
   const selectedProfile = session.selectedProfile;
+  const context = session.questContext || {};
+  const relatedPois = context.relatedPoisForProfile || [];
+  const relatedCases = context.relatedCasesForProfile || [];
 
   return {
     layout: 'dossier',
@@ -328,9 +360,13 @@ const buildPerfilesModel = ({ data, session }) => {
     detailTitle: 'PATRONES',
     detailBody: selectedProfile
       ? summarize(
-          selectedProfile.patterns ||
-            selectedProfile.knownAssociates ||
-            selectedProfile.notes,
+          [
+            selectedProfile.patterns ||
+              selectedProfile.knownAssociates ||
+              selectedProfile.notes,
+            `Ubicaciones: ${formatEntityList(relatedPois, (entry) => entry.name)}`,
+            `Expedientes: ${formatEntityList(relatedCases, (entry) => entry.title)}`,
+          ].join(' '),
           'Sin patrones registrados.'
         )
       : 'Sin perfil seleccionado.',
@@ -352,12 +388,12 @@ const buildPerfilesModel = ({ data, session }) => {
       {
         id: 'profile:mapa',
         label: 'VER MAPA',
-        description: session.selectedPoi?.name || 'Abrir última ubicación monitorizada',
+        description: relatedPois[0]?.name || session.selectedPoi?.name || 'Abrir última ubicación monitorizada',
       },
       {
         id: 'profile:casos',
         label: 'VER EXPEDIENTE',
-        description: session.selectedCase?.title || 'Volver al caso en foco',
+        description: relatedCases[0]?.title || session.selectedCase?.title || 'Volver al caso en foco',
       },
       {
         id: 'profile:comms',
@@ -367,8 +403,12 @@ const buildPerfilesModel = ({ data, session }) => {
     ],
     onSelect: (id) => session.actions.selectProfile(id),
     onAction: (id) => {
-      if (id === 'profile:mapa') session.actions.goToMapa({ poiId: session.selectedPoi?.id });
-      if (id === 'profile:casos') session.actions.goToCasos({ caseId: session.selectedCase?.id });
+      if (id === 'profile:mapa') {
+        session.actions.goToMapa({ poiId: relatedPois[0]?.id || session.selectedPoi?.id });
+      }
+      if (id === 'profile:casos') {
+        session.actions.goToCasos({ caseId: relatedCases[0]?.id || session.selectedCase?.id });
+      }
       if (id === 'profile:comms') {
         session.actions.goToHerramientas({
           tool: 'comunicaciones',
@@ -411,74 +451,201 @@ const TOOLS = [
   },
 ];
 
+const countLabel = (count, singular, plural = `${singular}s`) =>
+  `${count} ${count === 1 ? singular : plural}`;
+
+const firstAvailable = (...values) => values.find((value) => String(value || '').trim()) || '';
+
+const formatPhoneLineState = (line) => {
+  if (!line) return 'sin líneas configuradas';
+  const recallState = line.rellamable === false && line.llamado ? 'ya llamada' : 'disponible';
+  return `${line.label || line.number || 'línea'} · ${line.number || 'sin número'} · ${recallState}`;
+};
+
+const getEvidenceItems = (toolData = {}) => [
+  ...(toolData.builtInEvidence || []),
+  ...(toolData.evidence || []),
+].filter((entry) => entry?.stlPath);
+
+const getNextEvidenceId = (session) => {
+  const items = getEvidenceItems(session.toolData);
+  if (!items.length) return null;
+
+  const currentId = session.selection.herramientas.resourceId;
+  const currentIndex = items.findIndex((entry) => entry.id === currentId);
+  const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % items.length : 1 % items.length;
+  return items[nextIndex]?.id || items[0]?.id || null;
+};
+
+const buildToolInventory = ({ session, activeTool }) => {
+  const toolData = session.toolData || {};
+  const evidence = toolData.evidence || [];
+  const builtInEvidence = toolData.builtInEvidence || [];
+  const allEvidence = getEvidenceItems(toolData);
+  const ballistics = toolData.ballistics || [];
+  const ballisticsAssets = toolData.ballisticsAssets || [];
+  const audio = toolData.audio || [];
+  const phoneLines = toolData.phoneLines || [];
+  const tracerLines = toolData.tracerConfig?.lines || [];
+  const tracerHotspots = toolData.tracerConfig?.hotspots || [];
+  const selectedResourceId = session.selection.herramientas.resourceId;
+  const selectedEvidence =
+    allEvidence.find((entry) => entry.id === selectedResourceId) ||
+    allEvidence.find((entry) => entry.id === session.selectedCase?.id) ||
+    allEvidence[0];
+  const selectedBallistic =
+    ballistics.find((entry) => entry.id === selectedResourceId) ||
+    ballistics[0];
+  const selectedAudio =
+    audio.find((entry) => entry.id === selectedResourceId) ||
+    audio[0];
+  const selectedLine =
+    phoneLines.find((entry) => entry.normalizedNumber === session.phoneState?.lastDialedNumber) ||
+    phoneLines.find((entry) => entry.normalizedNumber === session.phoneState?.dialedDigits) ||
+    phoneLines[0];
+  const activeTraceNumber =
+    session.phoneState?.lastDialedNumber || session.phoneState?.dialedDigits || '';
+
+  const summaries = {
+    evidencias: {
+      focus: 'Inspección STL compatible con SHOW W, SHOW JOKER, SHOW BALA y evidencias subidas por DM.',
+      detail: [
+        countLabel(allEvidence.length, 'pieza'),
+        `${builtInEvidence.length} built-in`,
+        evidence.length ? `${evidence.length} desde /api/evidence` : 'sin STL de DM cargados',
+        selectedEvidence
+          ? `selección ${selectedEvidence.label || selectedEvidence.id}`
+          : 'sin pieza seleccionada',
+      ].join(' · '),
+      hint: selectedEvidence?.stlPath
+        ? `STL ${selectedEvidence.stlPath} · origen ${selectedEvidence.source || 'api'}`
+        : 'Los STL built-in siguen disponibles aunque el catálogo de DM esté vacío.',
+    },
+    audio: {
+      focus: 'Escucha forense del comando AUDIO con soporte para pistas bloqueadas por contraseña.',
+      detail: [
+        countLabel(audio.length, 'pista'),
+        `${audio.filter((entry) => entry.locked).length} bloqueadas`,
+        selectedAudio
+          ? `siguiente ${selectedAudio.title || selectedAudio.id}`
+          : 'sin pistas cargadas',
+      ].join(' · '),
+      hint: selectedAudio?.src
+        ? `Fuente ${selectedAudio.src}${selectedAudio.locked ? ' · requiere unlock' : ''}`
+        : 'El transporte XR aún no reproduce audio; este bloque precarga el inventario real.',
+    },
+    balistica: {
+      focus: 'Comparador de muestras del comando BALLISTICA: código izquierdo/derecho y lectura MATCH.',
+      detail: [
+        ballistics.length
+          ? countLabel(ballistics.length, 'muestra')
+          : `${countLabel(ballisticsAssets.length, 'asset')} disponible${ballisticsAssets.length === 1 ? '' : 's'}`,
+        selectedBallistic
+          ? `muestra ${selectedBallistic.label || selectedBallistic.id}`
+          : 'sin modelos balísticos de DM',
+        selectedBallistic?.caseCode ? `código ${selectedBallistic.caseCode}` : 'sin código activo',
+      ].join(' · '),
+      hint: ballistics.length
+        ? firstAvailable(selectedBallistic?.pngPath, selectedBallistic?.assetId, 'dataset listo para comparar')
+        : 'Hay assets PNG en /assets/ballistics; falta dataset de comparación en /api/ballistics.',
+    },
+    comunicaciones: {
+      focus: 'Consola DIAL: líneas registradas, audio asociado y estado de rellamada.',
+      detail: [
+        countLabel(phoneLines.length, 'línea'),
+        formatPhoneLineState(selectedLine),
+        `auricular ${session.phoneState?.isOffHook ? 'levantado' : 'colgado'}`,
+        `estado ${session.phoneState?.lineStatus || 'reposo'}`,
+      ].join(' · '),
+      hint: `buffer ${session.phoneState?.dialedDigits || session.phoneState?.lastDialedNumber || 'vacío'} · audio ${selectedLine?.audioId || 'sin audio asociado'}`,
+    },
+    rastreo: {
+      focus: 'TRACER usa el bridge WebSocket de agente y progresa fases sobre hotspot de mapa.',
+      detail: [
+        `ws ${session.phoneState?.tracerWsState || 'offline'}`,
+        countLabel(tracerLines.length, 'línea trazable'),
+        countLabel(tracerHotspots.length, 'hotspot'),
+        activeTraceNumber ? `objetivo ${activeTraceNumber}` : 'sin objetivo activo',
+      ].join(' · '),
+      hint: session.phoneState?.hotspotLabel
+        ? `hotspot ${session.phoneState.hotspotLabel} · fase ${session.phoneState.tracerStage || 0}`
+        : 'La traza exacta requiere que el operador DM conteste desde /phone.',
+    },
+  };
+
+  return summaries[activeTool] || summaries.evidencias;
+};
+
 const buildHerramientasModel = ({ session }) => {
   const activeTool = session.selection.herramientas.activeTool || 'evidencias';
   const activeToolData = TOOLS.find((entry) => entry.id === activeTool) || TOOLS[0];
   const originModule =
     session.toolContext?.originModule || session.lastPrimaryModule || QUEST_MODULE_OPERACION;
-
-  const toolDetailById = {
-    evidencias: session.selectedCase
-      ? `Caso ${session.selectedCase.title}. Bahía de inspección lista para abrir activos relacionados.`
-      : 'Bahía de inspección preparada. Selecciona un expediente para precargar una pieza.',
-    audio: session.selectedCase
-      ? `Escucha forense asociada a ${session.selectedCase.title}. Transporte listo para reproducir una pista.`
-      : 'Estación de escucha forense preparada para pistas de audio.',
-    balistica: session.selectedCase
-      ? `Comparación instrumental asociada a ${session.selectedCase.title}. Preparada para muestra A/B.`
-      : 'Comparador balístico preparado para seleccionar dos muestras.',
-    comunicaciones: session.selectedProfile
-      ? `Línea contextual vinculada a ${session.selectedProfile.alias}. ${session.phoneState?.isOffHook ? `Estado ${session.phoneState.lineStatus}. Marcación ${session.phoneState.dialedDigits || session.phoneState.lastDialedNumber || 'vacía'}.` : 'Auricular colgado y consola en espera.'} Bridge ${session.phoneState?.tracerWsState || 'offline'}.`
-      : `Consola de comunicaciones lista para operar una línea contextual. ${session.phoneState?.isOffHook ? `Estado ${session.phoneState.lineStatus}.` : 'Auricular colgado.'} Bridge ${session.phoneState?.tracerWsState || 'offline'}.`,
-    rastreo: session.selectedPoi
-      ? `Rastreo contextual sobre ${session.selectedPoi.name}. Triangulación preparada desde mapa operativo.`
-      : 'Rastreo progresivo preparado para un objetivo activo.',
-  };
+  const inventory = buildToolInventory({ session, activeTool });
+  const actions = [
+    {
+      id: 'tool:return',
+      label: 'VOLVER',
+      description: `Retornar a ${originModule}`,
+    },
+    activeTool === 'evidencias'
+      ? {
+          id: 'tool:next-evidence',
+          label: 'SIG STL',
+          description: 'Ciclar pieza 3D',
+        }
+      : null,
+    {
+      id: 'tool:casos',
+      label: 'CASO',
+      description: session.selectedCase?.title || 'Ir a expediente en foco',
+    },
+    {
+      id: 'tool:mapa',
+      label: 'MAPA',
+      description: session.selectedPoi?.name || 'Ir a ubicación monitorizada',
+    },
+    activeTool !== 'evidencias'
+      ? {
+          id: 'tool:perfiles',
+          label: 'PERFIL',
+          description: session.selectedProfile?.alias || 'Ir a perfil destacado',
+        }
+      : null,
+  ].filter(Boolean);
 
   return {
     layout: 'instrument',
     title: 'HERRAMIENTAS',
     subtitle: `${activeToolData.label} · ${originModule}`,
     focusTitle: activeToolData.label,
-    focusBody: activeToolData.description,
+    focusBody: inventory.focus,
     detailTitle: 'CONSOLA ACTIVA',
-    detailBody: toolDetailById[activeTool] || activeToolData.description,
-    hint:
-      activeTool === 'comunicaciones'
-        ? `Línea ${session.phoneState?.lineStatus || 'colgada'} · ws ${session.phoneState?.tracerWsState || 'offline'} · buffer ${session.phoneState?.dialedDigits || session.phoneState?.lastDialedNumber || 'vacío'}${session.phoneState?.hotspotLabel ? ` · hotspot ${session.phoneState.hotspotLabel}` : ''} · volver conserva el contexto operativo.`
-        : `Origen ${originModule} · volver conserva el contexto operativo.`,
+    detailBody: inventory.detail,
+    hint: `${inventory.hint} · origen ${originModule}`,
     items: TOOLS.map((entry) => ({
       ...entry,
+      description:
+        buildToolInventory({ session, activeTool: entry.id }).detail ||
+        entry.description,
       accent: entry.id === activeTool,
     })),
-    actions: [
-      {
-        id: 'tool:return',
-        label: 'VOLVER',
-        description: `Retornar a ${originModule}`,
-      },
-      {
-        id: 'tool:casos',
-        label: 'CASO',
-        description: session.selectedCase?.title || 'Ir a expediente en foco',
-      },
-      {
-        id: 'tool:mapa',
-        label: 'MAPA',
-        description: session.selectedPoi?.name || 'Ir a ubicación monitorizada',
-      },
-      {
-        id: 'tool:perfiles',
-        label: 'PERFIL',
-        description: session.selectedProfile?.alias || 'Ir a perfil destacado',
-      },
-    ],
+    actions,
     onSelect: (id) =>
       session.actions.openTool(id, {
         originModule,
       }),
     onAction: (id) => {
       if (id === 'tool:return') session.actions.returnToOperationalContext();
+      if (id === 'tool:next-evidence') {
+        const nextEvidenceId = getNextEvidenceId(session);
+        if (nextEvidenceId) {
+          session.actions.openTool('evidencias', {
+            originModule,
+            resourceId: nextEvidenceId,
+          });
+        }
+      }
       if (id === 'tool:casos') session.actions.goToCasos({ caseId: session.selectedCase?.id });
       if (id === 'tool:mapa') session.actions.goToMapa({ poiId: session.selectedPoi?.id });
       if (id === 'tool:perfiles') session.actions.goToPerfiles({ profileId: session.selectedProfile?.id });

@@ -9,10 +9,12 @@ import QuestPreflightOverlay from './QuestPreflightOverlay';
 import QuestSessionControls from './QuestSessionControls';
 import { useQuestData } from './hooks/useQuestData';
 import { useQuestSession } from './hooks/useQuestSession';
+import { useQuestToolData } from './hooks/useQuestToolData';
 
 const QuestRoute = () => {
   const data = useQuestData();
-  const session = useQuestSession(data);
+  const toolData = useQuestToolData();
+  const session = useQuestSession(data, toolData);
   const [recenterKey, setRecenterKey] = useState(0);
 
   const handleRecenter = () => {
