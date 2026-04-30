@@ -73,6 +73,14 @@ const QuestBackControls = ({ onBack }) => {
     onBackRef.current?.();
   };
 
+  const getActiveSession = () => {
+    try {
+      return gl.xr?.getSession?.() || null;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => () => {
     if (sessionRef.current && squeezeHandlerRef.current) {
       sessionRef.current.removeEventListener('squeeze', squeezeHandlerRef.current);
@@ -87,7 +95,7 @@ const QuestBackControls = ({ onBack }) => {
       return;
     }
 
-    const session = gl.xr.getSession?.();
+    const session = getActiveSession();
     if (session && sessionRef.current !== session) {
       if (sessionRef.current && squeezeHandlerRef.current) {
         sessionRef.current.removeEventListener('squeeze', squeezeHandlerRef.current);

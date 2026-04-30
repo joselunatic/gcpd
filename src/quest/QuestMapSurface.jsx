@@ -220,8 +220,18 @@ const QuestTracerOverlay = ({ phoneState }) => {
 };
 
 const buildSpots = (pois = [], fallbackHotspots = []) => {
-  const fallbackById = new Map(fallbackHotspots.map((entry) => [entry.id, entry]));
+  const validFallbackHotspots = fallbackHotspots
+    .filter(Boolean)
+    .map((entry) => ({
+      ...entry,
+      x: Number(entry.x),
+      y: Number(entry.y),
+      radius: Number(entry.radius) || 1.6,
+    }))
+    .filter((entry) => Number.isFinite(entry.x) && Number.isFinite(entry.y));
+  const fallbackById = new Map(validFallbackHotspots.map((entry) => [entry.id, entry]));
   const poiSpots = pois
+    .filter(Boolean)
     .map((poi) => {
       const fallback = fallbackById.get(poi.id);
       const geo = getPoiGeo(poi) || fallback;
@@ -237,10 +247,10 @@ const buildSpots = (pois = [], fallbackHotspots = []) => {
         radius: Number(geo.radius) || 1.6,
       };
     })
-    .filter((entry) => Number.isFinite(entry.x) && Number.isFinite(entry.y));
+    .filter((entry) => entry && Number.isFinite(entry.x) && Number.isFinite(entry.y));
 
   if (poiSpots.length) return poiSpots;
-  return fallbackHotspots;
+  return validFallbackHotspots;
 };
 
 const QuestMapSurface = ({ data, session, panelAnchor = null }) => {

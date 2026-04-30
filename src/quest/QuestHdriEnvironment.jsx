@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
 const QUEST_HDRI_URL = '/assets/quest/hdri/empty_warehouse_01_1k.exr';
 const QUEST_HDRI_INTENSITY = 0.22;
@@ -17,7 +17,7 @@ const QuestHdriEnvironment = () => {
     const previousEnvironment = scene.environment;
     const previousIntensity = scene.environmentIntensity;
 
-    const loader = new RGBELoader();
+    const loader = new EXRLoader();
     const pmremGenerator = new THREE.PMREMGenerator(gl);
     pmremGenerator.compileEquirectangularShader();
 
