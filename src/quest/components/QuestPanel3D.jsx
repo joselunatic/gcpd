@@ -235,6 +235,98 @@ const QuestActionChip = ({ title, position, onClick, accent = false }) => {
   );
 };
 
+const OperationDashboard = ({
+  titleTexture,
+  focusTexture,
+  detailTexture,
+  hintTexture,
+  items,
+  onSelect,
+}) => {
+  const cardPositions = [
+    [-0.44, 0.04, 0.02],
+    [0.44, 0.04, 0.02],
+    [-0.44, -0.43, 0.02],
+    [0.44, -0.43, 0.02],
+  ];
+
+  return (
+    <>
+      <mesh position={[0, 0, -0.08]} renderOrder={0}>
+        <planeGeometry args={[3.12, 1.54]} />
+        <meshStandardMaterial
+          color="#07131d"
+          opacity={0.98}
+          metalness={0.18}
+          roughness={0.58}
+          {...PANEL_MATERIAL_PROPS}
+        />
+      </mesh>
+
+      <mesh position={[0, 0, -0.05]} renderOrder={0}>
+        <planeGeometry args={[3, 1.42]} />
+        <meshStandardMaterial
+          color="#0a1b27"
+          opacity={0.96}
+          metalness={0.08}
+          roughness={0.44}
+          {...PANEL_MATERIAL_PROPS}
+        />
+      </mesh>
+
+      <mesh position={[0, 0.71, -0.02]} renderOrder={1}>
+        <planeGeometry args={[2.9, 0.026]} />
+        <meshBasicMaterial color="#7de6ff" opacity={0.88} {...UI_MATERIAL_PROPS} />
+      </mesh>
+      <mesh position={[0, -0.71, -0.02]} renderOrder={1}>
+        <planeGeometry args={[2.9, 0.018]} />
+        <meshBasicMaterial color="#3d7f9d" opacity={0.72} {...UI_MATERIAL_PROPS} />
+      </mesh>
+      <mesh position={[-0.18, 0.64, 0.02]} renderOrder={2}>
+        <planeGeometry args={[2.56, 0.2]} />
+        <meshBasicMaterial map={titleTexture || null} {...UI_MATERIAL_PROPS} />
+      </mesh>
+
+      <group position={[-0.9, -0.04, 0]}>
+        <mesh position={[0, 0.34, -0.01]} renderOrder={2}>
+          <planeGeometry args={[1.14, 0.38]} />
+          <meshBasicMaterial map={focusTexture || null} {...UI_MATERIAL_PROPS} />
+        </mesh>
+        <mesh position={[0, -0.06, 0]} renderOrder={3}>
+          <planeGeometry args={[1.14, 0.32]} />
+          <meshBasicMaterial map={detailTexture || null} {...UI_MATERIAL_PROPS} />
+        </mesh>
+        <mesh position={[0, -0.43, 0.01]} renderOrder={4}>
+          <planeGeometry args={[1.14, 0.24]} />
+          <meshBasicMaterial map={hintTexture || null} {...UI_MATERIAL_PROPS} />
+        </mesh>
+      </group>
+
+      <group position={[0.58, -0.03, 0]}>
+        <mesh position={[0, 0.48, 0.015]} renderOrder={2}>
+          <planeGeometry args={[1.68, 0.1]} />
+          <meshBasicMaterial color="#0c2635" opacity={0.88} {...UI_MATERIAL_PROPS} />
+        </mesh>
+        <mesh position={[0, 0.48, 0.025]} renderOrder={3}>
+          <planeGeometry args={[1.58, 0.035]} />
+          <meshBasicMaterial color="#82eaff" opacity={0.72} {...UI_MATERIAL_PROPS} />
+        </mesh>
+        {items.slice(0, 4).map((item, index) => (
+          <QuestButton
+            key={item.id || index}
+            title={item.label}
+            subtitle={item.description}
+            position={cardPositions[index]}
+            onClick={() => onSelect?.(item.id)}
+            accent={item.accent}
+            buttonScale={0.65}
+          />
+        ))}
+      </group>
+    </>
+  );
+};
+
 const QuestPanel3D = ({
   layout = 'operations',
   title,
@@ -253,6 +345,7 @@ const QuestPanel3D = ({
   position = [0, 1.6, -1.4],
   scale = 1,
 }) => {
+  const isOperationsLayout = layout === 'operations';
   const isInstrumentLayout = layout === 'instrument';
   const isDossierLayout = layout === 'dossier';
   const titleTexture = useLabelTexture({
@@ -263,10 +356,10 @@ const QuestPanel3D = ({
     accent: true,
   });
   const hintTexture = useLabelTexture({
-    title: 'STATUS',
+    title: isOperationsLayout ? 'LEAD / STATUS' : 'STATUS',
     subtitle: hint,
-    width: 1400,
-    height: 260,
+    width: isOperationsLayout ? 1100 : 1400,
+    height: isOperationsLayout ? 260 : 260,
     accent: false,
   });
   const focusTexture = useLabelTexture({
@@ -283,6 +376,21 @@ const QuestPanel3D = ({
     height: isInstrumentLayout ? 360 : 520,
     accent: false,
   });
+
+  if (isOperationsLayout) {
+    return (
+      <group position={position} scale={scale}>
+        <OperationDashboard
+          titleTexture={titleTexture}
+          focusTexture={focusTexture}
+          detailTexture={detailTexture}
+          hintTexture={hintTexture}
+          items={items}
+          onSelect={onSelect}
+        />
+      </group>
+    );
+  }
 
   return (
     <group position={position} scale={scale}>
@@ -346,27 +454,7 @@ const QuestPanel3D = ({
         />
       ) : null}
 
-      {layout === 'operations' ? (
-        <>
-          <mesh position={[0, 0.26, 0.03]} renderOrder={3}>
-            <planeGeometry args={[1.9, 0.42]} />
-            <meshBasicMaterial map={focusTexture || null} {...UI_MATERIAL_PROPS} />
-          </mesh>
-
-          {items.map((item, index) => (
-            <QuestButton
-              key={item.id || index}
-              title={item.label}
-              subtitle={item.description}
-              position={[0, -0.1 - index * 0.32, 0.02]}
-              onClick={() => onSelect?.(item.id)}
-              accent={item.accent}
-              buttonScale={0.96}
-            />
-          ))}
-        </>
-      ) : (
-        <>
+      <>
           <mesh
             position={[isInstrumentLayout ? 0.5 : 0.42, isInstrumentLayout ? 0.28 : 0.08, 0.03]}
             renderOrder={3}
@@ -397,8 +485,7 @@ const QuestPanel3D = ({
               buttonScale={isInstrumentLayout ? 0.76 : 0.82}
             />
           ))}
-        </>
-      )}
+      </>
 
       <mesh
         position={[

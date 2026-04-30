@@ -36,35 +36,39 @@ const formatLeadType = (leadType) => {
 const buildOperationItems = ({ session }) => {
   const focusItem = {
     id: 'operacion:casos',
-    label: 'CASO EN FOCO',
+    label: 'CASOS',
     description: session.activeCase
       ? `${session.activeCase.title} · ${session.activeCase.status || 'sin estado'}`
-      : 'Abrir expedientes disponibles',
+      : 'Abrir expedientes y seleccionar caso activo',
     accent: true,
   };
 
-  const leadItems = session.openLeads.slice(0, 2).map((lead) => ({
-    id: `lead:${lead.id}`,
-    label: `${formatLeadType(lead.tipo).toUpperCase()} ABIERTA`,
-    description: `${lead.titulo} · ${summarize(lead.resumenBreve, 'Sin detalle.')}`,
+  const mapItem = {
+    id: 'operacion:mapa',
+    label: 'MAPA',
+    description: session.selectedPoi
+      ? `${session.selectedPoi.label || session.selectedPoi.name || session.selectedPoi.id} · POIs activos`
+      : 'Abrir Gotham, POIs, líneas y zonas de rastreo',
     accent: false,
-  }));
+  };
+
+  const profilesItem = {
+    id: 'operacion:perfiles',
+    label: 'PERFILES',
+    description: session.selectedProfile
+      ? `${session.selectedProfile.name} · ficha vinculada`
+      : 'Consultar sujetos, contactos y vínculos del caso',
+    accent: false,
+  };
 
   const utilityItem = {
     id: 'operacion:herramientas',
-    label: 'BAHÍA INSTRUMENTAL',
-    description: 'Abrir herramientas contextualizadas sin perder el hilo del caso.',
+    label: 'HERRAMIENTAS',
+    description: session.recentChanges[0]?.detail || 'Evidencias, archivos y utilidades operativas',
     accent: false,
   };
 
-  const changesItem = {
-    id: 'operacion:cambios',
-    label: 'CAMBIOS RECIENTES',
-    description: session.recentChanges[0]?.detail || 'Sin deltas operativos relevantes.',
-    accent: false,
-  };
-
-  return [focusItem, ...leadItems, utilityItem, changesItem].slice(0, 5);
+  return [focusItem, mapItem, profilesItem, utilityItem];
 };
 
 const buildOperacionModel = ({ session }) => ({
@@ -96,16 +100,21 @@ const buildOperacionModel = ({ session }) => ({
       return;
     }
 
+    if (id === 'operacion:mapa') {
+      session.actions.goToMapa({ poiId: session.selectedPoi?.id });
+      return;
+    }
+
+    if (id === 'operacion:perfiles') {
+      session.actions.goToPerfiles({ profileId: session.selectedProfile?.id });
+      return;
+    }
+
     if (id === 'operacion:herramientas') {
       session.actions.goToHerramientas({
         tool: 'evidencias',
         originModule: QUEST_MODULE_OPERACION,
       });
-      return;
-    }
-
-    if (id === 'operacion:cambios') {
-      session.actions.goToCasos();
       return;
     }
 

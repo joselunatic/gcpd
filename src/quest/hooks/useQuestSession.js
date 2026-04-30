@@ -308,6 +308,29 @@ const useQuestSession = (data) => {
     setCurrentModule(fallbackModule);
   }, [lastPrimaryModule, toolContext]);
 
+  const goBack = useCallback(() => {
+    if (phoneState.focusMode) {
+      setPhoneState((current) => ({
+        ...current,
+        focusMode: false,
+        lastAction:
+          current.lastAction === 'Teléfono enfocado.'
+            ? 'Teléfono en espera.'
+            : current.lastAction,
+      }));
+      return;
+    }
+
+    if (currentModule === QUEST_MODULE_HERRAMIENTAS) {
+      returnToOperationalContext();
+      return;
+    }
+
+    if (currentModule !== QUEST_MODULE_OPERACION) {
+      setCurrentModule(QUEST_MODULE_OPERACION);
+    }
+  }, [currentModule, phoneState.focusMode, returnToOperationalContext]);
+
   const setPhoneMode = useCallback((mode) => {
     if (mode !== PHONE_MODE_CALL && mode !== PHONE_MODE_TRACER) return;
 
@@ -1062,6 +1085,7 @@ const useQuestSession = (data) => {
       selectProfile,
       openTool,
       returnToOperationalContext,
+      goBack,
       setPhoneMode,
       clearPhoneDial,
       enterPhoneFocus,

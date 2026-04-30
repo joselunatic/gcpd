@@ -5,13 +5,13 @@ const PANEL_FIXED_POSITION = [0, 1.78, -0.68];
 const PANEL_FIXED_ROTATION = [0, 0, 0];
 const PANEL_FIXED_SCALE = [0.82, 0.82, 0.82];
 const PANEL_BASE_SIZE = {
-  width: 2.24,
-  height: 1.92,
+  width: 3.12,
+  height: 1.54,
 };
-const PANEL_SURFACE_PADDING = 0.92;
+const PANEL_SURFACE_PADDING = 0.96;
 const PANEL_SURFACE_FORWARD_OFFSET = 0.016;
 
-const clampScale = (value) => Math.max(0.72, Math.min(1.18, value));
+const clampScale = (value) => Math.max(0.68, Math.min(1.08, value));
 
 const buildPanelTransform = (panelAnchor) => {
   if (!panelAnchor?.position) {

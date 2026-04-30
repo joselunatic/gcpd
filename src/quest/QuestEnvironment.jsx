@@ -28,6 +28,7 @@ const PHONE_FOCUS_OFFSET = new THREE.Vector3(0, -0.3, -1.35);
 const PHONE_FOCUS_TILT = -0.42;
 const PHONE_FOCUS_ROLL = 0.03;
 const PHONE_FOCUS_SCALE = 1.85;
+const PHONE_FOCUS_MODEL_OFFSET = [-0.32, 0, 0];
 const PHONE_HIT_AREA_COLOR = '#79dcff';
 const PHONE_FOCUS_CONTROL_TARGET = 'QuestPhoneModeControl';
 const PHONE_FOCUS_CONTROL_LEFT = 'QuestPhoneModeControl_Call';
@@ -627,7 +628,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
     <group position={[0, 0, 7.8]} scale={11.25}>
       <mesh
         name={PHONE_FOCUS_CONTROL_TARGET}
-        position={[-1.06, 0, -0.02]}
+        position={[-1.22, 0, -0.02]}
         pointerEventsType={XR_RAY_POINTER_EVENTS}
         pointerEventsOrder={110}
         renderOrder={118}
@@ -645,7 +646,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
       </mesh>
       <mesh
         name={PHONE_FOCUS_CONTROL_TARGET}
-        position={[1.06, 0, -0.02]}
+        position={[1.22, 0, -0.02]}
         pointerEventsType={XR_RAY_POINTER_EVENTS}
         pointerEventsOrder={110}
         renderOrder={118}
@@ -667,7 +668,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
         subtitle="DIAL"
         active={phoneState.mode === PHONE_MODE_CALL}
         disabled={modeLocked}
-        position={[-1.06, 0, 0]}
+        position={[-1.22, 0, 0]}
         onSelect={onPhoneModeSelect}
       />
       <PhoneFocusModeButton
@@ -676,7 +677,7 @@ const PhoneFocusControls = ({ phoneState, onPhoneModeSelect }) => {
         subtitle="TRACE"
         active={phoneState.mode === PHONE_MODE_TRACER}
         disabled={modeLocked}
-        position={[1.06, 0, 0]}
+        position={[1.22, 0, 0]}
         onSelect={onPhoneModeSelect}
       />
     </group>
@@ -1000,12 +1001,14 @@ const QuestEnvironment = ({
               side={THREE.DoubleSide}
             />
           </mesh>
-          <primitive
-            object={runtimeEnvironment.focusPhone.rig}
-            onPointerMove={handlePointerMove}
-            onPointerOut={clearHover}
-            onPointerDown={handleFocusPointerDown}
-          />
+          <group position={PHONE_FOCUS_MODEL_OFFSET}>
+            <primitive
+              object={runtimeEnvironment.focusPhone.rig}
+              onPointerMove={handlePointerMove}
+              onPointerOut={clearHover}
+              onPointerDown={handleFocusPointerDown}
+            />
+          </group>
         </group>
       ) : null}
     </>

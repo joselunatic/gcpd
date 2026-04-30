@@ -1,6 +1,6 @@
 /* eslint-disable react/no-unknown-property */
-import { useEffect, useState } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useEffect, useRef, useState } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import { XROrigin } from '@react-three/xr';
 import * as THREE from 'three';
 
@@ -12,6 +12,8 @@ import QuestMonitorSurface from './QuestMonitorSurface';
 const DEFAULT_CAMERA_POSITION = [0, 3.72, 4.34];
 const DEFAULT_CAMERA_TARGET = [0, 3.08, -1.45];
 const XR_ORIGIN_OFFSET = [0, 0.378, 1.25];
+const QUEST_BACK_BUTTON_INDEX = 4;
+const QUEST_BACK_DEBOUNCE_MS = 360;
 
 const getCameraPose = (anchors) => {
   if (!anchors?.panel?.position || !anchors?.panel?.quaternion || !anchors?.viewerPosition) {
@@ -52,6 +54,66 @@ const QuestCameraRig = ({ recenterKey, anchors }) => {
   return null;
 };
 
+const QuestBackControls = ({ onBack }) => {
+  const { gl } = useThree();
+  const onBackRef = useRef(onBack);
+  const sessionRef = useRef(null);
+  const lastBackAtRef = useRef(0);
+  const wasBackPressedRef = useRef(false);
+  const squeezeHandlerRef = useRef(null);
+
+  useEffect(() => {
+    onBackRef.current = onBack;
+  }, [onBack]);
+
+  const requestBack = () => {
+    const now = performance.now();
+    if (now - lastBackAtRef.current < QUEST_BACK_DEBOUNCE_MS) return;
+    lastBackAtRef.current = now;
+    onBackRef.current?.();
+  };
+
+  useEffect(() => () => {
+    if (sessionRef.current && squeezeHandlerRef.current) {
+      sessionRef.current.removeEventListener('squeeze', squeezeHandlerRef.current);
+    }
+    sessionRef.current = null;
+    squeezeHandlerRef.current = null;
+  }, []);
+
+  useFrame(() => {
+    if (!gl.xr?.isPresenting) {
+      wasBackPressedRef.current = false;
+      return;
+    }
+
+    const session = gl.xr.getSession?.();
+    if (session && sessionRef.current !== session) {
+      if (sessionRef.current && squeezeHandlerRef.current) {
+        sessionRef.current.removeEventListener('squeeze', squeezeHandlerRef.current);
+      }
+      const handleSqueeze = () => requestBack();
+      session.addEventListener('squeeze', handleSqueeze);
+      sessionRef.current = session;
+      squeezeHandlerRef.current = handleSqueeze;
+    }
+
+    const rightController = Array.from(session?.inputSources || []).find(
+      (source) => source.handedness === 'right' && source.gamepad
+    );
+    const isBackPressed = Boolean(
+      rightController?.gamepad?.buttons?.[QUEST_BACK_BUTTON_INDEX]?.pressed
+    );
+
+    if (isBackPressed && !wasBackPressedRef.current) {
+      requestBack();
+    }
+    wasBackPressedRef.current = isBackPressed;
+  });
+
+  return null;
+};
+
 const QuestScene = ({ data, session, recenterKey }) => {
   const [environmentAnchors, setEnvironmentAnchors] = useState(null);
 
@@ -59,6 +121,7 @@ const QuestScene = ({ data, session, recenterKey }) => {
     <>
       <XROrigin position={XR_ORIGIN_OFFSET} />
       <QuestCameraRig recenterKey={recenterKey} anchors={environmentAnchors} />
+      <QuestBackControls onBack={session.actions.goBack} />
       <QuestHdriEnvironment />
 
       <color attach="background" args={['#071019']} />
