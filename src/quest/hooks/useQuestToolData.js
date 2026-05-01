@@ -32,13 +32,15 @@ const listFromPayload = (payload, key) => {
 const normalizeDigits = (value = '') => String(value).replace(/\D/g, '');
 
 const normalizeEvidence = (payload) =>
-  listFromPayload(payload, 'models').map((entry) => ({
-    ...entry,
-    id: entry.id || entry.label || entry.name || entry.stlPath,
-    label: entry.label || entry.name || entry.title || entry.id || 'EVIDENCIA',
-    stlPath: entry.stlPath || entry.path || entry.src || '',
-    source: 'api',
-  }));
+  listFromPayload(payload, 'models')
+    .filter((entry) => entry?.visible !== false && entry?.visibility !== 'hidden')
+    .map((entry) => ({
+      ...entry,
+      id: entry.id || entry.label || entry.name || entry.stlPath,
+      label: entry.label || entry.name || entry.title || entry.id || 'EVIDENCIA',
+      stlPath: entry.stlPath || entry.path || entry.src || '',
+      source: 'api',
+    }));
 
 const normalizeBallistics = (payload) =>
   listFromPayload(payload, 'models').map((entry) => ({

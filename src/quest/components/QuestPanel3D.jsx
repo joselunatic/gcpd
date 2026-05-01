@@ -257,6 +257,7 @@ const QuestPanel3D = ({
   detailBody = '',
   items = [],
   actions = [],
+  workspaceLines = [],
   hint = '',
   onSelect,
   onAction,
@@ -329,6 +330,7 @@ const QuestPanel3D = ({
         detailBody={detailBody}
         items={items}
         actions={actions}
+        workspaceLines={workspaceLines}
         hint={hint}
         onSelect={onSelect}
         onAction={onAction}

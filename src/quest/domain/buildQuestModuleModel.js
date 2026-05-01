@@ -18,6 +18,20 @@ const summarizeList = (value, fallback = 'Sin datos disponibles.') => {
   return summarize(value.join(' '), fallback);
 };
 
+const compactLine = (value, max = 132) => {
+  const text = Array.isArray(value) ? value.join(' ') : String(value || '').trim();
+  if (!text) return '';
+  return text.length > max ? `${text.slice(0, max - 3)}...` : text;
+};
+
+const listLines = (values = [], max = 5) =>
+  (Array.isArray(values) ? values : [values])
+    .flat()
+    .filter(Boolean)
+    .map((entry) => compactLine(entry))
+    .filter(Boolean)
+    .slice(0, max);
+
 const formatStatusLabel = (status) => {
   if (status === 'active') return 'Activo';
   if (status === 'locked') return 'Restringido';
@@ -36,6 +50,26 @@ const formatLeadType = (leadType) => {
 const formatEntityList = (values, getLabel, fallback = 'sin vínculos directos') => {
   if (!Array.isArray(values) || !values.length) return fallback;
   return values.slice(0, 3).map(getLabel).filter(Boolean).join(', ') || fallback;
+};
+
+const FALLBACK_POI_GEO = {
+  narrows: { x: 52, y: 46, radius: 1.8 },
+  oldtown: { x: 55, y: 30, radius: 1.6 },
+  arkham: { x: 67, y: 24, radius: 1.6 },
+};
+
+const getPoiGeo = (poi = {}) => {
+  const geo = poi?.poiV2?.geo || {};
+  const mapMeta = poi?.commands?.mapMeta || {};
+  const fallback = FALLBACK_POI_GEO[poi.id] || {};
+  const x = geo.x ?? mapMeta.x ?? fallback.x;
+  const y = geo.y ?? mapMeta.y ?? fallback.y;
+  if (!Number.isFinite(Number(x)) || !Number.isFinite(Number(y))) return {};
+  return {
+    mapX: Number(x),
+    mapY: Number(y),
+    radius: Number(geo.radius ?? mapMeta.radius ?? fallback.radius) || 1.6,
+  };
 };
 
 const buildOperationItems = ({ session }) => {
@@ -258,6 +292,21 @@ const buildCasosModel = ({ data, session }) => {
         });
       }
     },
+    workspaceLines: listLines(
+      [
+        caseBrief,
+        caseIntel,
+        selectedCase?.dm?.notes ? `DM: ${selectedCase.dm.notes}` : '',
+        relatedPois.length
+          ? `POIs: ${formatEntityList(relatedPois, (entry) => entry.name)}`
+          : '',
+        relatedProfiles.length
+          ? `Perfiles: ${formatEntityList(relatedProfiles, (entry) => entry.alias)}`
+          : '',
+        unlockLine,
+      ],
+      7
+    ),
     onBack: session.actions.goToOperacion,
     onHome: session.actions.goToOperacion,
   };
@@ -298,7 +347,11 @@ const buildMapaModel = ({ data, session }) => {
       id: entry.id,
       label: entry.name || entry.id,
       description: `${entry.district || 'sin distrito'} · ${summarize(entry.summary, 'Sin resumen.')}`,
+      status: entry.status,
+      summary: entry.summary,
+      district: entry.district,
       accent: entry.id === selectedPoi?.id,
+      ...getPoiGeo(entry),
     })),
     actions: [
       {
@@ -336,6 +389,21 @@ const buildMapaModel = ({ data, session }) => {
         });
       }
     },
+    workspaceLines: listLines(
+      [
+        selectedPoi?.status ? `Estado: ${formatStatusLabel(selectedPoi.status)}` : '',
+        selectedPoi?.details,
+        selectedPoi?.contacts,
+        selectedPoi?.notes,
+        relatedCases.length
+          ? `Expedientes vinculados: ${formatEntityList(relatedCases, (entry) => entry.title)}`
+          : '',
+        relatedProfiles.length
+          ? `Perfiles vinculados: ${formatEntityList(relatedProfiles, (entry) => entry.alias)}`
+          : '',
+      ],
+      6
+    ),
     onBack: session.actions.goToOperacion,
     onHome: session.actions.goToOperacion,
   };
@@ -418,6 +486,23 @@ const buildPerfilesModel = ({ data, session }) => {
         });
       }
     },
+    workspaceLines: listLines(
+      [
+        selectedProfile?.lastSeen ? `Última vista: ${selectedProfile.lastSeen}` : '',
+        selectedProfile?.patterns,
+        selectedProfile?.knownAssociates?.length
+          ? `Asociados: ${selectedProfile.knownAssociates.join(', ')}`
+          : '',
+        selectedProfile?.notes,
+        relatedPois.length
+          ? `Ubicaciones: ${formatEntityList(relatedPois, (entry) => entry.name)}`
+          : '',
+        relatedCases.length
+          ? `Expedientes: ${formatEntityList(relatedCases, (entry) => entry.title)}`
+          : '',
+      ],
+      7
+    ),
     onBack: session.actions.goToOperacion,
     onHome: session.actions.goToOperacion,
   };
@@ -520,6 +605,12 @@ const buildToolInventory = ({ session, activeTool }) => {
       hint: selectedEvidence?.stlPath
         ? `STL ${selectedEvidence.stlPath} · origen ${selectedEvidence.source || 'api'}`
         : 'Los STL built-in siguen disponibles aunque el catálogo de DM esté vacío.',
+      lines: listLines([
+        `Piezas: ${allEvidence.length} totales, ${builtInEvidence.length} built-in, ${evidence.length} desde API`,
+        selectedEvidence ? `Selección: ${selectedEvidence.label || selectedEvidence.id}` : '',
+        selectedEvidence?.stlPath ? `Ruta STL: ${selectedEvidence.stlPath}` : '',
+        selectedEvidence?.source ? `Origen: ${selectedEvidence.source}` : '',
+      ]),
     },
     audio: {
       focus: 'Escucha forense del comando AUDIO con soporte para pistas bloqueadas por contraseña.',
@@ -533,6 +624,12 @@ const buildToolInventory = ({ session, activeTool }) => {
       hint: selectedAudio?.src
         ? `Fuente ${selectedAudio.src}${selectedAudio.locked ? ' · requiere unlock' : ''}`
         : 'El transporte XR aún no reproduce audio; este bloque precarga el inventario real.',
+      lines: listLines([
+        `Pistas: ${audio.length} totales, ${audio.filter((entry) => entry.locked).length} bloqueadas`,
+        selectedAudio ? `Activa: ${selectedAudio.title || selectedAudio.id}` : '',
+        selectedAudio?.src ? `Fuente: ${selectedAudio.src}` : '',
+        selectedAudio?.locked ? 'Estado: requiere desbloqueo' : 'Estado: reproducible',
+      ]),
     },
     balistica: {
       focus: 'Comparador de muestras del comando BALLISTICA: código izquierdo/derecho y lectura MATCH.',
@@ -548,6 +645,13 @@ const buildToolInventory = ({ session, activeTool }) => {
       hint: ballistics.length
         ? firstAvailable(selectedBallistic?.pngPath, selectedBallistic?.assetId, 'dataset listo para comparar')
         : 'Hay assets PNG en /assets/ballistics; falta dataset de comparación en /api/ballistics.',
+      lines: listLines([
+        `Muestras DB: ${ballistics.length}`,
+        `Assets PNG: ${ballisticsAssets.length}`,
+        selectedBallistic ? `Muestra activa: ${selectedBallistic.label || selectedBallistic.id}` : '',
+        selectedBallistic?.caseCode ? `Código de caso: ${selectedBallistic.caseCode}` : '',
+        'Mantener minijuego MATCH por códigos izquierdo/derecho.',
+      ]),
     },
     comunicaciones: {
       focus: 'Consola DIAL: líneas registradas, audio asociado y estado de rellamada.',
@@ -558,6 +662,13 @@ const buildToolInventory = ({ session, activeTool }) => {
         `estado ${session.phoneState?.lineStatus || 'reposo'}`,
       ].join(' · '),
       hint: `buffer ${session.phoneState?.dialedDigits || session.phoneState?.lastDialedNumber || 'vacío'} · audio ${selectedLine?.audioId || 'sin audio asociado'}`,
+      lines: listLines([
+        `Líneas: ${phoneLines.length}`,
+        `Selección: ${formatPhoneLineState(selectedLine)}`,
+        `Auricular: ${session.phoneState?.isOffHook ? 'levantado' : 'colgado'}`,
+        `Estado línea: ${session.phoneState?.lineStatus || 'reposo'}`,
+        `Buffer: ${session.phoneState?.dialedDigits || session.phoneState?.lastDialedNumber || 'vacío'}`,
+      ]),
     },
     rastreo: {
       focus: 'TRACER usa el bridge WebSocket de agente y progresa fases sobre hotspot de mapa.',
@@ -570,6 +681,13 @@ const buildToolInventory = ({ session, activeTool }) => {
       hint: session.phoneState?.hotspotLabel
         ? `hotspot ${session.phoneState.hotspotLabel} · fase ${session.phoneState.tracerStage || 0}`
         : 'La traza exacta requiere que el operador DM conteste desde /phone.',
+      lines: listLines([
+        `WebSocket: ${session.phoneState?.tracerWsState || 'offline'}`,
+        `Líneas trazables: ${tracerLines.length}`,
+        `Hotspots: ${tracerHotspots.length}`,
+        activeTraceNumber ? `Objetivo: ${activeTraceNumber}` : 'Objetivo: sin número activo',
+        session.phoneState?.hotspotLabel ? `Hotspot: ${session.phoneState.hotspotLabel}` : '',
+      ]),
     },
   };
 
@@ -650,6 +768,7 @@ const buildHerramientasModel = ({ session }) => {
       if (id === 'tool:mapa') session.actions.goToMapa({ poiId: session.selectedPoi?.id });
       if (id === 'tool:perfiles') session.actions.goToPerfiles({ profileId: session.selectedProfile?.id });
     },
+    workspaceLines: inventory.lines || [],
     onBack: session.actions.returnToOperationalContext,
     onHome: session.actions.goToOperacion,
   };

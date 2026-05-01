@@ -1,5 +1,6 @@
 /* eslint-disable react/no-unknown-property */
 import { useEffect, useMemo, useState } from 'react';
+import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import {
@@ -16,6 +17,8 @@ const SECTION = {
   centerX: -0.12,
   rightX: 1.18,
 };
+const MAP_TEXTURE_URL = '/mapa.png';
+const MAP_ASPECT_RATIO = 0.744;
 
 const truncate = (value, max = 92) => {
   const text = String(value || '').trim();
@@ -198,34 +201,14 @@ const drawModuleVisual = ({ context, width, height, mode, colors }) => {
   drawGrid({ context, width, height });
 
   if (mode === 'map') {
-    context.strokeStyle = 'rgba(125,230,255,0.56)';
-    context.lineWidth = 5;
-    [
-      [[80, 330], [240, 270], [390, 300], [590, 210], [760, 245], [930, 150]],
-      [[120, 180], [330, 210], [530, 160], [720, 190], [900, 120]],
-      [[160, 415], [360, 360], [570, 405], [790, 335], [940, 360]],
-    ].forEach((line) => {
-      context.beginPath();
-      line.forEach(([x, y], index) => {
-        if (index === 0) context.moveTo(x, y);
-        else context.lineTo(x, y);
-      });
-      context.stroke();
-    });
-
-    [
-      [250, 262, colors.red, 'CRIME'],
-      [588, 210, colors.amber, 'DISTRICT'],
-      [780, 335, colors.cyan, 'GCPD'],
-    ].forEach(([x, y, color, label]) => {
-      context.fillStyle = color;
-      context.beginPath();
-      context.arc(x, y, 13, 0, Math.PI * 2);
-      context.fill();
-      context.fillStyle = colors.text;
-      context.font = 'bold 24px monospace';
-      context.fillText(label, x + 22, y - 12);
-    });
+    context.fillStyle = 'rgba(38,226,138,0.14)';
+    context.fillRect(78, 126, width - 156, height - 238);
+    context.strokeStyle = colors.green;
+    context.lineWidth = 4;
+    context.strokeRect(78, 126, width - 156, height - 238);
+    context.fillStyle = colors.green;
+    context.font = 'bold 28px monospace';
+    context.fillText('MAPA TACTICO /mapa.png', 104, 150);
     return;
   }
 
@@ -354,6 +337,7 @@ const createWorkspaceTexture = ({
   title = '',
   body = '',
   meta = '',
+  lines = [],
   width = 1100,
   height = 520,
 }) => {
@@ -381,11 +365,27 @@ const createWorkspaceTexture = ({
     context,
     text: body,
     x: 44,
-    y: height - 126,
+    y: mode === 'map' ? height - 104 : height - 154,
     maxWidth: width - 88,
     lineHeight: 34,
     maxLines: 2,
   });
+
+  if (mode !== 'map' && lines.length) {
+    context.fillStyle = 'rgba(3,12,20,0.68)';
+    context.fillRect(58, height - 238, width - 116, 166);
+    context.strokeStyle = 'rgba(125,230,255,0.24)';
+    context.lineWidth = 2;
+    context.strokeRect(58, height - 238, width - 116, 166);
+    context.fillStyle = colors.cyan;
+    context.font = 'bold 22px monospace';
+    context.fillText('AGENT NOTES', 78, height - 222);
+    context.fillStyle = colors.text;
+    context.font = '19px monospace';
+    lines.slice(0, 5).forEach((line, index) => {
+      context.fillText(`> ${truncate(line, 96).toUpperCase()}`, 78, height - 190 + index * 27);
+    });
+  }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -473,12 +473,109 @@ const Card = ({ name, position, size, textureOptions, onClick, renderOrder = 12 
   );
 };
 
-const WorkspaceCard = ({ mode, title, body, meta, position, size }) => {
+const mapPercentToLocal = (x, y, width, height) => [
+  (Number(x) / 100 - 0.5) * width,
+  (0.5 - Number(y) / 100) * height,
+];
+
+const MapWorkspaceCard = ({ title, body, items = [], lines = [], position, size }) => {
+  const mapTexture = useLoader(THREE.TextureLoader, MAP_TEXTURE_URL);
+  const headerTexture = useWorkspaceTexture({
+    mode: 'map',
+    title,
+    body,
+    meta: 'MAPA GOTHAM / POIS',
+    lines,
+  });
+  const mapWidth = size[0] * 0.45;
+  const mapHeight = mapWidth * MAP_ASPECT_RATIO;
+  const sideX = size[0] * 0.25;
+
+  useEffect(() => {
+    mapTexture.colorSpace = THREE.SRGBColorSpace;
+  }, [mapTexture]);
+
+  return (
+    <group position={position}>
+      <HoloPlate
+        name="GCPD_Quest_MapWorkspace_Glow"
+        position={[0, 0, -0.018]}
+        size={[size[0] + 0.08, size[1] + 0.08]}
+        opacity={0.06}
+        renderOrder={8}
+      />
+      <mesh name="GCPD_Quest_MapWorkspace_Frame" position={[0, 0, -0.006]} renderOrder={10}>
+        <planeGeometry args={size} />
+        <meshBasicMaterial map={headerTexture || null} {...QUEST_UI_MATERIAL_PROPS} />
+      </mesh>
+      <mesh name="GCPD_Quest_MapWorkspace_Image" position={[-0.34, -0.125, 0.018]} renderOrder={18}>
+        <planeGeometry args={[mapWidth, mapHeight]} />
+        <meshBasicMaterial map={mapTexture} color="#d7ffe1" opacity={0.86} {...QUEST_UI_MATERIAL_PROPS} />
+      </mesh>
+      <mesh position={[-0.34, -0.125, 0.026]} renderOrder={19}>
+        <planeGeometry args={[mapWidth, mapHeight]} />
+        <meshBasicMaterial color={QUEST_UI_COLORS.green} opacity={0.05} wireframe {...QUEST_UI_MATERIAL_PROPS} />
+      </mesh>
+      {items
+        .filter((item) => Number.isFinite(item.mapX) && Number.isFinite(item.mapY))
+        .slice(0, 8)
+        .map((item) => {
+          const [x, y] = mapPercentToLocal(item.mapX, item.mapY, mapWidth, mapHeight);
+          const active = Boolean(item.accent);
+          return (
+            <group key={item.id} position={[-0.34 + x, -0.125 + y, 0.04]}>
+              <mesh renderOrder={24}>
+                <ringGeometry args={[active ? 0.022 : 0.014, active ? 0.033 : 0.023, 32]} />
+                <meshBasicMaterial
+                  color={active ? QUEST_UI_COLORS.red : QUEST_UI_COLORS.green}
+                  opacity={active ? 1 : 0.86}
+                  {...QUEST_UI_MATERIAL_PROPS}
+                />
+              </mesh>
+              <mesh position={[0, 0, 0.006]} renderOrder={25}>
+                <circleGeometry args={[active ? 0.01 : 0.007, 16]} />
+                <meshBasicMaterial
+                  color={active ? QUEST_UI_COLORS.red : QUEST_UI_COLORS.cyan}
+                  opacity={1}
+                  {...QUEST_UI_MATERIAL_PROPS}
+                />
+              </mesh>
+            </group>
+          );
+        })}
+      <HoloLine
+        name="GCPD_Quest_MapWorkspace_Divider"
+        position={[sideX - 0.1, 0.02, 0.05]}
+        size={[0.012, size[1] - 0.18]}
+        opacity={0.42}
+      />
+      {lines.slice(0, 5).map((line, index) => (
+        <Card
+          key={`${line}-${index}`}
+          name={`GCPD_Quest_MapIntel_${index}`}
+          position={[sideX + 0.06, 0.2 - index * 0.105, 0.06 + index * 0.002]}
+          size={[0.38, 0.085]}
+          textureOptions={{
+            title: `INTEL ${index + 1}`,
+            body: line,
+            width: 520,
+            height: 120,
+            compact: true,
+            active: index === 0,
+          }}
+        />
+      ))}
+    </group>
+  );
+};
+
+const WorkspaceCard = ({ mode, title, body, meta, lines = [], position, size }) => {
   const texture = useWorkspaceTexture({
     mode,
     title,
     body,
     meta,
+    lines,
   });
 
   return (
@@ -635,6 +732,8 @@ const MainWorkspace = ({
   focusBody,
   detailTitle,
   detailBody,
+  items,
+  workspaceLines,
   instrument,
 }) => {
   const mode = getWorkspaceMode({ title, focusTitle, instrument });
@@ -667,14 +766,26 @@ const MainWorkspace = ({
           compact: true,
         }}
       />
-      <WorkspaceCard
-        mode={mode}
-        title={focusTitle || title}
-        body={focusBody}
-        meta={instrument ? 'WORKBENCH XR' : 'ESPACIO OPERATIVO'}
-        position={[SECTION.centerX, 0.08, 0.22]}
-        size={[1.42, 0.7]}
-      />
+      {mode === 'map' ? (
+        <MapWorkspaceCard
+          title={focusTitle || title}
+          body={focusBody}
+          items={items}
+          lines={workspaceLines}
+          position={[SECTION.centerX, 0.08, 0.22]}
+          size={[1.42, 0.7]}
+        />
+      ) : (
+        <WorkspaceCard
+          mode={mode}
+          title={focusTitle || title}
+          body={focusBody}
+          meta={instrument ? 'WORKBENCH XR' : 'ESPACIO OPERATIVO'}
+          lines={workspaceLines}
+          position={[SECTION.centerX, 0.08, 0.22]}
+          size={[1.42, 0.7]}
+        />
+      )}
       <Card
         name="GCPD_Quest_InfoCard_section_focus"
         position={[SECTION.centerX - 0.37, -0.41, 0.25]}
@@ -717,6 +828,7 @@ const QuestSectionDashboard = ({
   detailBody,
   items = [],
   actions = [],
+  workspaceLines = [],
   hint = '',
   onSelect,
   onAction,
@@ -760,6 +872,8 @@ const QuestSectionDashboard = ({
         focusBody={focusBody}
         detailTitle={detailTitle}
         detailBody={detailBody}
+        items={items}
+        workspaceLines={workspaceLines}
         instrument={instrument}
       />
       <ActionColumn actions={actions} onAction={onAction} onBack={onBack} onHome={onHome} />
