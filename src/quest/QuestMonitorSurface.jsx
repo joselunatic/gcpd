@@ -8,10 +8,10 @@ const PANEL_BASE_SIZE = {
   width: 3.12,
   height: 1.54,
 };
-const PANEL_SURFACE_PADDING = 1.34;
-const PANEL_SURFACE_FORWARD_OFFSET = 0.34;
+const PANEL_SURFACE_PADDING = 1.5;
+const PANEL_SURFACE_FORWARD_OFFSET = 0.56;
 
-const clampScale = (value) => Math.max(1, Math.min(1.38, value));
+const clampScale = (value) => Math.max(1.08, Math.min(1.56, value));
 
 const buildPanelTransform = (panelAnchor) => {
   if (!panelAnchor?.position) {
@@ -33,7 +33,7 @@ const buildPanelTransform = (panelAnchor) => {
       Math.min(widthScale || 1, heightScale || 1) * PANEL_SURFACE_PADDING
     );
 
-    position[1] += 0.26;
+    position[1] += 0.34;
     position[2] += PANEL_SURFACE_FORWARD_OFFSET;
 
     return {

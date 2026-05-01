@@ -2,6 +2,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 
+import QuestOperationsDashboard from '../ui/QuestOperationsDashboard';
+import QuestSectionDashboard from '../ui/QuestSectionDashboard';
+
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const UI_MATERIAL_PROPS = {
@@ -244,98 +247,6 @@ const QuestActionChip = ({ title, position, onClick, accent = false }) => {
   );
 };
 
-const OperationDashboard = ({
-  titleTexture,
-  focusTexture,
-  detailTexture,
-  hintTexture,
-  items,
-  onSelect,
-}) => {
-  const cardPositions = [
-    [-0.44, 0.04, 0.02],
-    [0.44, 0.04, 0.02],
-    [-0.44, -0.43, 0.02],
-    [0.44, -0.43, 0.02],
-  ];
-
-  return (
-    <>
-      <mesh position={[0, 0, -0.08]} renderOrder={0}>
-        <planeGeometry args={[3.12, 1.54]} />
-        <meshStandardMaterial
-          color="#07131d"
-          opacity={0.98}
-          metalness={0.18}
-          roughness={0.58}
-          {...PANEL_MATERIAL_PROPS}
-        />
-      </mesh>
-
-      <mesh position={[0, 0, -0.05]} renderOrder={0}>
-        <planeGeometry args={[3, 1.42]} />
-        <meshStandardMaterial
-          color="#0a1b27"
-          opacity={0.96}
-          metalness={0.08}
-          roughness={0.44}
-          {...PANEL_MATERIAL_PROPS}
-        />
-      </mesh>
-
-      <mesh position={[0, 0.71, -0.02]} renderOrder={1}>
-        <planeGeometry args={[2.9, 0.026]} />
-        <meshBasicMaterial color="#7de6ff" opacity={0.88} {...UI_MATERIAL_PROPS} />
-      </mesh>
-      <mesh position={[0, -0.71, -0.02]} renderOrder={1}>
-        <planeGeometry args={[2.9, 0.018]} />
-        <meshBasicMaterial color="#3d7f9d" opacity={0.72} {...UI_MATERIAL_PROPS} />
-      </mesh>
-      <mesh position={[-0.18, 0.64, 0.02]} renderOrder={2}>
-        <planeGeometry args={[2.56, 0.2]} />
-        <meshBasicMaterial map={titleTexture || null} {...UI_MATERIAL_PROPS} />
-      </mesh>
-
-      <group position={[-0.9, -0.04, 0]}>
-        <mesh position={[0, 0.34, -0.01]} renderOrder={2}>
-          <planeGeometry args={[1.14, 0.38]} />
-          <meshBasicMaterial map={focusTexture || null} {...UI_MATERIAL_PROPS} />
-        </mesh>
-        <mesh position={[0, -0.06, 0]} renderOrder={3}>
-          <planeGeometry args={[1.14, 0.32]} />
-          <meshBasicMaterial map={detailTexture || null} {...UI_MATERIAL_PROPS} />
-        </mesh>
-        <mesh position={[0, -0.43, 0.01]} renderOrder={4}>
-          <planeGeometry args={[1.14, 0.24]} />
-          <meshBasicMaterial map={hintTexture || null} {...UI_MATERIAL_PROPS} />
-        </mesh>
-      </group>
-
-      <group position={[0.58, -0.03, 0]}>
-        <mesh position={[0, 0.48, 0.015]} renderOrder={2}>
-          <planeGeometry args={[1.68, 0.1]} />
-          <meshBasicMaterial color="#0c2635" opacity={0.88} {...UI_MATERIAL_PROPS} />
-        </mesh>
-        <mesh position={[0, 0.48, 0.025]} renderOrder={3}>
-          <planeGeometry args={[1.58, 0.035]} />
-          <meshBasicMaterial color="#82eaff" opacity={0.72} {...UI_MATERIAL_PROPS} />
-        </mesh>
-        {items.slice(0, 4).map((item, index) => (
-          <QuestButton
-            key={item.id || index}
-            title={item.label}
-            subtitle={item.description}
-            position={cardPositions[index]}
-            onClick={() => onSelect?.(item.id)}
-            accent={item.accent}
-            buttonScale={0.72}
-          />
-        ))}
-      </group>
-    </>
-  );
-};
-
 const QuestPanel3D = ({
   layout = 'operations',
   title,
@@ -388,16 +299,44 @@ const QuestPanel3D = ({
 
   if (isOperationsLayout) {
     return (
-      <group position={position} scale={scale}>
-        <OperationDashboard
-          titleTexture={titleTexture}
-          focusTexture={focusTexture}
-          detailTexture={detailTexture}
-          hintTexture={hintTexture}
-          items={items}
-          onSelect={onSelect}
-        />
-      </group>
+      <QuestOperationsDashboard
+        title={title}
+        subtitle={subtitle}
+        focusTitle={focusTitle}
+        focusBody={focusBody}
+        detailTitle={detailTitle}
+        detailBody={detailBody}
+        items={items}
+        hint={hint}
+        onSelect={onSelect}
+        position={position}
+        scale={scale}
+      />
+    );
+  }
+
+  if (isDossierLayout || isInstrumentLayout) {
+    const sectionScale = scale * (isInstrumentLayout ? 0.84 : 0.86);
+
+    return (
+      <QuestSectionDashboard
+        layout={layout}
+        title={title}
+        subtitle={subtitle}
+        focusTitle={focusTitle}
+        focusBody={focusBody}
+        detailTitle={detailTitle}
+        detailBody={detailBody}
+        items={items}
+        actions={actions}
+        hint={hint}
+        onSelect={onSelect}
+        onAction={onAction}
+        onBack={onBack}
+        onHome={onHome}
+        position={position}
+        scale={sectionScale}
+      />
     );
   }
 
