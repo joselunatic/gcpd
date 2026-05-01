@@ -470,16 +470,19 @@ function normalizeTracerHotspot(entry = {}) {
   if (!entry || typeof entry !== 'object') return null;
   const id = String(entry.id || '').trim();
   const poiId = String(entry.poiId || '').trim();
-  if (!id || !poiId) return null;
+  if (!id) return null;
   const locator = getPoiLocatorById(poiId);
-  if (!locator) return null;
+  const directX = Number(entry.x);
+  const directY = Number(entry.y);
+  const hasDirectCoordinates = Number.isFinite(directX) && Number.isFinite(directY);
+  if (!locator && !hasDirectCoordinates) return null;
   const label = String(entry.label || locator.label || locator.name || id).trim();
   return {
     id,
     label: label || locator.label || id,
-    poiId,
-    x: locator.x,
-    y: locator.y,
+    poiId: locator?.id || poiId,
+    x: locator?.x ?? directX,
+    y: locator?.y ?? directY,
     updatedAt: Date.now(),
   };
 }

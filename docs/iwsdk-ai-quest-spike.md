@@ -26,7 +26,7 @@ Motivo: `@iwsdk/vite-plugin-dev@0.3.2` declara peer `vite@^7.0.0`, pero este rep
 
 - `dev:quest`: Vite normal con el host/puerto de `vite.config.js`.
 - `dev:runtime`: script interno requerido por IWSDK; ejecuta Vite y activa el plugin por `npm_lifecycle_event`.
-- `dev:iwsdk`: `iwsdk dev up --timeout 90000`.
+- `dev:iwsdk`: aplica el parche Windows local y ejecuta `iwsdk dev up --timeout 90000`.
 - `dev:iwsdk:down`: `iwsdk dev down`.
 - `dev:iwsdk:status`: `iwsdk dev status`.
 - `mcp:iwsdk`: `iwsdk mcp stdio`.
@@ -55,12 +55,7 @@ npm run server
 npm run dev:iwsdk
 ```
 
-En este entorno Windows, `npm run dev:iwsdk` falla por un problema del CLI publicado al hacer `spawn("npm")`. Workaround validado para el spike:
-
-```powershell
-npm run server
-npm run dev:runtime
-```
+En este entorno Windows se anadio `scripts/patch-iwsdk-windows.mjs` porque el CLI publicado falla al hacer `spawn("npm")`. El script parchea de forma idempotente `node_modules/@iwsdk/cli/dist/cli.js` para lanzar el proceso de Vite a traves de `cmd.exe`. `npm run dev:iwsdk` ya ejecuta ese parche antes de `iwsdk dev up`.
 
 Abrir:
 
@@ -85,26 +80,28 @@ node node_modules/@iwsdk/cli/dist/cli.js mcp stdio
 
 No se modifico la config global de Codex donde ya existe Blender. En el hilo actual de Codex, `tool_search` no descubrio `iwsdk-runtime` despues de generar `.codex/config.toml`; solo mostro los MCP ya cargados como Blender y Playwright. Para que Codex lo cargue como herramienta propia parece necesario reiniciar/reabrir la sesion o mover/revisar el bloque en la config global.
 
+## Runtime Quest + MCP de escena
+
+La app no usa `@iwsdk/core`, asi que IWSDK no crea automaticamente `window.FRAMEWORK_MCP_RUNTIME`. Para que las tools de escena funcionen con React Three Fiber se anadio un adapter minimo:
+
+- `src/quest/hooks/useQuestSceneMcpRuntime.js`
+- montado desde `src/quest/QuestScene.jsx`
+
+El adapter solo se instala en desarrollo/IWSDK y solo maneja:
+
+- `get_scene_hierarchy`
+- `get_object_transform`
+
+No implementa ECS. Si existiera otro `FRAMEWORK_MCP_RUNTIME`, delega los metodos no soportados al runtime previo.
+
+El navegador gestionado por IWSDK arranca en `/`. Como el Canvas de Quest vive en `/quest`, se anadio en `src/App.jsx` una redireccion solo para `window.__IWER_MCP_MANAGED === true` desde `/` hacia `/quest`. No afecta a navegadores normales ni a la TUI principal.
+
 ## Validacion
 
 - `npm run iwsdk:sync`: OK, adaptadores `configured`.
 - `npx iwsdk mcp inspect`: OK, 32 tools runtime.
-- `npm run dev:iwsdk`: fallo en Windows:
-
-```json
-{
-  "ok": false,
-  "error": {
-    "code": "cli_error",
-    "message": "Failed to start the dev process"
-  }
-}
-```
-
-Causa confirmada con repro Node: `spawn('npm')` devuelve `ENOENT` en este Windows.
-
-- `npm run dev:runtime`: OK, Vite levanta en `http://localhost:5174/`.
-- `npx iwsdk dev status`: OK con runtime `running: true`, `browserConnected: true`, `browserCommandReady: true` tras la primera llamada MCP.
+- `npm run dev:iwsdk`: OK con parche Windows local; Vite levanta en `http://localhost:5174/`.
+- `npm run dev:iwsdk:status`: OK con runtime `running: true`, `browserConnected: true`, `browserCommandReady: true`.
 - `/quest`: OK con Playwright aislado:
   - HTTP `200`
   - `.quest-route`: presente
@@ -118,19 +115,25 @@ Causa confirmada con repro Node: `spawn('npm')` devuelve `ENOENT` en este Window
   - `tools/list`: 32 tools
   - `tools/call browser_get_console_logs`: OK
   - `tools/call browser_screenshot`: OK, `image/png`
+  - `scene_get_hierarchy`: OK sobre la escena R3F de `/quest`; devuelve root `Scene` y grupo `GCPD_QuestScene`.
+  - `scene_get_object_transform`: OK para UUIDs de la jerarquia.
+  - `xr_get_session_status`: OK.
+  - `xr_accept_session`: OK; deja `sessionActive: true` con `local-floor`, `hand-tracking`, `hit-test`, `viewer` y `local`.
 - `npm run build`: OK. Quedan warnings ya esperables de chunk size/dynamic import.
+- `npx eslint src/App.jsx src/quest --ext js,jsx --report-unused-disable-directives --max-warnings 0`: OK.
+- `npm run smoke:quest-tools`: OK con evidence `2`, built-in STL `3`, ballistics `29`, ballistics assets `24`, audio `3`, phone lines `1`, tracer lines `2`, tracer hotspots `2`.
 
 ## Limitaciones encontradas
 
 - Peer mismatch: IWSDK plugin pide Vite 7; el spike funciona con Vite 4 usando `legacy-peer-deps`, pero esto queda como riesgo.
-- Windows: `iwsdk dev up` no arranca porque el CLI intenta spawnear `npm` directamente.
+- Windows: el CLI publicado necesita el parche local `scripts/patch-iwsdk-windows.mjs` para `iwsdk dev up`.
 - Windows + install nested: el auto-install del browser mediante `npx playwright install chromium` no encuentra el binario `playwright`; el comando directo con `node node_modules\@iwsdk\vite-plugin-dev\node_modules\playwright\cli.js install chromium` si funciona.
-- IWSDK managed browser arranca en `/` y no vi tool MCP de navegacion. Por eso `/quest` se valido con Playwright aislado bajo el mismo dev server e inyeccion IWSDK, mientras que screenshot/logs MCP corresponden al managed browser en la TUI raiz.
-- Scene/ECS tools requieren `FRAMEWORK_MCP_RUNTIME`; esta app usa `@react-three/xr` y no expone runtime IWSDK ECS. Para este repo, las capacidades utiles verificadas son browser screenshot, consola y runtime XR/device.
+- IWSDK managed browser arranca en `/` y no vi tool MCP de navegacion. Queda resuelto para este repo con redireccion limitada al managed browser hacia `/quest`.
+- Scene tools requieren `FRAMEWORK_MCP_RUNTIME`; queda resuelto para R3F con un adapter minimo. ECS sigue sin aplicar porque este repo no usa `@iwsdk/core`.
 
 ## Siguientes pasos
 
-- Reportar o parchear en IWSDK CLI el arranque Windows: usar `npm.cmd`/shell o resolver package manager portable.
-- Pedir/implementar opcion IWSDK para URL inicial o tool MCP de navegacion, para apuntar el managed browser directamente a `/quest`.
+- Reportar en IWSDK CLI el arranque Windows: usar `npm.cmd`/shell o resolver package manager portable, para retirar `scripts/patch-iwsdk-windows.mjs`.
+- Pedir opcion IWSDK para URL inicial o tool MCP de navegacion; permitiria retirar la redireccion `__IWER_MCP_MANAGED` en `src/App.jsx`.
 - Decidir si se acepta el spike con Vite 4 + peer workaround o si se abre otro spike para subir Vite a 7.
-- Reiniciar Codex o revisar config global para confirmar descubrimiento real de `iwsdk-runtime` como herramienta de Codex junto a Blender.
+- Mantener el adapter R3F solo como tooling de desarrollo. No convertir Quest a ECS salvo que haya una razon de producto clara.

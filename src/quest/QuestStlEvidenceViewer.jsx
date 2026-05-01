@@ -133,6 +133,7 @@ const EvidenceStlMesh = ({ evidence, hovered = false }) => {
 
   return (
     <group
+      name="GCPD_StlEvidenceMesh"
       ref={groupRef}
       scale={[scale * (hovered ? 1.08 : 1), scale * (hovered ? 1.08 : 1), scale * (hovered ? 1.08 : 1)]}
       rotation={[0.22, -0.36, 0]}
@@ -163,8 +164,6 @@ const QuestStlEvidenceViewer = ({ session }) => {
     session?.selection?.herramientas?.activeTool === 'evidencias' &&
     activeEvidence;
 
-  if (!isActive) return null;
-
   const cycleEvidence = () => {
     const nextEvidenceId = getNextEvidenceId(session);
     if (!nextEvidenceId) return;
@@ -174,8 +173,57 @@ const QuestStlEvidenceViewer = ({ session }) => {
     });
   };
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    if (!import.meta.env.DEV && !window.IWER_DEVICE) return undefined;
+
+    const items = getEvidenceItems(session?.toolData);
+    const bridge = {
+      version: 1,
+      snapshot: {
+        active: Boolean(isActive),
+        itemCount: items.length,
+        resourceId: session?.selection?.herramientas?.resourceId || '',
+        activeEvidence: activeEvidence
+          ? {
+              id: activeEvidence.id,
+              label: activeEvidence.label,
+              stlPath: activeEvidence.stlPath,
+              source: activeEvidence.source || 'api',
+            }
+          : null,
+        items: items.map((entry) => ({
+          id: entry.id,
+          label: entry.label,
+          stlPath: entry.stlPath,
+          source: entry.source || 'api',
+        })),
+      },
+      actions: {
+        cycleEvidence,
+        openEvidence: (id) => {
+          if (!id) return;
+          session.actions.openTool('evidencias', {
+            originModule: session.toolContext?.originModule || session.lastPrimaryModule,
+            resourceId: id,
+          });
+        },
+      },
+    };
+
+    window.__GCPD_QUEST_STL__ = bridge;
+
+    return () => {
+      if (window.__GCPD_QUEST_STL__ === bridge) {
+        delete window.__GCPD_QUEST_STL__;
+      }
+    };
+  }, [activeEvidence, isActive, session]);
+
+  if (!isActive) return null;
+
   return (
-    <group position={VIEWER_POSITION} scale={VIEWER_SCALE}>
+    <group name="GCPD_StlEvidenceViewer" position={VIEWER_POSITION} scale={VIEWER_SCALE}>
       <mesh position={[0, 0, -0.08]}>
         <boxGeometry args={[1.42, 1.12, 0.08]} />
         <meshStandardMaterial

@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:quest": "vite",
     "dev:runtime": "vite",
-    "dev:iwsdk": "iwsdk dev up --timeout 90000",
+    "dev:iwsdk": "node scripts/patch-iwsdk-windows.mjs && iwsdk dev up --timeout 90000",
     "dev:iwsdk:down": "iwsdk dev down",
     "dev:iwsdk:status": "iwsdk dev status",
     "dev:fast": "VITE_DEV_MODE=1 vite",
@@ -17,6 +17,7 @@
     "build": "vite build",
     "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
+    "smoke:quest-tools": "node scripts/quest-tools-smoke.mjs",
     "gen-ballistics-assets": "node scripts/gen-ballistics-assets.mjs"
   },
   "dependencies": {

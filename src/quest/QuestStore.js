@@ -5,13 +5,13 @@ const rayPointer = {
   rayModel: {
     color: '#9ee7ff',
     maxLength: 12,
-    opacity: 0.85,
+    opacity: 0.32,
     renderOrder: 80,
-    size: 0.018,
+    size: 0.008,
   },
   cursorModel: {
     color: '#d9f8ff',
-    opacity: 0.95,
+    opacity: 0.76,
     renderOrder: 81,
   },
 };

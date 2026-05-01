@@ -107,7 +107,7 @@ const EvidencePlate = ({ entry, side, position, onClick }) => {
   });
 
   return (
-    <group position={position}>
+    <group name={`GCPD_Ballistics_${side}_Plate`} position={position}>
       <mesh position={[0, 0.2, -0.04]}>
         <boxGeometry args={[1.0, 0.84, 0.06]} />
         <meshStandardMaterial
@@ -149,6 +149,7 @@ const WorkbenchButton = ({ label, position, onClick, accent = false }) => {
 
   return (
     <mesh
+      name={`GCPD_Ballistics_Button_${label}`}
       position={position}
       onClick={onClick}
       pointerEventsType={XR_RAY_POINTER_EVENTS}
@@ -194,14 +195,14 @@ const QuestBallisticsWorkbench = ({ session }) => {
     height: 260,
   });
 
-  if (!isActive) return null;
-
   const cycleLeft = () => {
+    if (!dataset.length) return;
     setLeftIndex((current) => (current + 1) % dataset.length);
     setResult('MUESTRA A ACTUALIZADA.');
   };
 
   const cycleRight = () => {
+    if (!dataset.length) return;
     setRightIndex((current) => (current + 1) % dataset.length);
     setResult('MUESTRA B ACTUALIZADA.');
   };
@@ -221,12 +222,72 @@ const QuestBallisticsWorkbench = ({ session }) => {
   };
 
   const forceMatch = () => {
+    if (!left) return;
     setRightIndex(leftIndex);
     setResult(`B AJUSTADA A ${left.caseCode.slice(1)}.`);
   };
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    if (!import.meta.env.DEV && !window.IWER_DEVICE) return undefined;
+
+    const bridge = {
+      version: 1,
+      snapshot: {
+        active: isActive,
+        datasetCount: dataset.length,
+        leftIndex,
+        rightIndex,
+        left: left
+          ? {
+              id: left.id,
+              caseCode: left.caseCode,
+              image: left.image,
+              caseId: left.caseId,
+              crime: left.crime,
+              status: left.status,
+            }
+          : null,
+        right: right
+          ? {
+              id: right.id,
+              caseCode: right.caseCode,
+              image: right.image,
+              caseId: right.caseId,
+              crime: right.crime,
+              status: right.status,
+            }
+          : null,
+        match,
+        result,
+      },
+      actions: {
+        cycleLeft,
+        cycleRight,
+        compare,
+        forceMatch,
+        setPair: (nextLeftIndex, nextRightIndex) => {
+          if (!dataset.length) return;
+          setLeftIndex(Math.max(0, Number(nextLeftIndex) || 0) % dataset.length);
+          setRightIndex(Math.max(0, Number(nextRightIndex) || 0) % dataset.length);
+          setResult('MUESTRAS AJUSTADAS.');
+        },
+      },
+    };
+
+    window.__GCPD_QUEST_BALLISTICS__ = bridge;
+
+    return () => {
+      if (window.__GCPD_QUEST_BALLISTICS__ === bridge) {
+        delete window.__GCPD_QUEST_BALLISTICS__;
+      }
+    };
+  }, [dataset.length, isActive, left, leftIndex, match, result, right, rightIndex]);
+
+  if (!isActive) return null;
+
   return (
-    <group position={WORKBENCH_POSITION} scale={WORKBENCH_SCALE}>
+    <group name="GCPD_BallisticsWorkbench" position={WORKBENCH_POSITION} scale={WORKBENCH_SCALE}>
       <mesh position={[0, 0, -0.08]}>
         <boxGeometry args={[2.18, 1.42, 0.08]} />
         <meshStandardMaterial

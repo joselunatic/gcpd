@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Navigate, Routes, Route } from 'react-router-dom'
 
 import './App.css'
 import './css/UpdateBanner.styles.css'
@@ -34,10 +34,19 @@ const TerminalShell = () => {
   )
 }
 
+const isIwsdkManagedRoot = () =>
+  typeof window !== 'undefined' &&
+  window.__IWER_MCP_MANAGED === true &&
+  window.location.pathname === '/'
+
 const App = () => {  
   useEffect(()=>{
     console.log('[App]', new Date().toISOString(), 'Render APP');
   }, [])
+
+  if (isIwsdkManagedRoot()) {
+    return <Navigate to="/quest" replace />
+  }
 
   return (
     <Routes>

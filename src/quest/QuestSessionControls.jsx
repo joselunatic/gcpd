@@ -72,16 +72,16 @@ const QuestSessionControls = ({ onRecenter, children = null }) => {
     }
   };
 
+  if (typeof children === 'function') {
+    return children({
+      supportState,
+      message,
+      handleEnterVr,
+    });
+  }
+
   return (
     <>
-      {typeof children === 'function'
-        ? children({
-            supportState,
-            message,
-            handleEnterVr,
-          })
-        : null}
-
       <div className="quest-session-controls">
         {supportState === 'supported' ? (
           <button type="button" onClick={handleEnterVr}>

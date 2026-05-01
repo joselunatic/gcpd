@@ -449,6 +449,7 @@ const useQuestSession = (data, toolData = null) => {
       clearPhoneDial: phoneActions.clearPhoneDial,
       enterPhoneFocus: phoneActions.enterPhoneFocus,
       exitPhoneFocus: phoneActions.exitPhoneFocus,
+      dialPhoneNumber: phoneActions.dialPhoneNumber,
       pressPhoneKey: phoneActions.pressPhoneKey,
       togglePhoneHandset: phoneActions.togglePhoneHandset,
     },

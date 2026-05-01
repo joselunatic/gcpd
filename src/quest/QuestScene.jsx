@@ -6,10 +6,13 @@ import * as THREE from 'three';
 
 import QuestEnvironment from './QuestEnvironment';
 import QuestBallisticsWorkbench from './QuestBallisticsWorkbench';
+import QuestCommsWorkbench from './QuestCommsWorkbench';
 import QuestHdriEnvironment from './QuestHdriEnvironment';
 import QuestMapSurface from './QuestMapSurface';
 import QuestMonitorSurface from './QuestMonitorSurface';
 import QuestStlEvidenceViewer from './QuestStlEvidenceViewer';
+import { useQuestControllerNavigation } from './hooks/useQuestControllerNavigation';
+import { useQuestSceneMcpRuntime } from './hooks/useQuestSceneMcpRuntime';
 
 const DEFAULT_CAMERA_POSITION = [0, 3.72, 4.34];
 const DEFAULT_CAMERA_TARGET = [0, 3.08, -1.45];
@@ -126,9 +129,11 @@ const QuestBackControls = ({ onBack }) => {
 
 const QuestScene = ({ data, session, recenterKey }) => {
   const [environmentAnchors, setEnvironmentAnchors] = useState(null);
+  useQuestSceneMcpRuntime();
+  useQuestControllerNavigation({ data, session });
 
   return (
-    <>
+    <group name="GCPD_QuestScene">
       <XROrigin position={XR_ORIGIN_OFFSET} />
       <QuestCameraRig recenterKey={recenterKey} anchors={environmentAnchors} />
       <QuestBackControls onBack={session.actions.goBack} />
@@ -235,7 +240,8 @@ const QuestScene = ({ data, session, recenterKey }) => {
       />
       <QuestStlEvidenceViewer session={session} />
       <QuestBallisticsWorkbench session={session} />
-    </>
+      <QuestCommsWorkbench session={session} />
+    </group>
   );
 };
 

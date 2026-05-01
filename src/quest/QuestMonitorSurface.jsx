@@ -3,15 +3,15 @@ import QuestModuleRouter from './QuestModuleRouter';
 
 const PANEL_FIXED_POSITION = [0, 1.78, -0.68];
 const PANEL_FIXED_ROTATION = [0, 0, 0];
-const PANEL_FIXED_SCALE = [0.82, 0.82, 0.82];
+const PANEL_FIXED_SCALE = [1, 1, 1];
 const PANEL_BASE_SIZE = {
   width: 3.12,
   height: 1.54,
 };
-const PANEL_SURFACE_PADDING = 0.96;
-const PANEL_SURFACE_FORWARD_OFFSET = 0.016;
+const PANEL_SURFACE_PADDING = 1.34;
+const PANEL_SURFACE_FORWARD_OFFSET = 0.34;
 
-const clampScale = (value) => Math.max(0.68, Math.min(1.08, value));
+const clampScale = (value) => Math.max(1, Math.min(1.38, value));
 
 const buildPanelTransform = (panelAnchor) => {
   if (!panelAnchor?.position) {
@@ -25,14 +25,15 @@ const buildPanelTransform = (panelAnchor) => {
   const position = [...panelAnchor.position];
 
   if (Array.isArray(panelAnchor.size)) {
-    const [width = 0, height = 0] = panelAnchor.size;
+    const [width = 0, height = 0, depth = 0] = panelAnchor.size;
+    const visibleHeight = Math.max(height, depth);
     const widthScale = width > 0 ? width / PANEL_BASE_SIZE.width : 1;
-    const heightScale = height > 0 ? height / PANEL_BASE_SIZE.height : 1;
+    const heightScale = visibleHeight > 0 ? visibleHeight / PANEL_BASE_SIZE.height : 1;
     const fittedScale = clampScale(
       Math.min(widthScale || 1, heightScale || 1) * PANEL_SURFACE_PADDING
     );
 
-    position[1] += 0.02;
+    position[1] += 0.26;
     position[2] += PANEL_SURFACE_FORWARD_OFFSET;
 
     return {
@@ -57,6 +58,7 @@ const QuestMonitorSurface = ({ data, session, panelAnchor = null }) => {
 
   return (
     <group
+      name="QuestMonitorSurface"
       position={panelTransform.position}
       rotation={panelTransform.rotation}
       scale={panelTransform.scale}

@@ -16,6 +16,7 @@ const QuestPreflightOverlay = ({
   supportState = 'checking',
   message = '',
   onEnterVr,
+  onRecenter,
 }) => {
   const primaryLead = session.openLeads?.[0] || null;
 
@@ -25,9 +26,8 @@ const QuestPreflightOverlay = ({
         <span className="quest-preflight__eyebrow">Wayne Auxiliary Node // Quest</span>
         <h1>Acceso previo a inmersión</h1>
         <p className="quest-preflight__summary">
-          Esta pantalla confirma que la web ha cargado correctamente en Quest Browser
-          antes de abrir la sesión inmersiva. El panel del visor se activará después
-          del acceso manual a VR.
+          Nodo Quest sincronizado con el caso activo. El visor central queda
+          preparado para continuar la operación en modo inmersivo.
         </p>
 
         <div className="quest-preflight__stats">
@@ -53,6 +53,13 @@ const QuestPreflightOverlay = ({
               {supportState === 'checking' ? 'Comprobando XR' : 'Vista previa escritorio'}
             </div>
           )}
+          <button
+            type="button"
+            className="quest-preflight__recenter"
+            onClick={onRecenter}
+          >
+            Recentrar vista
+          </button>
         </div>
 
         <p className={`quest-preflight__message${data.error ? ' quest-preflight__message--error' : ''}`}>

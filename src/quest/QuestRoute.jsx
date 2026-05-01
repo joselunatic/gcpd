@@ -8,6 +8,7 @@ import QuestPhoneOverlay from './QuestPhoneOverlay';
 import QuestPreflightOverlay from './QuestPreflightOverlay';
 import QuestSessionControls from './QuestSessionControls';
 import { useQuestData } from './hooks/useQuestData';
+import { useQuestDebugBridge } from './hooks/useQuestDebugBridge';
 import { useQuestSession } from './hooks/useQuestSession';
 import { useQuestToolData } from './hooks/useQuestToolData';
 
@@ -16,6 +17,7 @@ const QuestRoute = () => {
   const toolData = useQuestToolData();
   const session = useQuestSession(data, toolData);
   const [recenterKey, setRecenterKey] = useState(0);
+  useQuestDebugBridge({ data, session });
 
   const handleRecenter = () => {
     setRecenterKey((value) => value + 1);
@@ -36,6 +38,7 @@ const QuestRoute = () => {
             supportState={supportState}
             message={message}
             onEnterVr={handleEnterVr}
+            onRecenter={handleRecenter}
           />
         )}
       </QuestSessionControls>

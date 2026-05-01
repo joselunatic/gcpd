@@ -505,7 +505,7 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
     });
 
     goToHerramientas({
-      tool: 'comunicaciones',
+      tool: mode === PHONE_MODE_TRACER ? 'rastreo' : 'comunicaciones',
       originModule: currentModule,
       resourceId: mode === PHONE_MODE_TRACER ? 'phone-tracer' : 'phone-call',
     });
@@ -524,6 +524,20 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
         ...current,
         lineStatus: 'colgada',
         lastAction: `Sin línea para ${digits}.`,
+        pressedKey: 'Call',
+      }));
+      return;
+    }
+
+    if (line.rellamable === false && line.llamado) {
+      playPhoneTone('errorTone', { restart: true });
+      setPhoneState((current) => ({
+        ...current,
+        activeMode: null,
+        lastDialedNumber: digits,
+        lineStatus: 'ocupada',
+        lastAction: `Línea ${line.label || line.number || digits} ya fue consumida.`,
+        activeAudioLabel: '',
         pressedKey: 'Call',
       }));
       return;
@@ -661,7 +675,7 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
         return;
       }
 
-      startPhoneBridgeCall(digits, PHONE_MODE_CALL);
+      startQuestCallPlayback(digits);
       return;
     }
 
@@ -700,6 +714,46 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
     stopQuestCallPlayback,
   ]);
 
+  const dialPhoneNumber = useCallback((value, mode = phoneState.mode) => {
+    const digits = normalizePhoneNumber(value);
+    if (!digits) {
+      playPhoneTone('errorTone', { restart: true });
+      setPhoneState((current) => ({
+        ...current,
+        lineStatus: 'colgada',
+        lastAction: 'Marca un número antes de llamar.',
+        pressedKey: 'Call',
+      }));
+      return;
+    }
+
+    if (phoneState.activeMode || isTracerActive(phoneState)) {
+      hangupTracerCall();
+      return;
+    }
+
+    setPhoneState((current) => ({
+      ...current,
+      mode,
+      dialedDigits: digits,
+      lastDialedNumber: digits,
+      pressedKey: 'Call',
+    }));
+
+    if (mode === PHONE_MODE_TRACER) {
+      startPhoneBridgeCall(digits, PHONE_MODE_TRACER);
+      return;
+    }
+
+    startQuestCallPlayback(digits);
+  }, [
+    hangupTracerCall,
+    phoneState,
+    playPhoneTone,
+    startPhoneBridgeCall,
+    startQuestCallPlayback,
+  ]);
+
   useEffect(() => {
     if (!phoneState.pressedKey) return undefined;
 
@@ -721,6 +775,7 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
       enterPhoneFocus,
       exitPhoneFocus,
       dismissPhoneFocus,
+      dialPhoneNumber,
       pressPhoneKey,
       togglePhoneHandset,
     },

@@ -94,13 +94,13 @@ const createLabelTexture = ({
   context.fillStyle = background;
   context.fillRect(0, 0, width, height);
 
-  context.strokeStyle = accent ? '#9ad7ff' : '#315d76';
-  context.lineWidth = 6;
+  context.strokeStyle = accent ? '#c3f2ff' : '#315d76';
+  context.lineWidth = accent ? 10 : 6;
   context.strokeRect(14, 14, width - 28, height - 28);
 
-  context.fillStyle = accent ? 'rgba(122, 213, 255, 0.14)' : 'rgba(122, 213, 255, 0.08)';
-  context.fillRect(24, 24, width - 48, 8);
-  context.fillRect(24, height - 32, width * 0.24, 4);
+  context.fillStyle = accent ? 'rgba(170, 237, 255, 0.22)' : 'rgba(122, 213, 255, 0.08)';
+  context.fillRect(24, 24, width - 48, accent ? 14 : 8);
+  context.fillRect(24, height - 34, width * (accent ? 0.42 : 0.24), accent ? 8 : 4);
 
   context.strokeStyle = 'rgba(122, 213, 255, 0.08)';
   context.lineWidth = 1;
@@ -111,8 +111,8 @@ const createLabelTexture = ({
     context.stroke();
   }
 
-  const titleFontSize = clamp(Math.round(height * (subtitle ? 0.28 : 0.4)), 30, 86);
-  const subtitleFontSize = clamp(Math.round(height * 0.12), 18, 34);
+  const titleFontSize = clamp(Math.round(height * (subtitle ? 0.31 : 0.44)), 34, 92);
+  const subtitleFontSize = clamp(Math.round(height * 0.135), 20, 38);
   const availableSubtitleHeight = Math.max(height - 150, subtitleFontSize * 2);
   const maxSubtitleLines = clamp(
     Math.floor(availableSubtitleHeight / Math.max(subtitleFontSize * 1.2, 1)),
@@ -181,7 +181,7 @@ const QuestButton = ({
       <mesh position={[0, 0, -0.04]} renderOrder={1}>
         <planeGeometry args={[1.62, 0.44]} />
         <meshStandardMaterial
-          color={hovered ? '#1c4c64' : '#0a1721'}
+          color={hovered ? '#1c4c64' : accent ? '#102b3b' : '#0a1721'}
           opacity={0.98}
           metalness={0.16}
           roughness={0.52}
@@ -328,7 +328,7 @@ const OperationDashboard = ({
             position={cardPositions[index]}
             onClick={() => onSelect?.(item.id)}
             accent={item.accent}
-            buttonScale={0.65}
+            buttonScale={0.72}
           />
         ))}
       </group>
