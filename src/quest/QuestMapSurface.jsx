@@ -4,7 +4,7 @@ import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { PHONE_MODE_TRACER } from './hooks/useQuestSession';
-import { QUEST_MODULE_MAPA, QUEST_MODULE_HERRAMIENTAS } from './state/questModules';
+import { QUEST_MODULE_HERRAMIENTAS } from './state/questModules';
 
 const MAP_TEXTURE_URL = '/mapa.png';
 const HOTSPOTS_URL = '/data/map/hotspots.json';
@@ -293,7 +293,6 @@ const QuestMapSurface = ({ data, session, panelAnchor = null }) => {
   const isCaseFilterActive = activeFilter === 'caso-activo' && relatedPoiIds.size > 0;
   const activeTracer = session?.phoneState?.activeMode === PHONE_MODE_TRACER;
   const shouldShow =
-    session?.currentModule === QUEST_MODULE_MAPA ||
     (session?.currentModule === QUEST_MODULE_HERRAMIENTAS && activeTool === 'rastreo') ||
     activeTracer;
 
@@ -339,9 +338,9 @@ const QuestMapSurface = ({ data, session, panelAnchor = null }) => {
       : `${spots.length} POIs georreferenciados`;
 
   const position = panelAnchor?.position
-    ? [panelAnchor.position[0] - 1.42, panelAnchor.position[1] + 0.05, panelAnchor.position[2] + 0.07]
-    : [-1.44, 1.92, -0.62];
-  const scale = activeTracer ? 0.88 : 0.72;
+    ? [panelAnchor.position[0] - 2.38, panelAnchor.position[1] + 0.02, panelAnchor.position[2] - 0.08]
+    : [-2.28, 1.9, -0.78];
+  const scale = activeTracer ? 0.78 : 0.54;
 
   useEffect(() => {
     mapTexture.colorSpace = THREE.SRGBColorSpace;

@@ -119,6 +119,27 @@ const listPoiResources = (poi = {}) => {
     });
 };
 
+const humanizeResourceName = (value = '') => {
+  const fileName = String(value || '').split('/').pop().replace(/\.[a-z0-9]+$/i, '');
+  return fileName
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const getResourceDisplayLabel = (resource = {}) => {
+  const raw =
+    resource.label ||
+    resource.title ||
+    resource.name ||
+    resource.src?.split('/').pop() ||
+    'Recurso';
+  const text = String(raw || '').trim();
+  if (!text || text === 'Recurso') return 'Recurso';
+  return /\.[a-z0-9]{2,5}$/i.test(text) || /[_-]/.test(text) ? humanizeResourceName(text) : text;
+};
+
 const FALLBACK_POI_GEO = {
   narrows: { x: 52, y: 46, radius: 1.8 },
   oldtown: { x: 55, y: 30, radius: 1.6 },
@@ -408,7 +429,7 @@ const buildMapaModel = ({ data, session }) => {
     mapResources.find((entry) => entry.id === selectedResourceId) || null;
   const resourceActions = mapResources.slice(0, 5).map((resource) => ({
     id: `map:resource:${resource.id}`,
-    label: resource.label || resource.title,
+    label: getResourceDisplayLabel(resource),
     description: `${resource.type || 'recurso'}${resource.description ? ` · ${resource.description}` : ''}`,
     accent: resource.id === selectedMapResource?.id,
     resource,
@@ -429,7 +450,7 @@ const buildMapaModel = ({ data, session }) => {
       ? summarize(
           [
             selectedPoi.district || 'Sin distrito',
-            selectedMapResource ? `Recurso: ${selectedMapResource.title}` : '',
+            selectedMapResource ? `Recurso: ${getResourceDisplayLabel(selectedMapResource)}` : '',
             selectedPoi.details || selectedPoi.contacts || selectedPoi.summary,
             `Expedientes: ${formatEntityList(relatedCases, (entry) => entry.title)}`,
             `Perfiles: ${formatEntityList(relatedProfiles, (entry) => entry.alias)}`,
@@ -498,7 +519,7 @@ const buildMapaModel = ({ data, session }) => {
       [
         selectedPoi?.status ? `Estado: ${formatStatusLabel(selectedPoi.status)}` : '',
         mapResources.length ? `Recursos DM: ${mapResources.length}` : 'Recursos DM: sin adjuntos',
-        selectedMapResource ? `Recurso activo: ${selectedMapResource.type} · ${selectedMapResource.title}` : '',
+        selectedMapResource ? `Recurso activo: ${selectedMapResource.type} · ${getResourceDisplayLabel(selectedMapResource)}` : '',
         selectedPoi?.details,
         selectedPoi?.contacts,
         selectedPoi?.notes,

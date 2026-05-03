@@ -34,6 +34,12 @@ const summarizeText = (value, fallback = '') => {
   return text;
 };
 
+const normalizeQuestToolId = (tool) => {
+  if (tool === 'dial' || tool === 'telefonia' || tool === 'phone') return 'comunicaciones';
+  if (tool === 'traza' || tool === 'tracer') return 'rastreo';
+  return tool || null;
+};
+
 const useQuestSession = (data, toolData = null) => {
   const [currentModule, setCurrentModule] = useState(QUEST_MODULE_OPERACION);
   const [lastPrimaryModule, setLastPrimaryModule] = useState(QUEST_MODULE_OPERACION);
@@ -164,10 +170,11 @@ const useQuestSession = (data, toolData = null) => {
 
   const goToHerramientas = useCallback((options = {}) => {
     const hasExplicitTool = Object.prototype.hasOwnProperty.call(options, 'tool');
+    const activeTool = hasExplicitTool ? normalizeQuestToolId(options.tool) : null;
     setSelection((current) => ({
       ...current,
       herramientas: {
-        activeTool: hasExplicitTool ? options.tool : null,
+        activeTool,
         resourceId: hasExplicitTool ? options.resourceId || null : null,
       },
     }));
@@ -175,7 +182,7 @@ const useQuestSession = (data, toolData = null) => {
       originModule: options.originModule || lastPrimaryModule || QUEST_MODULE_OPERACION,
       originEntityType: options.originEntityType || null,
       originEntityId: options.originEntityId || null,
-      tool: hasExplicitTool ? options.tool : null,
+      tool: activeTool,
       resourceId: options.resourceId || null,
     });
     setCurrentModule(QUEST_MODULE_HERRAMIENTAS);
@@ -228,10 +235,11 @@ const useQuestSession = (data, toolData = null) => {
   }, []);
 
   const openTool = useCallback((tool, options = {}) => {
+    const activeTool = normalizeQuestToolId(tool);
     setSelection((current) => ({
       ...current,
       herramientas: {
-        activeTool: tool,
+        activeTool,
         resourceId: options.resourceId || null,
       },
     }));
@@ -239,7 +247,7 @@ const useQuestSession = (data, toolData = null) => {
       originModule: options.originModule || currentModule,
       originEntityType: options.originEntityType || null,
       originEntityId: options.originEntityId || null,
-      tool,
+      tool: activeTool,
       resourceId: options.resourceId || null,
     });
     setCurrentModule(QUEST_MODULE_HERRAMIENTAS);

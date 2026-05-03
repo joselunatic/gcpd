@@ -81,26 +81,33 @@ const drawPanelFrame = ({
   context.fillStyle = gradient;
   context.fillRect(0, 0, width, height);
 
-  context.fillStyle = active ? 'rgba(23,105,255,0.18)' : 'rgba(125,230,255,0.045)';
+  const glow = context.createRadialGradient(width * 0.52, height * 0.08, 24, width * 0.52, height * 0.2, width * 0.72);
+  glow.addColorStop(0, active ? 'rgba(125,230,255,0.18)' : 'rgba(125,230,255,0.06)');
+  glow.addColorStop(0.45, active ? 'rgba(23,105,255,0.08)' : 'rgba(23,105,255,0.022)');
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  context.fillStyle = glow;
+  context.fillRect(0, 0, width, height);
+
+  context.fillStyle = active ? 'rgba(23,105,255,0.23)' : 'rgba(125,230,255,0.052)';
   context.beginPath();
   context.moveTo(width * 0.18, 24);
-  context.lineTo(width * 0.72, 24);
-  context.lineTo(width * 0.56, height - 24);
+  context.lineTo(width * 0.78, 24);
+  context.lineTo(width * 0.58, height - 24);
   context.lineTo(width * 0.08, height - 24);
   context.closePath();
   context.fill();
 
   context.shadowColor = active ? colors.cyan : colors.border;
-  context.shadowBlur = active ? 22 : 10;
+  context.shadowBlur = active ? 30 : 10;
   context.strokeStyle = active ? colors.cyan : colors.borderSoft;
-  context.lineWidth = active ? 8 : 4;
+  context.lineWidth = active ? 7 : 3;
   context.strokeRect(10, 10, width - 20, height - 20);
   context.shadowBlur = 0;
 
-  context.fillStyle = active ? 'rgba(23,105,255,0.36)' : 'rgba(125,230,255,0.08)';
+  context.fillStyle = active ? 'rgba(23,105,255,0.48)' : 'rgba(125,230,255,0.08)';
   context.fillRect(22, 22, width - 44, dense ? 8 : 12);
   context.fillStyle = active ? colors.cyan : colors.border;
-  context.fillRect(22, 22, width * 0.2, dense ? 8 : 12);
+  context.fillRect(22, 22, width * 0.26, dense ? 8 : 12);
 
   const corner = dense ? 34 : 52;
   context.strokeStyle = active ? colors.cyanBright : colors.cyan;
@@ -168,7 +175,10 @@ const createCardTexture = ({
 
   context.fillStyle = danger ? colors.red : colors.text;
   context.font = `bold ${dense ? 38 : 54}px monospace`;
+  context.shadowColor = active ? 'rgba(125,230,255,0.5)' : 'rgba(0,0,0,0)';
+  context.shadowBlur = active ? 10 : 0;
   context.fillText(String(title || '').toUpperCase(), left, dense ? 68 : 84);
+  context.shadowBlur = 0;
 
   if (body) {
     context.fillStyle = colors.muted;
@@ -425,22 +435,34 @@ const RailButton = ({ item, index, onSelect }) => {
   const layout = QUEST_UI_LAYOUT.rail;
   const y = 0.46 - index * (layout.buttonHeight + layout.gap);
   return (
-    <DashboardCard
-      name={`GCPD_Quest_ActionButton_${item.id}`}
-      position={[layout.x, y, QUEST_UI_LAYOUT.z.interactive + QUEST_UI_LAYOUT.depth.rail]}
-      size={[layout.buttonWidth, layout.buttonHeight]}
-      onClick={item.disabled ? undefined : () => onSelect?.(item.id)}
-      textureOptions={{
-        eyebrow: '',
-        title: item.label,
-        body: item.description,
-        meta: item.meta,
-        width: 620,
-        height: 210,
-        active: item.active,
-        dense: true,
-      }}
-    />
+    <group>
+      {item.active ? (
+        <mesh
+          name={`GCPD_Quest_ActionButton_ActivePointer_${item.id}`}
+          position={[layout.x + 0.27, y, QUEST_UI_LAYOUT.z.floating + QUEST_UI_LAYOUT.depth.rail + 0.04]}
+          renderOrder={36}
+        >
+          <planeGeometry args={[0.018, 0.16]} />
+          <meshBasicMaterial color={QUEST_UI_COLORS.blue} opacity={0.96} {...QUEST_UI_MATERIAL_PROPS} />
+        </mesh>
+      ) : null}
+      <DashboardCard
+        name={`GCPD_Quest_ActionButton_${item.id}`}
+        position={[layout.x, y, QUEST_UI_LAYOUT.z.interactive + QUEST_UI_LAYOUT.depth.rail]}
+        size={[layout.buttonWidth, layout.buttonHeight]}
+        onClick={item.disabled ? undefined : () => onSelect?.(item.id)}
+        textureOptions={{
+          eyebrow: '',
+          title: item.label,
+          body: item.description,
+          meta: item.meta,
+          width: 620,
+          height: 210,
+          active: item.active,
+          dense: true,
+        }}
+      />
+    </group>
   );
 };
 

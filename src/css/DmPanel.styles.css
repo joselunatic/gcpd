@@ -1622,47 +1622,81 @@
 
 .dm-panel__tracer-lines-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: 0.75rem;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
 }
 
-.dm-panel__tracer-line-item {
+.dm-panel .dm-panel__tracer-line-item {
   min-height: 108px;
+  width: 100% !important;
+  inline-size: 100% !important;
+  max-width: 100% !important;
   padding: 0.8rem 0.9rem;
   gap: 0.45rem;
   align-content: start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+  justify-content: stretch;
+  align-self: stretch;
+  justify-self: stretch;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-align: left;
 }
 
-.dm-panel__tracer-line-top {
+.dm-panel .dm-panel__tracer-line-top {
   display: flex;
   justify-content: space-between;
   align-items: start;
   gap: 0.75rem;
+  min-width: 0;
 }
 
-.dm-panel__tracer-line-item strong {
+.dm-panel .dm-panel__tracer-line-item strong {
   font-size: 0.98rem;
   letter-spacing: 0.04em;
   line-height: 1.2;
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: normal;
 }
 
-.dm-panel__tracer-line-meta {
+.dm-panel .dm-panel__tracer-line-meta {
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
+  grid-template-columns: minmax(92px, 112px) minmax(0, 1fr);
   gap: 0.5rem;
   align-items: baseline;
   font-size: 0.82rem;
   line-height: 1.35;
+  min-width: 0;
 }
 
-.dm-panel__tracer-line-label {
+.dm-panel .dm-panel__tracer-line-label {
   color: rgba(182, 214, 255, 0.68);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.7rem;
+  white-space: nowrap;
 }
 
-.dm-panel__tracer-state {
+.dm-panel .dm-panel__tracer-line-item span {
+  min-width: 0;
+  display: inline;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.dm-panel .dm-panel__tracer-state {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1675,6 +1709,9 @@
   background: rgba(45, 220, 147, 0.12);
   font-size: 0.72rem;
   letter-spacing: 0.12em;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  word-break: normal;
 }
 
 .dm-panel__tracer-state--off {

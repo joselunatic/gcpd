@@ -17,11 +17,41 @@ const SECTION = {
   centerX: -0.12,
   rightX: 1.18,
 };
+const MAP_TEXTURE_URL = '/mapa.png';
+const MAP_PREVIEW_WIDTH = 1.08;
+const MAP_PREVIEW_HEIGHT = MAP_PREVIEW_WIDTH * 0.744;
 const truncate = (value, max = 92) => {
   const text = String(value || '').trim();
   if (!text) return '';
   return text.length > max ? `${text.slice(0, max - 3)}...` : text;
 };
+
+const humanizeResourceName = (value = '') => {
+  const fileName = String(value || '').split('/').pop().replace(/\.[a-z0-9]+$/i, '');
+  return fileName
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const getResourceDisplayLabel = (resource = {}) => {
+  const raw =
+    resource?.label ||
+    resource?.title ||
+    resource?.name ||
+    resource?.src?.split('/').pop() ||
+    'Recurso';
+  const text = String(raw || '').trim();
+  if (!text || text === 'Recurso') return 'Recurso';
+  return /\.[a-z0-9]{2,5}$/i.test(text) || /[_-]/.test(text) ? humanizeResourceName(text) : text;
+};
+
+const getResourceDisplayBody = (resource = {}) =>
+  resource?.description ||
+  resource?.summary ||
+  resource?.caption ||
+  `${resource?.type || 'recurso'} asociado al POI.`;
 
 const words = (text) => String(text || '').split(/\s+/).filter(Boolean);
 
@@ -60,32 +90,48 @@ const drawWrapped = ({ context, text, x, y, maxWidth, lineHeight, maxLines }) =>
 const drawFrame = ({ context, width, height, active = false, danger = false }) => {
   const colors = QUEST_UI_COLORS;
   const gradient = context.createLinearGradient(0, 0, width, height);
-  gradient.addColorStop(0, active ? '#0d3760' : '#081b28');
-  gradient.addColorStop(0.55, active ? '#071d35' : '#06121c');
+  gradient.addColorStop(0, active ? '#0d3c64' : '#071827');
+  gradient.addColorStop(0.48, active ? '#061a31' : '#050f19');
   gradient.addColorStop(1, '#02070c');
   context.fillStyle = gradient;
   context.fillRect(0, 0, width, height);
 
-  context.fillStyle = active ? 'rgba(23,105,255,0.2)' : 'rgba(125,230,255,0.055)';
+  const glow = context.createRadialGradient(width * 0.5, height * 0.08, 20, width * 0.5, height * 0.2, width * 0.72);
+  glow.addColorStop(0, active ? 'rgba(125,230,255,0.2)' : 'rgba(125,230,255,0.07)');
+  glow.addColorStop(0.48, active ? 'rgba(23,105,255,0.08)' : 'rgba(23,105,255,0.025)');
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  context.fillStyle = glow;
+  context.fillRect(0, 0, width, height);
+
+  context.fillStyle = active ? 'rgba(23,105,255,0.24)' : 'rgba(125,230,255,0.06)';
   context.beginPath();
   context.moveTo(width * 0.08, 22);
-  context.lineTo(width * 0.72, 22);
-  context.lineTo(width * 0.58, height - 22);
+  context.lineTo(width * 0.78, 22);
+  context.lineTo(width * 0.6, height - 22);
   context.lineTo(width * 0.02, height - 22);
   context.closePath();
   context.fill();
 
+  context.strokeStyle = active ? 'rgba(188,239,255,0.18)' : 'rgba(125,230,255,0.08)';
+  context.lineWidth = 1;
+  for (let y = 52; y < height - 28; y += 18) {
+    context.beginPath();
+    context.moveTo(24, y);
+    context.lineTo(width - 24, y + Math.sin(y / 19) * 2);
+    context.stroke();
+  }
+
   context.shadowColor = danger ? colors.red : active ? colors.cyanBright : colors.border;
-  context.shadowBlur = active ? 22 : 8;
+  context.shadowBlur = active ? 28 : 10;
   context.strokeStyle = danger ? colors.red : active ? colors.cyan : colors.borderSoft;
-  context.lineWidth = active ? 7 : 4;
+  context.lineWidth = active ? 6 : 3;
   context.strokeRect(10, 10, width - 20, height - 20);
   context.shadowBlur = 0;
 
-  context.fillStyle = danger ? 'rgba(255,74,74,0.28)' : active ? 'rgba(23,105,255,0.42)' : 'rgba(125,230,255,0.1)';
+  context.fillStyle = danger ? 'rgba(255,74,74,0.28)' : active ? 'rgba(23,105,255,0.5)' : 'rgba(125,230,255,0.1)';
   context.fillRect(24, 24, width - 48, 10);
   context.fillStyle = danger ? colors.red : active ? colors.cyanBright : colors.cyan;
-  context.fillRect(24, 24, Math.max(48, width * 0.2), 10);
+  context.fillRect(24, 24, Math.max(48, width * 0.26), 10);
 
   const corner = Math.min(48, height * 0.22);
   context.strokeStyle = danger ? colors.red : colors.cyan;
@@ -134,7 +180,10 @@ const createPanelTexture = ({
 
   context.fillStyle = danger ? colors.red : colors.text;
   context.font = `bold ${compact ? 34 : 54}px monospace`;
+  context.shadowColor = active ? 'rgba(125,230,255,0.5)' : 'rgba(0,0,0,0)';
+  context.shadowBlur = active ? 10 : 0;
   context.fillText(String(title || '').toUpperCase(), 44, compact ? 74 : 88);
+  context.shadowBlur = 0;
 
   if (body) {
     context.fillStyle = colors.muted;
@@ -230,6 +279,25 @@ const drawModuleVisual = ({ context, width, height, mode, colors }) => {
     context.fillStyle = colors.red;
     context.font = 'bold 34px monospace';
     context.fillText('THREAT VECTOR', width * 0.58, 98);
+    return;
+  }
+
+  if (mode === 'case') {
+    context.fillStyle = 'rgba(3,12,20,0.56)';
+    context.fillRect(78, 136, width - 156, 210);
+    context.strokeStyle = 'rgba(125,230,255,0.3)';
+    context.lineWidth = 3;
+    context.strokeRect(78, 136, width - 156, 210);
+    context.fillStyle = 'rgba(23,105,255,0.18)';
+    context.fillRect(108, 168, 270, 38);
+    context.fillRect(108, 234, 360, 28);
+    context.fillRect(108, 288, 240, 28);
+    context.fillStyle = colors.red;
+    context.font = 'bold 34px monospace';
+    context.fillText('ALTA', width - 228, 168);
+    context.fillStyle = colors.green;
+    context.font = 'bold 26px monospace';
+    context.fillText('ACTIVO', width - 232, 224);
     return;
   }
 
@@ -437,6 +505,11 @@ const HoloLine = ({ name, position, size, opacity = 0.76, renderOrder = 20 }) =>
   </mesh>
 );
 
+const mapPercentToLocal = (x, y, width = MAP_PREVIEW_WIDTH, height = MAP_PREVIEW_HEIGHT) => [
+  (Number(x) / 100 - 0.5) * width,
+  (0.5 - Number(y) / 100) * height,
+];
+
 const Card = ({ name, position, size, textureOptions, onClick, renderOrder = 12 }) => {
   const [hovered, setHovered] = useState(false);
   const texture = usePanelTexture({
@@ -466,6 +539,120 @@ const Card = ({ name, position, size, textureOptions, onClick, renderOrder = 12 
         <planeGeometry args={size} />
         <meshBasicMaterial map={texture || null} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
+    </group>
+  );
+};
+
+const MapPoiMarker = ({ item, active, onSelect }) => {
+  const [hovered, setHovered] = useState(false);
+  const [x, y] = mapPercentToLocal(item.x ?? 50, item.y ?? 50);
+  const radius = Math.max(0.014, (Number(item.radius || 1.8) / 100) * MAP_PREVIEW_WIDTH);
+  const color = active || hovered ? QUEST_UI_COLORS.text : item.status ? QUEST_UI_COLORS.green : QUEST_UI_COLORS.cyan;
+  const select = (event) => {
+    event.stopPropagation();
+    onSelect?.(item.id);
+  };
+
+  return (
+    <group position={[x, y, 0.08]}>
+      <mesh
+        name={`GCPD_Quest_CentralMapPoi_Hit_${item.id}`}
+        pointerEventsType={QUEST_RAY_POINTER_EVENTS}
+        pointerEventsOrder={76}
+        onPointerEnter={() => setHovered(true)}
+        onPointerOver={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+        onPointerOut={() => setHovered(false)}
+        onClick={select}
+        onPointerDown={select}
+      >
+        <circleGeometry args={[Math.max(0.045, radius * 2.65), 32]} />
+        <meshBasicMaterial color={color} opacity={active || hovered ? 0.18 : 0.001} {...QUEST_UI_MATERIAL_PROPS} />
+      </mesh>
+      <mesh position={[0, 0, 0.01]} renderOrder={41}>
+        <circleGeometry args={[radius * (active || hovered ? 1.6 : 1.2), 32]} />
+        <meshBasicMaterial color={color} opacity={active || hovered ? 0.5 : 0.28} {...QUEST_UI_MATERIAL_PROPS} />
+      </mesh>
+      <mesh position={[0, 0, 0.018]} renderOrder={42}>
+        <ringGeometry args={[radius * 1.7, radius * 2.06, 32]} />
+        <meshBasicMaterial color={color} opacity={active || hovered ? 0.96 : 0.6} {...QUEST_UI_MATERIAL_PROPS} />
+      </mesh>
+      {(active || hovered) && (
+        <Card
+          name={`GCPD_Quest_CentralMapPoi_Tooltip_${item.id}`}
+          position={[0.21, 0.07, 0.06]}
+          size={[0.36, 0.13]}
+          renderOrder={60}
+          textureOptions={{
+            eyebrow: active ? 'POI ACTIVO' : 'POI',
+            title: item.label || item.id,
+            body: item.description || item.summary || '',
+            width: 430,
+            height: 160,
+            compact: true,
+            active,
+          }}
+        />
+      )}
+    </group>
+  );
+};
+
+const CentralMapPreview = ({ items = [], selectedId, onSelect }) => {
+  const mapTexture = useLoader(THREE.TextureLoader, MAP_TEXTURE_URL);
+
+  useEffect(() => {
+    mapTexture.colorSpace = THREE.SRGBColorSpace;
+  }, [mapTexture]);
+
+  const mappableItems = items.filter((item) => Number.isFinite(Number(item.x)) && Number.isFinite(Number(item.y)));
+
+  return (
+    <group name="GCPD_Quest_CentralMapPreview" position={[-0.08, -0.02, 0.08]}>
+      <mesh position={[0, 0, -0.014]} renderOrder={24}>
+        <planeGeometry args={[MAP_PREVIEW_WIDTH + 0.06, MAP_PREVIEW_HEIGHT + 0.06]} />
+        <meshBasicMaterial color="#02070d" opacity={0.94} {...QUEST_UI_MATERIAL_PROPS} />
+      </mesh>
+      <mesh renderOrder={25}>
+        <planeGeometry args={[MAP_PREVIEW_WIDTH, MAP_PREVIEW_HEIGHT]} />
+        <meshBasicMaterial map={mapTexture} color="#7fb6ff" opacity={0.88} {...QUEST_UI_MATERIAL_PROPS} />
+      </mesh>
+      <mesh position={[0, 0, 0.022]} renderOrder={26}>
+        <planeGeometry args={[MAP_PREVIEW_WIDTH, MAP_PREVIEW_HEIGHT]} />
+        <meshBasicMaterial color="#02101a" opacity={0.34} {...QUEST_UI_MATERIAL_PROPS} />
+      </mesh>
+      <mesh position={[0, 0, 0.034]} renderOrder={27}>
+        <planeGeometry args={[MAP_PREVIEW_WIDTH, MAP_PREVIEW_HEIGHT]} />
+        <meshBasicMaterial color={QUEST_UI_COLORS.cyan} opacity={0.08} wireframe {...QUEST_UI_MATERIAL_PROPS} />
+      </mesh>
+      {mappableItems.map((item) => (
+        <MapPoiMarker
+          key={item.id}
+          item={item}
+          active={item.id === selectedId || Boolean(item.accent)}
+          onSelect={onSelect}
+        />
+      ))}
+      <HoloLine
+        name="GCPD_Quest_CentralMapPreview_Scanline"
+        position={[0, 0.25, 0.075]}
+        size={[MAP_PREVIEW_WIDTH, 0.006]}
+        opacity={0.7}
+        renderOrder={44}
+      />
+      <Card
+        name="GCPD_Quest_CentralMapPreview_Zoom"
+        position={[-MAP_PREVIEW_WIDTH / 2 + 0.09, -MAP_PREVIEW_HEIGHT / 2 + 0.12, 0.09]}
+        size={[0.12, 0.23]}
+        renderOrder={52}
+        textureOptions={{
+          title: '+\n-',
+          body: '',
+          width: 180,
+          height: 260,
+          compact: true,
+        }}
+      />
     </group>
   );
 };
@@ -577,9 +764,9 @@ const ResourceFallbackPreview = ({ resource, size }) => (
     renderOrder={32}
     textureOptions={{
       eyebrow: resource?.type || 'RECURSO',
-      title: resource?.title || 'SIN RECURSO',
-      body: resource?.description || resource?.src || 'El DM puede asociar imagen, video o audio a este POI.',
-      meta: resource?.src || 'sin fuente',
+      title: resource ? getResourceDisplayLabel(resource) : 'SIN RECURSO',
+      body: resource ? getResourceDisplayBody(resource) : 'El DM puede asociar imagen, video o audio a este POI.',
+      meta: resource?.src ? resource.src.split('/').pop() : 'sin fuente',
       width: 980,
       height: 620,
       active: Boolean(resource),
@@ -606,18 +793,21 @@ const MapWorkspaceCard = ({
   body,
   lines = [],
   selectedResource = null,
+  mapItems = [],
+  onSelect,
   position,
   size,
 }) => {
+  const hasResource = Boolean(selectedResource);
   const headerTexture = useWorkspaceTexture({
     mode: 'map',
     title,
     body,
-    meta: 'MAPA GOTHAM / POIS',
-    lines,
+    meta: hasResource ? 'RECURSO DEL POI' : 'MAPA GOTHAM / POIS',
+    lines: hasResource ? [] : lines,
   });
-  const hasResource = Boolean(selectedResource);
-  const previewSize = hasResource ? [1.12, 0.5] : [1.16, 0.46];
+  const previewSize = hasResource ? [1.22, 0.58] : [1.16, 0.46];
+  const selectedMapItem = mapItems.find((item) => item.accent) || null;
 
   return (
     <group position={position}>
@@ -632,23 +822,26 @@ const MapWorkspaceCard = ({
         <planeGeometry args={size} />
         <meshBasicMaterial map={headerTexture || null} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
-      <HoloLine
-        name="GCPD_Quest_MapWorkspace_Divider"
-        position={[-0.58, 0.02, 0.05]}
-        size={[0.012, size[1] - 0.2]}
-        opacity={0.42}
-      />
+      {hasResource ? (
+        <HoloLine
+          name="GCPD_Quest_MapWorkspace_Divider"
+          position={[-0.58, 0.02, 0.05]}
+          size={[0.012, size[1] - 0.2]}
+          opacity={0.42}
+        />
+      ) : null}
       {hasResource ? (
         <>
           <MapResourcePreview resource={selectedResource} size={previewSize} />
           <Card
             name="GCPD_Quest_MapResource_Meta"
-            position={[0, -0.35, 0.12]}
-            size={[1.12, 0.14]}
+            position={[0, -0.37, 0.12]}
+            size={[1.22, 0.13]}
             textureOptions={{
               eyebrow: selectedResource.type || 'RECURSO',
-              title: selectedResource.title || selectedResource.label,
-              body: selectedResource.description || selectedResource.src,
+              title: getResourceDisplayLabel(selectedResource),
+              body: getResourceDisplayBody(selectedResource),
+              meta: selectedResource.src ? selectedResource.src.split('/').pop() : '',
               width: 980,
               height: 150,
               compact: true,
@@ -657,22 +850,25 @@ const MapWorkspaceCard = ({
           />
         </>
       ) : (
-        lines.slice(0, 5).map((line, index) => (
+        <>
+          <CentralMapPreview items={mapItems} selectedId={selectedMapItem?.id} onSelect={onSelect} />
           <Card
-            key={`${line}-${index}`}
-            name={`GCPD_Quest_MapIntel_${index}`}
-            position={[0, 0.18 - index * 0.105, 0.06 + index * 0.002]}
-            size={[1.14, 0.085]}
+            name="GCPD_Quest_MapPoi_Summary"
+            position={[0.04, -0.34, 0.17]}
+            size={[0.94, 0.14]}
+            renderOrder={58}
             textureOptions={{
-              title: `INTEL ${index + 1}`,
-              body: line,
-              width: 520,
-              height: 120,
+              eyebrow: selectedMapItem ? 'RESUMEN DEL POI' : 'MAPA TACTICO',
+              title: title || 'SIN UBICACION',
+              body: body || lines[0] || 'Selecciona un punto de interes para consultar contexto.',
+              meta: mapItems.length ? `${mapItems.length} POIS` : 'sin coordenadas',
+              width: 1060,
+              height: 160,
               compact: true,
-              active: index === 0,
+              active: true,
             }}
           />
-        ))
+        </>
       )}
     </group>
   );
@@ -716,7 +912,7 @@ const SectionList = ({ items, onSelect, instrument = false, itemLimit = null }) 
         name="GCPD_Quest_SectionList_Aura"
         position={[SECTION.leftX, 0.02, 0.05]}
         size={[0.72, 1.46]}
-        opacity={0.034}
+        opacity={dense ? 0.07 : 0.034}
       />
       <HoloLine
         name="GCPD_Quest_SectionList_Trace"
@@ -724,22 +920,33 @@ const SectionList = ({ items, onSelect, instrument = false, itemLimit = null }) 
         size={[0.012, 1.44]}
       />
       {items.slice(0, count).map((item, index) => (
-        <Card
-          key={item.id || index}
-          name={`GCPD_Quest_SectionItem_${item.id || index}`}
-          position={[SECTION.leftX, startY - index * step, 0.18]}
-          size={[0.62, itemHeight]}
-          onClick={() => onSelect?.(item.id)}
-          textureOptions={{
-            eyebrow: item.accent ? 'ACTIVO' : '',
-            title: item.label || item.id || 'REGISTRO',
-            body: item.description,
-            width: 720,
-            height: instrument ? 180 : dense ? 132 : 160,
-            compact: true,
-            active: item.accent,
-          }}
-        />
+        <group key={item.id || index}>
+          {item.accent ? (
+            <mesh
+              name={`GCPD_Quest_SectionItem_ActivePointer_${item.id || index}`}
+              position={[SECTION.leftX + 0.34, startY - index * step, 0.235]}
+              renderOrder={35}
+            >
+              <planeGeometry args={[0.018, itemHeight * 0.82]} />
+              <meshBasicMaterial color={QUEST_UI_COLORS.blue} opacity={0.95} {...QUEST_UI_MATERIAL_PROPS} />
+            </mesh>
+          ) : null}
+          <Card
+            name={`GCPD_Quest_SectionItem_${item.id || index}`}
+            position={[SECTION.leftX, startY - index * step, 0.18]}
+            size={[0.62, itemHeight]}
+            onClick={() => onSelect?.(item.id)}
+            textureOptions={{
+              eyebrow: item.accent ? 'ACTIVO' : '',
+              title: item.label || item.id || 'REGISTRO',
+              body: item.description,
+              width: 720,
+              height: instrument ? 180 : dense ? 132 : 160,
+              compact: true,
+              active: item.accent,
+            }}
+          />
+        </group>
       ))}
     </group>
   );
@@ -751,6 +958,17 @@ const ActionColumn = ({ actions, onAction, onHome, onBack }) => {
     onBack ? { id: 'nav:back', label: 'ATRAS', description: 'Volver al contexto anterior' } : null,
     onHome ? { id: 'nav:home', label: 'OPERACION', description: 'Centro operativo' } : null,
   ].filter(Boolean);
+  const resourceActions = quickActions.filter((action) => action.resource);
+  const selectedResourceAction = resourceActions.find((action) => action.accent);
+  const contextAction = selectedResourceAction || quickActions[0];
+  const contextTitle =
+    resourceActions.length && !selectedResourceAction
+      ? 'RECURSOS DEL POI'
+      : contextAction?.label || 'SIN ACCION';
+  const contextBody =
+    resourceActions.length && !selectedResourceAction
+      ? `${resourceActions.length} recurso(s) disponibles. Selecciona uno para abrirlo en el panel central.`
+      : contextAction?.description || 'Acciones contextuales no disponibles.';
 
   const handleAction = (id) => {
     if (id === 'nav:back') {
@@ -778,8 +996,8 @@ const ActionColumn = ({ actions, onAction, onHome, onBack }) => {
         size={[0.66, 0.42]}
         textureOptions={{
           eyebrow: 'CONTEXTO',
-          title: quickActions[0]?.label || 'SIN ACCION',
-          body: quickActions[0]?.description || 'Acciones contextuales no disponibles.',
+          title: contextTitle,
+          body: contextBody,
           meta: 'Accesos rapidos',
           width: 740,
           height: 400,
@@ -799,11 +1017,11 @@ const ActionColumn = ({ actions, onAction, onHome, onBack }) => {
           textureOptions={{
             title: action.label || action.id,
             body: '',
-            meta: index === 0 ? 'Primary' : '',
+            meta: action.resource ? 'Recurso' : '',
             width: 360,
             height: 180,
             compact: true,
-            active: index === 0,
+            active: Boolean(action.accent),
           }}
         />
       ))}
@@ -845,7 +1063,9 @@ const MainWorkspace = ({
   detailBody,
   workspaceLines,
   selectedMapResource,
+  mapItems,
   instrument,
+  onSelect,
 }) => {
   const mode = getWorkspaceMode({ title, focusTitle, instrument });
 
@@ -865,14 +1085,14 @@ const MainWorkspace = ({
       />
       <Card
         name="GCPD_Quest_InfoCard_section_header"
-        position={[SECTION.centerX, 0.5, 0.18]}
-        size={[1.42, 0.24]}
+        position={[SECTION.centerX, mode === 'map' ? 0.55 : 0.5, 0.18]}
+        size={mode === 'map' ? [1.42, 0.18] : [1.42, 0.24]}
         textureOptions={{
           eyebrow: instrument ? 'HERRAMIENTAS' : title,
           title,
           body: subtitle,
           width: 1460,
-          height: 250,
+          height: mode === 'map' ? 190 : 250,
           active: true,
           compact: true,
         }}
@@ -883,8 +1103,10 @@ const MainWorkspace = ({
           body={focusBody}
           lines={workspaceLines}
           selectedResource={selectedMapResource}
-          position={[SECTION.centerX, 0.08, 0.22]}
-          size={[1.42, 0.7]}
+          mapItems={mapItems}
+          onSelect={onSelect}
+          position={[SECTION.centerX, 0.05, 0.22]}
+          size={[1.42, 0.82]}
         />
       ) : (
         <WorkspaceCard
@@ -897,34 +1119,38 @@ const MainWorkspace = ({
           size={[1.42, 0.7]}
         />
       )}
-      <Card
-        name="GCPD_Quest_InfoCard_section_focus"
-        position={[SECTION.centerX - 0.37, -0.41, 0.25]}
-        size={[0.68, 0.2]}
-        textureOptions={{
-          eyebrow: focusTitle || 'FOCO',
-          title: instrument ? 'ACTIVO' : 'DETALLES',
-          body: focusBody,
-          meta: instrument ? 'Tool context' : 'Dossier',
-          width: 760,
-          height: 210,
-          compact: true,
-        }}
-      />
-      <Card
-        name="GCPD_Quest_InfoCard_section_detail"
-        position={[SECTION.centerX + 0.37, -0.41, 0.27]}
-        size={[0.68, 0.2]}
-        textureOptions={{
-          eyebrow: detailTitle || 'DETALLE',
-          title: instrument ? 'INVENTARIO' : 'INTEL',
-          body: detailBody,
-          meta: 'Vinculado',
-          width: 760,
-          height: 210,
-          compact: true,
-        }}
-      />
+      {mode === 'map' ? null : (
+        <>
+          <Card
+            name="GCPD_Quest_InfoCard_section_focus"
+            position={[SECTION.centerX - 0.37, -0.41, 0.25]}
+            size={[0.68, 0.2]}
+            textureOptions={{
+              eyebrow: focusTitle || 'FOCO',
+              title: instrument ? 'ACTIVO' : 'DETALLES',
+              body: focusBody,
+              meta: instrument ? 'Tool context' : 'Dossier',
+              width: 760,
+              height: 210,
+              compact: true,
+            }}
+          />
+          <Card
+            name="GCPD_Quest_InfoCard_section_detail"
+            position={[SECTION.centerX + 0.37, -0.41, 0.27]}
+            size={[0.68, 0.2]}
+            textureOptions={{
+              eyebrow: detailTitle || 'DETALLE',
+              title: instrument ? 'INVENTARIO' : 'INTEL',
+              body: detailBody,
+              meta: 'Vinculado',
+              width: 760,
+              height: 210,
+              compact: true,
+            }}
+          />
+        </>
+      )}
     </group>
   );
 };
@@ -987,7 +1213,9 @@ const QuestSectionDashboard = ({
         detailBody={detailBody}
         workspaceLines={workspaceLines}
         selectedMapResource={selectedMapResource}
+        mapItems={items}
         instrument={instrument}
+        onSelect={onSelect}
       />
       <ActionColumn actions={actions} onAction={onAction} onBack={onBack} onHome={onHome} />
       <StatusTelemetry title={title} hint={hint} instrument={instrument} />
