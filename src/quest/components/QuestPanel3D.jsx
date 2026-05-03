@@ -258,6 +258,8 @@ const QuestPanel3D = ({
   items = [],
   actions = [],
   workspaceLines = [],
+  mapResources = [],
+  selectedMapResource = null,
   hint = '',
   onSelect,
   onAction,
@@ -331,6 +333,8 @@ const QuestPanel3D = ({
         items={items}
         actions={actions}
         workspaceLines={workspaceLines}
+        mapResources={mapResources}
+        selectedMapResource={selectedMapResource}
         hint={hint}
         onSelect={onSelect}
         onAction={onAction}

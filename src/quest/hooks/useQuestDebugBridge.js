@@ -17,6 +17,7 @@ const buildQuestSnapshot = ({ data, session }) => ({
   activeCaseTitle: session.activeCase?.title || '',
   selectedCaseId: session.selectedCase?.id || '',
   selectedPoiId: session.selectedPoi?.id || '',
+  selectedMapResourceId: session.selection?.mapa?.selectedResourceId || '',
   selectedProfileId: session.selectedProfile?.id || '',
   activeTool: session.selection?.herramientas?.activeTool || '',
   toolResourceId: session.selection?.herramientas?.resourceId || '',
@@ -60,6 +61,7 @@ const useQuestDebugBridge = ({ data, session }) => {
         goToOperacion: () => session.actions.goToOperacion(),
         goToCasos: (caseId) => session.actions.goToCasos({ caseId }),
         goToMapa: (poiId) => session.actions.goToMapa({ poiId }),
+        selectMapResource: (resourceId) => session.actions.selectMapResource?.(resourceId),
         goToPerfiles: (profileId) => session.actions.goToPerfiles({ profileId }),
         openTool: (tool, resourceId = null) =>
           session.actions.openTool(tool, {

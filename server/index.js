@@ -150,6 +150,8 @@ const phoneAudioUpload = multer({
 
 const poiImageDir = path.join(uploadsDir, 'images');
 fs.mkdirSync(poiImageDir, { recursive: true });
+const poiResourceDir = path.join(uploadsDir, 'poi-resources');
+fs.mkdirSync(poiResourceDir, { recursive: true });
 
 const poiImageStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -172,6 +174,50 @@ const poiImageUpload = multer({
     const ext = path.extname(file.originalname || '').toLowerCase();
     if (!['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
       cb(new Error('Solo se permiten PNG/JPG/WEBP.'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+const poiResourceExtTypes = new Map([
+  ['.png', 'image'],
+  ['.jpg', 'image'],
+  ['.jpeg', 'image'],
+  ['.webp', 'image'],
+  ['.gif', 'image'],
+  ['.avif', 'image'],
+  ['.mp4', 'video'],
+  ['.webm', 'video'],
+  ['.mov', 'video'],
+  ['.m4v', 'video'],
+  ['.mp3', 'audio'],
+  ['.wav', 'audio'],
+  ['.ogg', 'audio'],
+  ['.m4a', 'audio'],
+  ['.pdf', 'document'],
+]);
+
+const poiResourceStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, poiResourceDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const safeExt = poiResourceExtTypes.has(ext) ? ext : '.bin';
+    const stamp = Date.now();
+    const random = crypto.randomBytes(4).toString('hex');
+    cb(null, `poi-resource-${stamp}-${random}${safeExt}`);
+  },
+});
+
+const poiResourceUpload = multer({
+  storage: poiResourceStorage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (!poiResourceExtTypes.has(ext)) {
+      cb(new Error('Solo se permiten PNG/JPG/WEBP/GIF/AVIF, MP4/WEBM/MOV/M4V, MP3/WAV/OGG/M4A o PDF.'));
       return;
     }
     cb(null, true);
@@ -226,7 +272,8 @@ function initDatabase() {
       updated_at INTEGER,
       unlock_conditions TEXT,
       dm TEXT,
-      commands TEXT
+      commands TEXT,
+      resources TEXT
     )`
   ).run();
   db.prepare(
@@ -255,6 +302,7 @@ function initDatabase() {
   ensureColumn('pois_data', 'unlock_conditions', 'TEXT');
   ensureColumn('pois_data', 'dm', 'TEXT');
   ensureColumn('pois_data', 'commands', 'TEXT');
+  ensureColumn('pois_data', 'resources', 'TEXT');
   ensureColumn('pois_data', 'updated_at', 'INTEGER');
   ensureColumn('villains_data', 'unlock_conditions', 'TEXT');
   ensureColumn('villains_data', 'dm', 'TEXT');
@@ -1154,10 +1202,129 @@ const normalizePoiGeo = (value, fallbackMapMeta = null) => {
   };
 };
 
+const poiResourceTypes = new Set(['image', 'video', 'audio', 'document']);
+const hiddenResourceVisibilities = new Set(['hidden', 'dm', 'private', 'none', 'false']);
+
+const normalizePoiResourceType = (value, src = '') => {
+  const type = String(value || '').trim().toLowerCase();
+  if (poiResourceTypes.has(type)) return type;
+  const ext = path.extname(String(src || '').split('?')[0]).toLowerCase();
+  return poiResourceExtTypes.get(ext) || 'document';
+};
+
+const normalizePoiResourceVisibility = (value, visible) => {
+  if (visible === false) return 'hidden';
+  const visibility = String(value || '').trim().toLowerCase();
+  return visibility || 'listed';
+};
+
+const isPoiResourceVisible = (resource) => {
+  const visibility = normalizePoiResourceVisibility(resource?.visibility, resource?.visible);
+  return resource?.visible !== false && !hiddenResourceVisibilities.has(visibility);
+};
+
+const stablePoiResourceId = ({ poiId = '', type = '', src = '', title = '', index = 0 }) => {
+  const basis = `${poiId}:${type}:${src}:${title}:${index}`;
+  const hash = crypto.createHash('sha1').update(basis).digest('hex').slice(0, 10);
+  return `poi-resource-${hash}`;
+};
+
+const coercePoiResourceCandidate = (entry, forcedType = '') => {
+  if (typeof entry === 'string') {
+    return { src: entry, type: forcedType };
+  }
+  if (!entry || typeof entry !== 'object') return null;
+  return { ...entry, type: entry.type || forcedType };
+};
+
+const collectPoiResourceCandidates = (value, forcedType = '') => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => coercePoiResourceCandidate(entry, forcedType))
+      .filter(Boolean);
+  }
+  if (typeof value !== 'object') return [];
+  const direct = Array.isArray(value.resources) ? value.resources : [];
+  const media = Array.isArray(value.media) ? value.media : [];
+  const attachments = Array.isArray(value.attachments) ? value.attachments : [];
+  const assets = Array.isArray(value.assets) ? value.assets : [];
+  const images = Array.isArray(value.images)
+    ? value.images.map((entry) => coercePoiResourceCandidate(entry, 'image'))
+    : [];
+  const videos = Array.isArray(value.videos)
+    ? value.videos.map((entry) => coercePoiResourceCandidate(entry, 'video'))
+    : [];
+  const audios = Array.isArray(value.audios)
+    ? value.audios.map((entry) => coercePoiResourceCandidate(entry, 'audio'))
+    : [];
+  return [...direct, ...media, ...attachments, ...assets, ...images, ...videos, ...audios];
+};
+
+const normalizePoiResources = (value, options = {}) => {
+  const fallbackPoiId = String(options.poiId || '').trim();
+  const candidates = [
+    ...collectPoiResourceCandidates(value),
+    ...collectPoiResourceCandidates(options.commands),
+    ...collectPoiResourceCandidates(options.poiV2),
+  ];
+  const seen = new Set();
+  return candidates
+    .map((entry, index) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const poiId = fallbackPoiId || String(entry.poiId || '').trim();
+      const src = String(entry.src || entry.url || entry.path || entry.href || '').trim();
+      if (!src) return null;
+      const type = normalizePoiResourceType(entry.type, src);
+      const title = String(entry.title || entry.label || entry.name || '').trim() || src.split('/').pop();
+      const description = String(entry.description || entry.summary || '').trim();
+      const visibility = normalizePoiResourceVisibility(entry.visibility, entry.visible);
+      const sortValue = entry.sort ?? entry.order;
+      const sort = Number(sortValue);
+      const updatedAt = Number(entry.updatedAt || entry.updated_at) || Date.now();
+      const id = String(entry.id || '').trim() || stablePoiResourceId({ poiId, type, src, title, index });
+      const thumbnail = String(entry.thumbnail || entry.poster || '').trim();
+      const normalized = {
+        id,
+        poiId,
+        type,
+        title,
+        label: String(entry.label || entry.title || entry.name || title).trim() || title,
+        description,
+        src,
+        url: src,
+        path: src,
+        thumbnail,
+        poster: String(entry.poster || entry.thumbnail || '').trim(),
+        visibility,
+        visible: !hiddenResourceVisibilities.has(visibility),
+        updatedAt,
+      };
+      if (Number.isFinite(sort)) {
+        normalized.sort = sort;
+        normalized.order = sort;
+      }
+      return normalized;
+    })
+    .filter(Boolean)
+    .filter((entry) => {
+      const key = entry.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => (Number(a.sort ?? a.order ?? 0) - Number(b.sort ?? b.order ?? 0)) || a.title.localeCompare(b.title));
+};
+
 const normalizePoiV2 = (value, legacy = {}) => {
   const source = value && typeof value === 'object' ? value : {};
   const legacyCommands =
     legacy.commands && typeof legacy.commands === 'object' ? legacy.commands : {};
+  const resources = normalizePoiResources(legacy.resources || source.resources, {
+    poiId: legacy.id,
+    commands: legacyCommands,
+    poiV2: source,
+  });
   return {
     hierarchy: normalizePoiHierarchy(source.hierarchy, {
       nodeType: legacyCommands.nodeType,
@@ -1175,6 +1342,8 @@ const normalizePoiV2 = (value, legacy = {}) => {
     }),
     access: normalizeUnlockConditions(source.access || legacy.unlockConditions, legacy.accessCode || ''),
     dm: normalizeDmNotes(source.dm || legacy.dm),
+    resources,
+    media: resources,
   };
 };
 
@@ -1197,6 +1366,8 @@ const serializePoiV2ToCommands = (poiV2, existing = {}) =>
             image: poiV2.geo.image,
           }
         : null,
+      resources: poiV2.resources,
+      media: poiV2.resources,
     },
     { category: 'map' }
   );
@@ -1214,10 +1385,15 @@ const normalizeCommands = (value, defaults = {}) => {
       locationRef: null,
       locationRefs: [],
       mapMeta: null,
+      resources: [],
+      media: [],
     };
   }
   const locationRef = normalizeLocationRef(value.locationRef);
   const locationRefs = normalizeLocationRefs(value.locationRefs, locationRef);
+  const resources = normalizePoiResources(value.resources || value.media || value, {
+    poiId: defaults.poiId,
+  });
   return {
     brief: toArray(value.brief),
     intel: toArray(value.intel),
@@ -1229,6 +1405,8 @@ const normalizeCommands = (value, defaults = {}) => {
     locationRef,
     locationRefs,
     mapMeta: normalizeMapMeta(value.mapMeta),
+    resources,
+    media: resources,
   };
 };
 
@@ -1338,25 +1516,30 @@ function validateToken(token) {
   return session;
 }
 
+function getRequestSession(req) {
+  const header = req.headers.authorization || '';
+  const [, token] = header.split(' ');
+  const session = validateToken(token);
+  return session ? { session, token } : null;
+}
+
 function deleteSession(token) {
   if (!token) return;
   db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
 }
 
 function authMiddleware(req, res, next) {
-  const header = req.headers.authorization || '';
-  const [, token] = header.split(' ');
-  const session = validateToken(token);
-  if (!session) {
+  const auth = getRequestSession(req);
+  if (!auth) {
     console.warn('[AUTH] invalid session', {
       path: req.path,
       ip: req.ip,
-      tokenPresent: Boolean(token),
+      tokenPresent: Boolean((req.headers.authorization || '').split(' ')[1]),
     });
     return res.status(401).json({ message: 'Sesion no valida. Vuelve a iniciar sesion.' });
   }
-  req.session = session;
-  req.token = token;
+  req.session = auth.session;
+  req.token = auth.token;
   next();
 }
 
@@ -1532,14 +1715,18 @@ function seedPois() {
     if (!poi.id) return;
     const accessConfig = normalizeUnlockConditions(poi.unlockConditions, poi.accessCode);
     const dmNotes = normalizeDmNotes(poi.dm);
-    const commands = normalizeCommands(poi.commands || {}, { category: 'map' });
+    const resources = normalizePoiResources(poi.resources || poi, { poiId: poi.id, commands: poi.commands });
+    const commands = normalizeCommands(
+      { ...(poi.commands || {}), resources },
+      { category: 'map', poiId: poi.id }
+    );
     db.prepare(
       `INSERT OR REPLACE INTO pois_data (
         id, name, district, status, summary, access_code, details, contacts, notes, updated_at,
-        unlock_conditions, dm, commands
+        unlock_conditions, dm, commands, resources
       ) VALUES (
         @id, @name, @district, @status, @summary, @access_code, @details, @contacts, @notes, @updated_at,
-        @unlock_conditions, @dm, @commands
+        @unlock_conditions, @dm, @commands, @resources
       )`
     ).run({
       id: poi.id,
@@ -1555,6 +1742,7 @@ function seedPois() {
       unlock_conditions: stringify(accessConfig),
       dm: stringify(dmNotes),
       commands: stringify(commands),
+      resources: stringify(resources),
     });
   });
 }
@@ -2112,15 +2300,28 @@ app.delete('/api/modules-data/:id', authMiddleware, (req, res) => {
   res.json({ success: true, deletedIds: ids });
 });
 
-const mapPoiRow = (row) => {
+const mapPoiRow = (row, options = {}) => {
   if (!row) return null;
   const unlockConfig = normalizeUnlockConditions(parseJSON(row.unlock_conditions, null), row.access_code || '');
   const dmNotes = normalizeDmNotes(parseJSON(row.dm, {}));
-  const commands = normalizeCommands(parseJSON(row.commands, {}), { category: 'map' });
+  const rawCommands = parseJSON(row.commands, {});
+  const storedResources = parseJSON(row.resources, []);
+  const allResources = normalizePoiResources(storedResources, {
+    poiId: row.id,
+    commands: rawCommands,
+  });
+  const visibleResources = options.includeHiddenResources
+    ? allResources
+    : allResources.filter(isPoiResourceVisible);
+  const commands = normalizeCommands(
+    { ...rawCommands, resources: visibleResources, media: visibleResources },
+    { category: 'map', poiId: row.id }
+  );
   const details = parseJSON(row.details, []);
   const contacts = parseJSON(row.contacts, []);
   const notes = parseJSON(row.notes, []);
   const poiV2 = normalizePoiV2(null, {
+    id: row.id,
     details,
     contacts,
     notes,
@@ -2128,6 +2329,7 @@ const mapPoiRow = (row) => {
     accessCode: row.access_code || '',
     dm: dmNotes,
     commands,
+    resources: visibleResources,
   });
   return {
     id: row.id,
@@ -2136,17 +2338,183 @@ const mapPoiRow = (row) => {
     status: row.status,
     summary: row.summary,
     updatedAt: Number(row.updated_at) || 0,
+    resources: visibleResources,
+    media: visibleResources,
     poiV2,
   };
 };
 
+const getPoiResourcesForDm = (poiId) => {
+  const row = db.prepare('SELECT id, resources, commands FROM pois_data WHERE id = ?').get(poiId);
+  if (!row) return null;
+  return normalizePoiResources(parseJSON(row.resources, []), {
+    poiId: row.id,
+    commands: parseJSON(row.commands, {}),
+  });
+};
+
+const savePoiResources = (poiId, resources) => {
+  const row = db.prepare('SELECT commands FROM pois_data WHERE id = ?').get(poiId);
+  if (!row) return null;
+  const normalized = normalizePoiResources(resources, { poiId });
+  const commands = normalizeCommands(
+    { ...parseJSON(row.commands, {}), resources: normalized, media: normalized },
+    { category: 'map', poiId }
+  );
+  db.prepare(
+    `UPDATE pois_data
+     SET resources = @resources, commands = @commands, updated_at = @updated_at
+     WHERE id = @id`
+  ).run({
+    id: poiId,
+    resources: stringify(normalized),
+    commands: stringify(commands),
+    updated_at: Date.now(),
+  });
+  return normalized;
+};
+
 app.get('/api/pois-data', (req, res) => {
+  const includeHiddenResources = req.query.includeHidden === '1' && Boolean(getRequestSession(req));
   let rows = db.prepare('SELECT * FROM pois_data').all();
   if (!rows.length) {
     seedPois();
     rows = db.prepare('SELECT * FROM pois_data').all();
   }
-  res.json({ pois: rows.map(mapPoiRow) });
+  res.json({ pois: rows.map((row) => mapPoiRow(row, { includeHiddenResources })) });
+});
+
+app.get('/api/poi-resources', authMiddleware, (req, res) => {
+  const poiId = String(req.query.poiId || '').trim();
+  if (!poiId) {
+    return res.status(400).json({ message: 'poiId obligatorio.' });
+  }
+  const resources = getPoiResourcesForDm(poiId);
+  if (!resources) {
+    return res.status(404).json({ message: 'POI no encontrado.' });
+  }
+  res.json({ poiId, resources });
+});
+
+app.post('/api/poi-resources', authMiddleware, (req, res) => {
+  const payload = req.body?.resource || req.body || {};
+  const poiId = String(req.body?.poiId || payload.poiId || '').trim();
+  if (!poiId) {
+    return res.status(400).json({ message: 'poiId obligatorio.' });
+  }
+  const current = getPoiResourcesForDm(poiId);
+  if (!current) {
+    return res.status(404).json({ message: 'POI no encontrado.' });
+  }
+  const [resource] = normalizePoiResources([payload], { poiId });
+  if (!resource) {
+    return res.status(400).json({ message: 'Recurso invalido: src/url/path obligatorio.' });
+  }
+  const next = [resource, ...current.filter((entry) => entry.id !== resource.id)];
+  const resources = savePoiResources(poiId, next);
+  res.status(201).json({ poiId, resource, resources });
+});
+
+app.put('/api/poi-resources/:poiId/:resourceId', authMiddleware, (req, res) => {
+  const poiId = String(req.params.poiId || '').trim();
+  const resourceId = String(req.params.resourceId || '').trim();
+  if (!poiId || !resourceId) {
+    return res.status(400).json({ message: 'poiId y resourceId obligatorios.' });
+  }
+  const current = getPoiResourcesForDm(poiId);
+  if (!current) {
+    return res.status(404).json({ message: 'POI no encontrado.' });
+  }
+  const existing = current.find((entry) => entry.id === resourceId);
+  if (!existing) {
+    return res.status(404).json({ message: 'Recurso no encontrado.' });
+  }
+  const [resource] = normalizePoiResources([{ ...existing, ...(req.body || {}), id: resourceId }], {
+    poiId,
+  });
+  if (!resource) {
+    return res.status(400).json({ message: 'Recurso invalido: src/url/path obligatorio.' });
+  }
+  const resources = savePoiResources(
+    poiId,
+    current.map((entry) => (entry.id === resourceId ? resource : entry))
+  );
+  res.json({ poiId, resource, resources });
+});
+
+app.delete('/api/poi-resources/:poiId/:resourceId', authMiddleware, (req, res) => {
+  const poiId = String(req.params.poiId || '').trim();
+  const resourceId = String(req.params.resourceId || '').trim();
+  if (!poiId || !resourceId) {
+    return res.status(400).json({ message: 'poiId y resourceId obligatorios.' });
+  }
+  const current = getPoiResourcesForDm(poiId);
+  if (!current) {
+    return res.status(404).json({ message: 'POI no encontrado.' });
+  }
+  const resources = savePoiResources(
+    poiId,
+    current.filter((entry) => entry.id !== resourceId)
+  );
+  res.json({ success: true, poiId, deletedId: resourceId, resources });
+});
+
+app.post('/api/poi-resource-upload', authMiddleware, (req, res) => {
+  poiResourceUpload.single('file')(req, res, (err) => {
+    if (err) {
+      console.warn('[POI_RESOURCE_UPLOAD] failed', { ip: req.ip, error: err.message });
+      return res.status(400).json({ message: err.message || 'Error al subir archivo.' });
+    }
+    if (!req.file) {
+      console.warn('[POI_RESOURCE_UPLOAD] missing file', { ip: req.ip });
+      return res.status(400).json({ message: 'Archivo requerido.' });
+    }
+    const ext = path.extname(req.file.filename || '').toLowerCase();
+    const type = poiResourceExtTypes.get(ext) || 'document';
+    const url = `/api/uploads/poi-resources/${req.file.filename}`;
+    const poiId = String(req.body?.poiId || '').trim();
+    const resource = normalizePoiResources(
+      [
+        {
+          poiId,
+          type,
+          title: req.body?.title || req.file.originalname,
+          label: req.body?.label || req.body?.title || req.file.originalname,
+          description: req.body?.description || '',
+          src: url,
+          visibility: req.body?.visibility || 'listed',
+        },
+      ],
+      { poiId }
+    )[0];
+    let resources = null;
+    if (poiId) {
+      const current = getPoiResourcesForDm(poiId);
+      if (current) {
+        resources = savePoiResources(poiId, [
+          resource,
+          ...current.filter((entry) => entry.id !== resource.id),
+        ]);
+      }
+    }
+    console.info('[POI_RESOURCE_UPLOAD] ok', {
+      ip: req.ip,
+      filename: req.file.filename,
+      original: req.file.originalname,
+      size: req.file.size,
+      url,
+      type,
+    });
+    res.json({
+      url,
+      src: url,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      type,
+      resource,
+      resources,
+    });
+  });
 });
 
 app.post('/api/pois-data', authMiddleware, (req, res) => {
@@ -2154,24 +2522,37 @@ app.post('/api/pois-data', authMiddleware, (req, res) => {
   if (!payload.id) {
     return res.status(400).json({ message: 'ID del POI obligatorio.' });
   }
+  const existing = db.prepare('SELECT resources, commands FROM pois_data WHERE id = ?').get(payload.id);
+  const incomingResources = normalizePoiResources(payload.resources || payload, {
+    poiId: payload.id,
+    commands: payload.commands,
+    poiV2: payload.poiV2,
+  });
+  const existingResources = normalizePoiResources(parseJSON(existing?.resources, []), {
+    poiId: payload.id,
+    commands: parseJSON(existing?.commands, {}),
+  });
+  const resources = incomingResources.length ? incomingResources : existingResources;
   const poiV2 = normalizePoiV2(payload.poiV2, {
+    id: payload.id,
     details: payload.poiV2?.content?.details,
     contacts: payload.poiV2?.content?.contacts,
     notes: payload.poiV2?.content?.notes,
     unlockConditions: payload.poiV2?.access,
     dm: payload.poiV2?.dm,
-    commands: payload.poiV2?.hierarchy,
+    commands: payload.commands || payload.poiV2?.hierarchy,
+    resources,
   });
-  const commands = serializePoiV2ToCommands(poiV2);
+  const commands = serializePoiV2ToCommands(poiV2, payload.commands || {});
   const unlockConfig = poiV2.access;
   const dmNotes = poiV2.dm;
   db.prepare(
     `INSERT INTO pois_data (
       id, name, district, status, summary, access_code, details, contacts, notes, updated_at,
-      unlock_conditions, dm, commands
+      unlock_conditions, dm, commands, resources
     ) VALUES (
       @id, @name, @district, @status, @summary, @access_code, @details, @contacts, @notes, @updated_at,
-      @unlock_conditions, @dm, @commands
+      @unlock_conditions, @dm, @commands, @resources
     )
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
@@ -2185,7 +2566,8 @@ app.post('/api/pois-data', authMiddleware, (req, res) => {
       updated_at = excluded.updated_at,
       unlock_conditions = excluded.unlock_conditions,
       dm = excluded.dm,
-      commands = excluded.commands`
+      commands = excluded.commands,
+      resources = excluded.resources`
   ).run({
     id: payload.id,
     name: payload.name || '',
@@ -2200,6 +2582,7 @@ app.post('/api/pois-data', authMiddleware, (req, res) => {
     unlock_conditions: stringify(unlockConfig),
     dm: stringify(dmNotes),
     commands: stringify(commands),
+    resources: stringify(resources),
   });
   const saved = mapPoiRow(
     db.prepare('SELECT * FROM pois_data WHERE id = ?').get(payload.id)

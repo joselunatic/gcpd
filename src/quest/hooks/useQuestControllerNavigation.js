@@ -8,6 +8,7 @@ import {
   QUEST_MODULE_OPERACION,
   QUEST_MODULE_PERFILES,
 } from '../state/questModules';
+import { getQuestPointerFocus } from '../utils/questPointerFocus';
 
 const PRIMARY_MODULES = [
   QUEST_MODULE_OPERACION,
@@ -121,6 +122,8 @@ const useQuestControllerNavigation = ({ data, session }) => {
   useFrame(() => {
     const xrSession = gl.xr.getSession?.();
     if (!xrSession || session.phoneState?.focusMode) return;
+    const pointerFocus = getQuestPointerFocus();
+    if (pointerFocus?.group?.startsWith('stl-')) return;
     const gamepad = getGamepad(xrSession, 'right') || getGamepad(xrSession, 'left');
     if (import.meta.env.DEV && !didReportInputRef.current) {
       didReportInputRef.current = true;

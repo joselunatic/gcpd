@@ -6,6 +6,7 @@ import * as THREE from 'three';
 
 import QuestEnvironment from './QuestEnvironment';
 import QuestBallisticsWorkbench from './QuestBallisticsWorkbench';
+import QuestAudioWorkbench from './QuestAudioWorkbench';
 import QuestCommsWorkbench from './QuestCommsWorkbench';
 import QuestHdriEnvironment from './QuestHdriEnvironment';
 import QuestMapSurface from './QuestMapSurface';
@@ -240,6 +241,7 @@ const QuestScene = ({ data, session, recenterKey }) => {
       />
       <QuestStlEvidenceViewer session={session} />
       <QuestBallisticsWorkbench session={session} />
+      <QuestAudioWorkbench session={session} />
       <QuestCommsWorkbench session={session} />
     </group>
   );

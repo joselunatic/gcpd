@@ -64,9 +64,9 @@ const QUEST_UI_LAYOUT = {
     status: 0.2,
   },
   rotation: {
-    rail: [0, -0.18, 0],
+    rail: [0, 0.22, 0],
     central: [0, 0, 0],
-    right: [0, 0.18, 0],
+    right: [0, -0.22, 0],
     status: [0.04, 0, 0],
   },
 };

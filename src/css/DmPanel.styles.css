@@ -2295,6 +2295,50 @@
   margin-left: 8px;
 }
 
+.dm-panel__poi-resources {
+  display: grid;
+  gap: 10px;
+}
+
+.dm-panel__poi-resource-toolbar,
+.dm-panel__poi-resource-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.dm-panel__poi-resource-card {
+  gap: 10px;
+}
+
+.dm-panel__poi-resource-preview {
+  min-height: 36px;
+  border: 1px dashed rgba(124, 255, 178, 0.22);
+  background: rgba(4, 8, 7, 0.35);
+  display: grid;
+  align-items: center;
+  padding: 6px;
+}
+
+.dm-panel__poi-resource-preview img,
+.dm-panel__poi-resource-preview video {
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.dm-panel__poi-resource-preview audio {
+  width: 100%;
+}
+
+.dm-panel__poi-resource-file {
+  overflow-wrap: anywhere;
+  color: rgba(219, 255, 232, 0.82);
+  font-size: 0.85rem;
+}
+
 .dm-panel__modal {
   position: fixed;
   inset: 0;

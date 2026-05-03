@@ -5,8 +5,8 @@ import * as THREE from 'three';
 
 import { QUEST_MODULE_HERRAMIENTAS } from './state/questModules';
 
-const WORKBENCH_POSITION = [1.48, 1.72, -0.62];
-const WORKBENCH_SCALE = 0.54;
+const WORKBENCH_POSITION = [0, 2.0, -0.38];
+const WORKBENCH_SCALE = 0.74;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
 const PANEL_MATERIAL_PROPS = {

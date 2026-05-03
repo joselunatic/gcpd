@@ -6,8 +6,8 @@ import * as THREE from 'three';
 import { PHONE_MODE_CALL, PHONE_MODE_TRACER } from './hooks/useQuestSession';
 import { QUEST_MODULE_HERRAMIENTAS } from './state/questModules';
 
-const WORKBENCH_POSITION = [0.42, 1.68, -0.5];
-const WORKBENCH_SCALE = 0.66;
+const WORKBENCH_POSITION = [0, 1.98, -0.38];
+const WORKBENCH_SCALE = 0.72;
 const MAP_TEXTURE_URL = '/mapa.png';
 const MAP_WIDTH = 1.0;
 const MAP_HEIGHT = MAP_WIDTH * 0.744;

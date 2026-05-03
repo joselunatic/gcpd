@@ -49,6 +49,7 @@ const useQuestSession = (data, toolData = null) => {
     },
     mapa: {
       selectedPoiId: null,
+      selectedResourceId: null,
       activeFilter: 'caso-activo',
       viewportMode: 'contexto',
     },
@@ -131,6 +132,7 @@ const useQuestSession = (data, toolData = null) => {
         mapa: {
           ...current.mapa,
           selectedPoiId: nextPoiId,
+          selectedResourceId: options.resourceId || current.mapa.selectedResourceId || null,
         },
       }));
     }
@@ -161,18 +163,19 @@ const useQuestSession = (data, toolData = null) => {
   }, []);
 
   const goToHerramientas = useCallback((options = {}) => {
+    const hasExplicitTool = Object.prototype.hasOwnProperty.call(options, 'tool');
     setSelection((current) => ({
       ...current,
       herramientas: {
-        activeTool: options.tool || current.herramientas.activeTool || 'evidencias',
-        resourceId: options.resourceId || current.herramientas.resourceId || null,
+        activeTool: hasExplicitTool ? options.tool : null,
+        resourceId: hasExplicitTool ? options.resourceId || null : null,
       },
     }));
     setToolContext({
       originModule: options.originModule || lastPrimaryModule || QUEST_MODULE_OPERACION,
       originEntityType: options.originEntityType || null,
       originEntityId: options.originEntityId || null,
-      tool: options.tool || 'evidencias',
+      tool: hasExplicitTool ? options.tool : null,
       resourceId: options.resourceId || null,
     });
     setCurrentModule(QUEST_MODULE_HERRAMIENTAS);
@@ -189,9 +192,22 @@ const useQuestSession = (data, toolData = null) => {
     if (!poiId) return;
     setSelection((current) => ({
       ...current,
+        mapa: {
+          ...current.mapa,
+          selectedPoiId: poiId,
+          selectedResourceId: null,
+        },
+      }));
+    setLastPrimaryModule(QUEST_MODULE_MAPA);
+    setCurrentModule(QUEST_MODULE_MAPA);
+  }, []);
+
+  const selectMapResource = useCallback((resourceId) => {
+    setSelection((current) => ({
+      ...current,
       mapa: {
         ...current.mapa,
-        selectedPoiId: poiId,
+        selectedResourceId: resourceId || null,
       },
     }));
     setLastPrimaryModule(QUEST_MODULE_MAPA);
@@ -441,6 +457,7 @@ const useQuestSession = (data, toolData = null) => {
       setActiveCase,
       selectCase,
       selectPoi,
+      selectMapResource,
       selectProfile,
       openTool,
       returnToOperationalContext,

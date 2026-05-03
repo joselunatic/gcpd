@@ -24,6 +24,7 @@ const AUDIO_UPLOAD_ENDPOINT = '/api/audio-upload';
 const PHONE_LINES_ENDPOINT = '/api/phone-lines';
 const PHONE_LINES_UPLOAD_ENDPOINT = '/api/phone-lines-upload';
 const POI_IMAGE_UPLOAD_ENDPOINT = '/api/poi-image-upload';
+const POI_RESOURCE_UPLOAD_ENDPOINT = '/api/poi-resource-upload';
 const TRACER_CONFIG_ENDPOINT = '/api/tracer-config';
 
 const initialCaseForm = {
@@ -185,6 +186,9 @@ const NODE_TYPE_OPTIONS = [
   { value: 'leaf', label: 'Hoja (solo info)' },
 ];
 
+const POI_RESOURCE_TYPES = ['image', 'video', 'audio', 'document'];
+const POI_RESOURCE_VISIBILITIES = ['listed', 'public', 'hidden'];
+
 const CASE_LOCATION_ROLE_OPTIONS = [
   { value: 'related', label: 'Relacionado' },
   { value: 'crime_scene', label: 'Escena del crimen' },
@@ -253,6 +257,8 @@ const initialPoiForm = {
   mapY: '',
   mapRadius: '1.6',
   mapLabel: '',
+  mapImage: '',
+  resources: [],
 };
 
 const initialEvidenceForm = {
@@ -542,6 +548,92 @@ const getPoiGeo = (poi = {}) => poi?.poiV2?.geo || null;
 
 const getPoiContent = (poi = {}) => poi?.poiV2?.content || {};
 
+const inferPoiResourceType = (resource = {}) => {
+  const explicit = String(resource.type || '').toLowerCase();
+  if (POI_RESOURCE_TYPES.includes(explicit)) return explicit;
+  const src = String(resource.src || resource.url || resource.path || '').toLowerCase();
+  if (/\.(png|jpe?g|webp|gif|avif)(\?|#|$)/.test(src)) return 'image';
+  if (/\.(mp4|webm|mov|m4v)(\?|#|$)/.test(src)) return 'video';
+  if (/\.(mp3|wav|ogg|m4a)(\?|#|$)/.test(src)) return 'audio';
+  return 'document';
+};
+
+const normalizePoiResourceVisibility = (visibility = '', visible = true) => {
+  if (visible === false) return 'hidden';
+  const value = String(visibility || '').toLowerCase();
+  return POI_RESOURCE_VISIBILITIES.includes(value) ? value : 'listed';
+};
+
+const buildPoiResourceId = () => `poi-resource-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+const normalizePoiResourceForForm = (entry = {}, index = 0) => {
+  const src = entry.src || entry.url || entry.path || entry.href || entry.file || '';
+  const type = inferPoiResourceType({ ...entry, src });
+  const visibility = normalizePoiResourceVisibility(entry.visibility, entry.visible);
+  const label =
+    entry.label ||
+    entry.title ||
+    entry.name ||
+    (src ? src.split('/').pop() : `${type} ${index + 1}`);
+  const sortValue = entry.sort ?? entry.order ?? index;
+  const sort = Number(sortValue);
+  return {
+    id: entry.id || entry.resourceId || entry.assetId || buildPoiResourceId(),
+    type,
+    label,
+    title: entry.title || label,
+    description: entry.description || entry.summary || entry.caption || entry.notes || '',
+    src,
+    thumbnail: entry.thumbnail || entry.poster || entry.preview || '',
+    poster: entry.poster || entry.thumbnail || '',
+    visibility,
+    visible: visibility !== 'hidden',
+    sort: Number.isFinite(sort) ? sort : index,
+  };
+};
+
+const getPoiResources = (poi = {}) => {
+  const resources = [
+    poi.resources,
+    poi.media,
+    poi.attachments,
+    poi.assets,
+    poi.commands?.resources,
+    poi.commands?.media,
+    poi.poiV2?.resources,
+    poi.poiV2?.media,
+  ]
+    .flat()
+    .filter(Boolean);
+
+  return resources
+    .map((entry) => (typeof entry === 'string' ? { src: entry } : entry))
+    .map((entry, index) => normalizePoiResourceForForm(entry, index))
+    .sort((a, b) => Number(a.sort ?? 0) - Number(b.sort ?? 0));
+};
+
+const formResourcesToPoiResources = (resources = []) =>
+  resources
+    .map((entry, index) => normalizePoiResourceForForm(entry, index))
+    .filter((entry) => entry.src || entry.label || entry.description)
+    .map((entry, index) => {
+      const visibility = normalizePoiResourceVisibility(entry.visibility, entry.visible);
+      return {
+        id: entry.id,
+        type: inferPoiResourceType(entry),
+        label: entry.label || entry.title || `Recurso ${index + 1}`,
+        title: entry.title || entry.label || `Recurso ${index + 1}`,
+        description: entry.description || '',
+        src: entry.src || '',
+        thumbnail: entry.thumbnail || '',
+        poster: entry.poster || entry.thumbnail || '',
+        visibility,
+        visible: visibility !== 'hidden',
+        sort: index,
+        order: index,
+      };
+    });
+
 const poiToFormFields = (data) => {
   const hierarchy = getPoiHierarchy(data);
   const geo = getPoiGeo(data) || {};
@@ -561,6 +653,7 @@ const poiToFormFields = (data) => {
     mapRadius: geo.radius != null ? String(geo.radius) : '1.6',
     mapLabel: geo.label || '',
     mapImage: geo.image || '',
+    resources: getPoiResources(data),
   };
 };
 
@@ -599,6 +692,8 @@ const formFieldsToPoiV2 = (form, existing = null) => {
     access:
       previous.access && typeof previous.access === 'object' ? previous.access : null,
     dm: previous.dm && typeof previous.dm === 'object' ? previous.dm : null,
+    resources: formResourcesToPoiResources(form.resources),
+    media: formResourcesToPoiResources(form.resources),
   };
 };
 
@@ -764,6 +859,8 @@ const DmPanel = () => {
   const [poiImageUploading, setPoiImageUploading] = useState(false);
   const [poiImagePreview, setPoiImagePreview] = useState('');
   const [poiImageError, setPoiImageError] = useState('');
+  const [poiResourceUploadingId, setPoiResourceUploadingId] = useState('');
+  const [poiResourceUploadError, setPoiResourceUploadError] = useState('');
   const [poiCropZoom, setPoiCropZoom] = useState(1.2);
   const [poiCropOffset, setPoiCropOffset] = useState({ x: 0, y: 0 });
   const [poiCropDragging, setPoiCropDragging] = useState(false);
@@ -1076,7 +1173,7 @@ const DmPanel = () => {
 
   useEffect(() => {
     if (!authorized || !sessionToken) return;
-    fetch(POIS_ENDPOINT, { headers: { Authorization: `Bearer ${sessionToken}` } })
+    fetch(`${POIS_ENDPOINT}?includeHidden=1`, { headers: { Authorization: `Bearer ${sessionToken}` } })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -1615,6 +1712,8 @@ const DmPanel = () => {
       setPoiImageFile(null);
       setPoiImagePreview('');
       setPoiImageError('');
+      setPoiResourceUploadingId('');
+      setPoiResourceUploadError('');
       setPoiCropOffset({ x: 0, y: 0 });
       setPoiCropZoom(1.2);
       setPoiCropOpen(false);
@@ -1627,6 +1726,8 @@ const DmPanel = () => {
     setPoiImageFile(null);
     setPoiImagePreview('');
     setPoiImageError('');
+    setPoiResourceUploadingId('');
+    setPoiResourceUploadError('');
     setPoiCropOffset({ x: 0, y: 0 });
     setPoiCropZoom(1.2);
     setPoiCropOpen(false);
@@ -1946,25 +2047,6 @@ const DmPanel = () => {
     }));
   }, []);
 
-  const handleTracerMapPick = useCallback((rawX, rawY) => {
-    const x = Number(rawX);
-    const y = Number(rawY);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    const clampedX = Math.max(0, Math.min(100, x));
-    const clampedY = Math.max(0, Math.min(100, y));
-    const snap = (value) =>
-      MAP_GRID_STEP > 0
-        ? Math.round(value / MAP_GRID_STEP) * MAP_GRID_STEP
-        : value;
-    const snappedX = snap(clampedX);
-    const snappedY = snap(clampedY);
-    setTracerHotspotForm((prev) => ({
-      ...prev,
-      x: snappedX.toFixed(2),
-      y: snappedY.toFixed(2),
-    }));
-  }, []);
-
   const mapMarkerStyle = useMemo(() => {
     const x = Number(poiForm.mapX);
     const y = Number(poiForm.mapY);
@@ -2141,6 +2223,107 @@ const DmPanel = () => {
     setPoiCropZoom(1.2);
     setPoiCropOpen(true);
   }, []);
+
+  const addPoiResource = useCallback(() => {
+    const nextResource = normalizePoiResourceForForm({
+      id: buildPoiResourceId(),
+      type: 'image',
+      label: 'Nuevo recurso',
+      title: 'Nuevo recurso',
+      description: '',
+      src: '',
+      visibility: 'listed',
+      visible: true,
+    });
+    setPoiForm((prev) => ({
+      ...prev,
+      resources: [...(prev.resources || []), nextResource].map((entry, index) => ({
+        ...entry,
+        sort: index,
+      })),
+    }));
+  }, []);
+
+  const updatePoiResource = useCallback((resourceId, patch) => {
+    setPoiForm((prev) => ({
+      ...prev,
+      resources: (prev.resources || []).map((entry) => {
+        if (entry.id !== resourceId) return entry;
+        const next = { ...entry, ...patch };
+        if (patch.visibility) {
+          next.visible = patch.visibility !== 'hidden';
+        }
+        return normalizePoiResourceForForm(next);
+      }),
+    }));
+  }, []);
+
+  const removePoiResource = useCallback((resourceId) => {
+    setPoiForm((prev) => ({
+      ...prev,
+      resources: (prev.resources || [])
+        .filter((entry) => entry.id !== resourceId)
+        .map((entry, index) => ({ ...entry, sort: index })),
+    }));
+  }, []);
+
+  const movePoiResource = useCallback((resourceId, direction) => {
+    setPoiForm((prev) => {
+      const resources = [...(prev.resources || [])];
+      const index = resources.findIndex((entry) => entry.id === resourceId);
+      const nextIndex = index + direction;
+      if (index < 0 || nextIndex < 0 || nextIndex >= resources.length) return prev;
+      const [resource] = resources.splice(index, 1);
+      resources.splice(nextIndex, 0, resource);
+      return {
+        ...prev,
+        resources: resources.map((entry, sort) => ({ ...entry, sort })),
+      };
+    });
+  }, []);
+
+  const handlePoiResourceUpload = useCallback(async (resourceId, file) => {
+    setPoiResourceUploadError('');
+    if (!file) return;
+    setPoiResourceUploadingId(resourceId);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const poiId = poiForm.id.trim() || selectedPoi?.id || '';
+      if (poiId) formData.append('poiId', poiId);
+      const res = await fetch(POI_RESOURCE_UPLOAD_ENDPOINT, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data.message ||
+            'No se pudo subir el recurso. Endpoint esperado: /api/poi-resource-upload.'
+        );
+      }
+      const uploadedResource =
+        data.resource && typeof data.resource === 'object' ? data.resource : {};
+      updatePoiResource(resourceId, {
+        id: uploadedResource.id || resourceId,
+        src: uploadedResource.src || data.url || data.src || '',
+        type: uploadedResource.type || data.type || undefined,
+        label: uploadedResource.label || data.label || data.originalName || file.name,
+        title: uploadedResource.title || data.title || data.originalName || file.name,
+        thumbnail: uploadedResource.thumbnail || data.thumbnail || data.poster || '',
+        poster: uploadedResource.poster || data.poster || data.thumbnail || '',
+        visibility: uploadedResource.visibility || 'listed',
+        visible: uploadedResource.visible !== false,
+      });
+    } catch (error) {
+      setPoiResourceUploadError(
+        error.message || 'No se pudo subir el recurso. Usa URL manual o revisa backend.'
+      );
+    } finally {
+      setPoiResourceUploadingId('');
+    }
+  }, [poiForm.id, selectedPoi?.id, sessionToken, updatePoiResource]);
 
   const buildPoiCroppedBlob = useCallback(async () => {
     if (!poiImagePreview || !cropFrameRef.current || !cropImageRef.current) return null;
@@ -2435,6 +2618,7 @@ const DmPanel = () => {
         identity: true,
         summary: true,
         map: false,
+        resources: false,
         quick: true,
         content: false,
         dm: false,
@@ -2446,6 +2630,7 @@ const DmPanel = () => {
       identity: true,
       summary: true,
       map: false,
+      resources: false,
       quick: true,
       content: false,
       dm: false,
@@ -4324,6 +4509,16 @@ const DmPanel = () => {
                     onOpenCrop: () => setPoiCropOpen(true),
                     fileInputRef: poiImageInputRef,
                   }}
+                  resourceEditorProps={{
+                    resources: poiForm.resources || [],
+                    onAdd: addPoiResource,
+                    onChange: updatePoiResource,
+                    onRemove: removePoiResource,
+                    onMove: movePoiResource,
+                    onUpload: handlePoiResourceUpload,
+                    uploadingId: poiResourceUploadingId,
+                    uploadError: poiResourceUploadError,
+                  }}
                   mapGridStep={MAP_GRID_STEP}
                   onClamp={clampNumber}
                   nodeTypeOptions={NODE_TYPE_OPTIONS}
@@ -5851,6 +6046,8 @@ const DmPanel = () => {
                   onValueChange={(next = {}) =>
                     setTracerHotspotForm((prev) => ({
                       ...prev,
+                      x: next.mapX !== undefined ? next.mapX : prev.x,
+                      y: next.mapY !== undefined ? next.mapY : prev.y,
                       label: next.mapLabel !== undefined ? next.mapLabel : prev.label,
                     }))
                   }

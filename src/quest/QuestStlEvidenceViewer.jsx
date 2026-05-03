@@ -5,11 +5,17 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import * as THREE from 'three';
 
 import { QUEST_MODULE_HERRAMIENTAS } from './state/questModules';
+import {
+  clearQuestPointerFocus,
+  getQuestPointerFocus,
+  setQuestPointerFocus,
+} from './utils/questPointerFocus';
 
-const VIEWER_POSITION = [0.56, 1.82, -0.56];
-const VIEWER_SCALE = 0.44;
+const VIEWER_POSITION = [0, 2.0, -0.38];
+const VIEWER_SCALE = 0.5;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 const STICK_DEADZONE = 0.16;
+const STICK_REPEAT_MS = 260;
 
 const VIEWER_MATERIAL_PROPS = {
   transparent: true,
@@ -189,7 +195,15 @@ const HoloLine = ({ name, position, size, opacity = 0.7, color = COLORS.cyan, re
   </mesh>
 );
 
-const TextCard = ({ name, position, size, textureOptions, onClick, renderOrder = 14 }) => {
+const TextCard = ({
+  name,
+  position,
+  size,
+  textureOptions,
+  onClick,
+  renderOrder = 14,
+  focusGroup = '',
+}) => {
   const [hovered, setHovered] = useState(false);
   const texture = usePanelTexture({
     ...textureOptions,
@@ -201,8 +215,14 @@ const TextCard = ({ name, position, size, textureOptions, onClick, renderOrder =
       <mesh
         name={name}
         onClick={onClick}
-        onPointerEnter={onClick ? () => setHovered(true) : undefined}
-        onPointerLeave={onClick ? () => setHovered(false) : undefined}
+        onPointerEnter={onClick ? () => {
+          setHovered(true);
+          setQuestPointerFocus(focusGroup || name);
+        } : undefined}
+        onPointerLeave={onClick ? () => {
+          setHovered(false);
+          clearQuestPointerFocus(focusGroup || name);
+        } : undefined}
         renderOrder={renderOrder}
         pointerEventsType={onClick ? XR_RAY_POINTER_EVENTS : undefined}
         pointerEventsOrder={onClick ? 44 : undefined}
@@ -284,7 +304,7 @@ const EvidenceStlMesh = ({ evidence, hovered, rotation, zoom }) => {
 };
 
 const EvidenceSelector = ({ items, activeId, onSelect }) => (
-  <group name="GCPD_StlEvidenceSelector" rotation={[0, -0.16, 0]}>
+  <group name="GCPD_StlEvidenceSelector" rotation={[0, 0.22, 0]}>
     <TextCard
       name="GCPD_StlEvidenceSelector_Header"
       position={[0, 0.52, 0.02]}
@@ -305,6 +325,7 @@ const EvidenceSelector = ({ items, activeId, onSelect }) => (
         position={[0, 0.29 - index * 0.15, 0.03 + index * 0.002]}
         size={[0.58, 0.12]}
         onClick={() => onSelect(item.id)}
+        focusGroup="stl-left"
         textureOptions={{
           eyebrow: item.id === activeId ? 'ACTIVA' : '',
           title: item.label || item.id,
@@ -325,6 +346,7 @@ const ControlButton = ({ label, meta, position, onClick, active = false }) => (
     position={position}
     size={[0.28, 0.13]}
     onClick={onClick}
+    focusGroup="stl-right"
     textureOptions={{
       title: label,
       meta,
@@ -337,7 +359,7 @@ const ControlButton = ({ label, meta, position, onClick, active = false }) => (
 );
 
 const ViewerControls = ({ onRotate, onZoom, onReset, onNext, mode, setMode }) => (
-  <group name="GCPD_StlViewerControls" rotation={[0, 0.16, 0]}>
+  <group name="GCPD_StlViewerControls" rotation={[0, -0.22, 0]}>
     <TextCard
       name="GCPD_StlViewerControls_Header"
       position={[0, 0.52, 0.02]}
@@ -403,8 +425,18 @@ const AnalysisReadout = ({ evidence, zoom, mode }) => (
   </group>
 );
 
-const useGamepadModelControls = ({ active, mode, setRotation, setZoom }) => {
+const useGamepadModelControls = ({
+  active,
+  mode,
+  setMode,
+  setRotation,
+  setZoom,
+  cycleEvidence,
+  rotate,
+  resetView,
+}) => {
   const { gl } = useThree();
+  const lastStickAtRef = useRef(0);
 
   useFrame((_, delta) => {
     if (!active) return;
@@ -418,10 +450,46 @@ const useGamepadModelControls = ({ active, mode, setRotation, setZoom }) => {
     const x = Number(gamepad.axes[0] || 0);
     const y = Number(gamepad.axes[1] || 0);
     if (Math.abs(x) < STICK_DEADZONE && Math.abs(y) < STICK_DEADZONE) return;
+    const focusGroup = getQuestPointerFocus()?.group || 'stl-center';
+
+    if (focusGroup === 'stl-left') {
+      const now = performance.now();
+      if (Math.abs(y) >= 0.62 && now - lastStickAtRef.current >= STICK_REPEAT_MS) {
+        cycleEvidence(y > 0 ? 1 : -1);
+        lastStickAtRef.current = now;
+      }
+      return;
+    }
+
+    if (focusGroup === 'stl-right') {
+      const now = performance.now();
+      if (now - lastStickAtRef.current < STICK_REPEAT_MS) return;
+      if (Math.abs(y) >= 0.62 && Math.abs(y) >= Math.abs(x)) {
+        setZoom((current) => clamp(current + (y > 0 ? -0.16 : 0.16), 0.56, 1.9));
+        lastStickAtRef.current = now;
+        return;
+      }
+      if (Math.abs(x) >= 0.62) {
+        rotate('y', x > 0 ? 0.28 : -0.28);
+        lastStickAtRef.current = now;
+        return;
+      }
+      if (gamepad.buttons?.[0]?.pressed) {
+        resetView();
+        lastStickAtRef.current = now;
+      }
+      return;
+    }
 
     if (mode === 'zoom') {
       setZoom((current) => clamp(current + -y * delta * 1.1, 0.56, 1.9));
       return;
+    }
+
+    if (gamepad.buttons?.[3]?.pressed) {
+      setMode('zoom');
+    } else if (gamepad.buttons?.[1]?.pressed) {
+      setMode('rotate');
     }
 
     setRotation((current) => ({
@@ -444,13 +512,6 @@ const QuestStlEvidenceViewer = ({ session }) => {
     session?.selection?.herramientas?.activeTool === 'evidencias' &&
     activeEvidence;
 
-  useGamepadModelControls({
-    active: Boolean(isActive),
-    mode: controlMode,
-    setRotation,
-    setZoom,
-  });
-
   const openEvidence = (id) => selectEvidence(session, id);
   const cycleEvidence = (offset = 1) => {
     const nextEvidenceId = getNextEvidenceId(session, offset);
@@ -469,6 +530,17 @@ const QuestStlEvidenceViewer = ({ session }) => {
     setZoom(1);
     setControlMode('rotate');
   };
+
+  useGamepadModelControls({
+    active: Boolean(isActive),
+    mode: controlMode,
+    setMode: setControlMode,
+    setRotation,
+    setZoom,
+    cycleEvidence,
+    rotate,
+    resetView,
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -561,8 +633,16 @@ const QuestStlEvidenceViewer = ({ session }) => {
           name="GCPD_StlModelStage_HitArea"
           position={[0, -0.03, 0.11]}
           onClick={() => cycleEvidence(1)}
-          onPointerEnter={() => setHovered(true)}
-          onPointerLeave={() => setHovered(false)}
+          onPointerEnter={() => {
+            setHovered(true);
+            setQuestPointerFocus('stl-center');
+          }}
+          onPointerLeave={() => {
+            setHovered(false);
+            clearQuestPointerFocus('stl-center');
+          }}
+          onPointerMove={() => setQuestPointerFocus('stl-center')}
+          onPointerOver={() => setQuestPointerFocus('stl-center')}
           pointerEventsType={XR_RAY_POINTER_EVENTS}
           pointerEventsOrder={38}
         >

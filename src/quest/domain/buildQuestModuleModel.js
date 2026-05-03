@@ -52,6 +52,66 @@ const formatEntityList = (values, getLabel, fallback = 'sin vínculos directos')
   return values.slice(0, 3).map(getLabel).filter(Boolean).join(', ') || fallback;
 };
 
+const inferResourceType = (entry = {}) => {
+  const explicitType = String(entry.type || entry.kind || entry.mediaType || '').toLowerCase();
+  if (['audio', 'video', 'image', 'imagen'].includes(explicitType)) {
+    return explicitType === 'imagen' ? 'image' : explicitType;
+  }
+
+  const source = String(entry.src || entry.url || entry.path || entry.href || entry.file || '').toLowerCase();
+  if (/\.(mp3|wav|ogg|m4a)(\?|#|$)/.test(source)) return 'audio';
+  if (/\.(mp4|webm|mov|m4v)(\?|#|$)/.test(source)) return 'video';
+  if (/\.(png|jpe?g|webp|gif|avif)(\?|#|$)/.test(source)) return 'image';
+  return explicitType || 'document';
+};
+
+const normalizeMapResource = (entry = {}, index = 0, fallbackType = '') => {
+  const src = entry.src || entry.url || entry.path || entry.href || entry.file || entry.originalSrc || '';
+  const type = fallbackType || inferResourceType({ ...entry, src });
+  return {
+    ...entry,
+    id: entry.id || entry.resourceId || entry.assetId || src || `poi-resource-${index + 1}`,
+    type,
+    label: entry.label || entry.title || entry.name || `${type || 'recurso'} ${index + 1}`,
+    title: entry.title || entry.label || entry.name || `${type || 'recurso'} ${index + 1}`,
+    description: entry.description || entry.summary || entry.caption || entry.notes || '',
+    src,
+    thumbnail: entry.thumbnail || entry.poster || entry.preview || '',
+  };
+};
+
+const withResourceType = (entry, type) =>
+  typeof entry === 'string' ? { src: entry, type } : { ...entry, type };
+
+const listPoiResources = (poi = {}) => {
+  const generic = [
+    poi.resources,
+    poi.media,
+    poi.attachments,
+    poi.assets,
+    poi.commands?.resources,
+    poi.commands?.media,
+    poi.poiV2?.resources,
+    poi.poiV2?.media,
+  ]
+    .flat()
+    .filter(Boolean);
+  const typed = [
+    ...(Array.isArray(poi.images) ? poi.images.map((entry) => withResourceType(entry, 'image')) : []),
+    ...(Array.isArray(poi.videos) ? poi.videos.map((entry) => withResourceType(entry, 'video')) : []),
+    ...(Array.isArray(poi.audios) ? poi.audios.map((entry) => withResourceType(entry, 'audio')) : []),
+    ...(Array.isArray(poi.audio) ? poi.audio.map((entry) => withResourceType(entry, 'audio')) : []),
+    ...(Array.isArray(poi.commands?.images) ? poi.commands.images.map((entry) => withResourceType(entry, 'image')) : []),
+    ...(Array.isArray(poi.commands?.videos) ? poi.commands.videos.map((entry) => withResourceType(entry, 'video')) : []),
+    ...(Array.isArray(poi.commands?.audios) ? poi.commands.audios.map((entry) => withResourceType(entry, 'audio')) : []),
+  ];
+
+  return [...generic, ...typed]
+    .map((entry) => (typeof entry === 'string' ? { src: entry } : entry))
+    .map((entry, index) => normalizeMapResource(entry, index))
+    .filter((entry) => entry.id && (entry.src || entry.description || entry.title));
+};
+
 const FALLBACK_POI_GEO = {
   narrows: { x: 52, y: 46, radius: 1.8 },
   oldtown: { x: 55, y: 30, radius: 1.6 },
@@ -152,7 +212,6 @@ const buildOperacionModel = ({ session }) => ({
 
     if (id === 'operacion:herramientas') {
       session.actions.goToHerramientas({
-        tool: 'evidencias',
         originModule: QUEST_MODULE_OPERACION,
       });
       return;
@@ -287,7 +346,6 @@ const buildCasosModel = ({ data, session }) => {
       }
       if (id === 'case:herramientas') {
         session.actions.goToHerramientas({
-          tool: 'evidencias',
           originModule: QUEST_MODULE_CASOS,
         });
       }
@@ -317,6 +375,17 @@ const buildMapaModel = ({ data, session }) => {
   const context = session.questContext || {};
   const relatedCases = context.relatedCasesForPoi || [];
   const relatedProfiles = context.relatedProfilesForPoi || [];
+  const mapResources = listPoiResources(selectedPoi);
+  const selectedResourceId = session.selection?.mapa?.selectedResourceId;
+  const selectedMapResource =
+    mapResources.find((entry) => entry.id === selectedResourceId) || null;
+  const resourceActions = mapResources.slice(0, 5).map((resource) => ({
+    id: `map:resource:${resource.id}`,
+    label: resource.label || resource.title,
+    description: `${resource.type || 'recurso'}${resource.description ? ` · ${resource.description}` : ''}`,
+    accent: resource.id === selectedMapResource?.id,
+    resource,
+  }));
 
   return {
     layout: 'dossier',
@@ -333,6 +402,7 @@ const buildMapaModel = ({ data, session }) => {
       ? summarize(
           [
             selectedPoi.district || 'Sin distrito',
+            selectedMapResource ? `Recurso: ${selectedMapResource.title}` : '',
             selectedPoi.details || selectedPoi.contacts || selectedPoi.summary,
             `Expedientes: ${formatEntityList(relatedCases, (entry) => entry.title)}`,
             `Perfiles: ${formatEntityList(relatedProfiles, (entry) => entry.alias)}`,
@@ -341,7 +411,10 @@ const buildMapaModel = ({ data, session }) => {
         )
       : 'Sin punto de interés seleccionado.',
     hint: selectedPoi
-      ? summarize(selectedPoi.details || selectedPoi.summary, 'Ubicación sin detalle.')
+      ? summarize(
+          selectedMapResource?.description || selectedMapResource?.src || selectedPoi.details || selectedPoi.summary,
+          'Ubicación sin detalle.'
+        )
       : 'Selecciona un punto de interés para leer su contexto.',
     items: data.pois.slice(0, 6).map((entry) => ({
       id: entry.id,
@@ -354,6 +427,7 @@ const buildMapaModel = ({ data, session }) => {
       ...getPoiGeo(entry),
     })),
     actions: [
+      ...resourceActions,
       {
         id: 'map:casos',
         label: 'VER CASO',
@@ -372,6 +446,9 @@ const buildMapaModel = ({ data, session }) => {
     ],
     onSelect: (id) => session.actions.selectPoi(id),
     onAction: (id) => {
+      if (id.startsWith('map:resource:')) {
+        session.actions.selectMapResource?.(id.slice('map:resource:'.length));
+      }
       if (id === 'map:casos') {
         session.actions.goToCasos({ caseId: relatedCases[0]?.id || session.selectedCase?.id });
       }
@@ -392,6 +469,8 @@ const buildMapaModel = ({ data, session }) => {
     workspaceLines: listLines(
       [
         selectedPoi?.status ? `Estado: ${formatStatusLabel(selectedPoi.status)}` : '',
+        mapResources.length ? `Recursos DM: ${mapResources.length}` : 'Recursos DM: sin adjuntos',
+        selectedMapResource ? `Recurso activo: ${selectedMapResource.type} · ${selectedMapResource.title}` : '',
         selectedPoi?.details,
         selectedPoi?.contacts,
         selectedPoi?.notes,
@@ -404,6 +483,8 @@ const buildMapaModel = ({ data, session }) => {
       ],
       6
     ),
+    mapResources,
+    selectedMapResource,
     onBack: session.actions.goToOperacion,
     onHome: session.actions.goToOperacion,
   };
@@ -526,12 +607,12 @@ const TOOLS = [
   },
   {
     id: 'comunicaciones',
-    label: 'COMUNICACIONES',
-    description: 'Gestión de líneas, escuchas y registros de llamada.',
+    label: 'DIAL',
+    description: 'Telefonía: líneas, escuchas y registros de llamada.',
   },
   {
     id: 'rastreo',
-    label: 'RASTREO',
+    label: 'TRAZA',
     description: 'Seguimiento de objetivos y triangulación progresiva.',
   },
 ];
@@ -695,11 +776,24 @@ const buildToolInventory = ({ session, activeTool }) => {
 };
 
 const buildHerramientasModel = ({ session }) => {
-  const activeTool = session.selection.herramientas.activeTool || 'evidencias';
+  const activeTool = session.selection.herramientas.activeTool || null;
   const activeToolData = TOOLS.find((entry) => entry.id === activeTool) || TOOLS[0];
   const originModule =
     session.toolContext?.originModule || session.lastPrimaryModule || QUEST_MODULE_OPERACION;
-  const inventory = buildToolInventory({ session, activeTool });
+  const inventory = activeTool
+    ? buildToolInventory({ session, activeTool })
+    : {
+        focus: 'Selecciona una herramienta para abrir su estación XR: evidencias STL, audio, balística, dial o rastreo.',
+        detail: TOOLS.map((entry) => entry.label).join(' · '),
+        hint: 'Hub de herramientas activo. El visor STL solo se carga al seleccionar EVIDENCIAS.',
+        lines: listLines([
+          'EVIDENCIAS: visor STL operativo con piezas visibles por DM.',
+          'AUDIO: escucha forense e inventario de pistas.',
+          'BALÍSTICA: minijuego de match por códigos de bala.',
+          'DIAL: telefonía y líneas de llamada.',
+          'TRAZA: triangulación por WebSocket y hotspot.',
+        ]),
+      };
   const actions = [
     {
       id: 'tool:return',
@@ -723,7 +817,7 @@ const buildHerramientasModel = ({ session }) => {
       label: 'MAPA',
       description: session.selectedPoi?.name || 'Ir a ubicación monitorizada',
     },
-    activeTool !== 'evidencias'
+    activeTool && activeTool !== 'evidencias'
       ? {
           id: 'tool:perfiles',
           label: 'PERFIL',
@@ -735,8 +829,8 @@ const buildHerramientasModel = ({ session }) => {
   return {
     layout: 'instrument',
     title: 'HERRAMIENTAS',
-    subtitle: `${activeToolData.label} · ${originModule}`,
-    focusTitle: activeToolData.label,
+    subtitle: activeTool ? `${activeToolData.label} · ${originModule}` : `SELECCION DE UTILIDAD · ${originModule}`,
+    focusTitle: activeTool ? activeToolData.label : 'SELECCIONAR HERRAMIENTA',
     focusBody: inventory.focus,
     detailTitle: 'CONSOLA ACTIVA',
     detailBody: inventory.detail,

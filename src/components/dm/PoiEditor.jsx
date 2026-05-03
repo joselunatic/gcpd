@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import PoiMapPicker from './PoiMapPicker';
 import PoiImageCard from './PoiImageCard';
+import PoiResourceEditor from './PoiResourceEditor';
 
 const PoiEditor = ({
   poiForm,
@@ -26,6 +27,7 @@ const PoiEditor = ({
   mapFineOpen,
   onToggleMapFine,
   imageCardProps,
+  resourceEditorProps,
   mapGridStep,
   onClamp,
   nodeTypeOptions = [],
@@ -177,6 +179,18 @@ const PoiEditor = ({
               Click en el mapa para fijar coordenadas (snap {mapGridStep}%).
             </p>
           </div>
+        </div>
+      ),
+    })}
+
+    {renderSection({
+      id: 'poi-resources',
+      title: 'Recursos Quest / mapa',
+      open: sections.resources,
+      onToggle: () => toggleSection('pois', 'resources'),
+      children: (
+        <div className="dm-panel__form-group dm-panel__form-group--compact">
+          <PoiResourceEditor {...resourceEditorProps} />
         </div>
       ),
     })}
