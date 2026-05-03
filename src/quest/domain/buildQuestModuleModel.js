@@ -106,10 +106,17 @@ const listPoiResources = (poi = {}) => {
     ...(Array.isArray(poi.commands?.audios) ? poi.commands.audios.map((entry) => withResourceType(entry, 'audio')) : []),
   ];
 
+  const seen = new Set();
   return [...generic, ...typed]
     .map((entry) => (typeof entry === 'string' ? { src: entry } : entry))
     .map((entry, index) => normalizeMapResource(entry, index))
-    .filter((entry) => entry.id && (entry.src || entry.description || entry.title));
+    .filter((entry) => {
+      if (!entry.id || !(entry.src || entry.description || entry.title)) return false;
+      const key = entry.id || entry.src;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 };
 
 const FALLBACK_POI_GEO = {
@@ -131,6 +138,24 @@ const getPoiGeo = (poi = {}) => {
     radius: Number(geo.radius ?? mapMeta.radius ?? fallback.radius) || 1.6,
   };
 };
+
+const hasPoiGeo = (poi = {}) => {
+  const geo = getPoiGeo(poi);
+  return Number.isFinite(geo.mapX) && Number.isFinite(geo.mapY);
+};
+
+const orderMapPois = (pois = [], selectedPoi = null, relatedPoiIds = new Set()) =>
+  [...pois].sort((a, b) => {
+    const score = (poi) => {
+      let value = 0;
+      if (poi.id === selectedPoi?.id) value += 1000;
+      if (listPoiResources(poi).length) value += 500;
+      if (relatedPoiIds.has(poi.id)) value += 250;
+      if (hasPoiGeo(poi)) value += 100;
+      return value;
+    };
+    return score(b) - score(a) || String(a.name || a.id).localeCompare(String(b.name || b.id));
+  });
 
 const buildOperationItems = ({ session }) => {
   const context = session.questContext || {};
@@ -375,6 +400,8 @@ const buildMapaModel = ({ data, session }) => {
   const context = session.questContext || {};
   const relatedCases = context.relatedCasesForPoi || [];
   const relatedProfiles = context.relatedProfilesForPoi || [];
+  const relatedPoiIds = new Set((context.relatedPoisForCase || []).map((entry) => entry.id).filter(Boolean));
+  const orderedPois = orderMapPois(data.pois, selectedPoi, relatedPoiIds);
   const mapResources = listPoiResources(selectedPoi);
   const selectedResourceId = session.selection?.mapa?.selectedResourceId;
   const selectedMapResource =
@@ -416,10 +443,11 @@ const buildMapaModel = ({ data, session }) => {
           'Ubicación sin detalle.'
         )
       : 'Selecciona un punto de interés para leer su contexto.',
-    items: data.pois.slice(0, 6).map((entry) => ({
+    itemLimit: 9,
+    items: orderedPois.map((entry) => ({
       id: entry.id,
       label: entry.name || entry.id,
-      description: `${entry.district || 'sin distrito'} · ${summarize(entry.summary, 'Sin resumen.')}`,
+      description: `${listPoiResources(entry).length ? `${listPoiResources(entry).length} recursos · ` : ''}${entry.district || 'sin distrito'} · ${summarize(entry.summary, 'Sin resumen.')}`,
       status: entry.status,
       summary: entry.summary,
       district: entry.district,

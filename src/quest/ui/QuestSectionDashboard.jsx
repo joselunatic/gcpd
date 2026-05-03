@@ -17,9 +17,6 @@ const SECTION = {
   centerX: -0.12,
   rightX: 1.18,
 };
-const MAP_TEXTURE_URL = '/mapa.png';
-const MAP_ASPECT_RATIO = 0.744;
-
 const truncate = (value, max = 92) => {
   const text = String(value || '').trim();
   if (!text) return '';
@@ -473,11 +470,6 @@ const Card = ({ name, position, size, textureOptions, onClick, renderOrder = 12 
   );
 };
 
-const mapPercentToLocal = (x, y, width, height) => [
-  (Number(x) / 100 - 0.5) * width,
-  (0.5 - Number(y) / 100) * height,
-];
-
 const ImageResourcePreview = ({ resource, size }) => {
   const texture = useLoader(THREE.TextureLoader, resource.src || resource.thumbnail);
 
@@ -612,13 +604,11 @@ const MapResourcePreview = ({ resource, size }) => {
 const MapWorkspaceCard = ({
   title,
   body,
-  items = [],
   lines = [],
   selectedResource = null,
   position,
   size,
 }) => {
-  const mapTexture = useLoader(THREE.TextureLoader, MAP_TEXTURE_URL);
   const headerTexture = useWorkspaceTexture({
     mode: 'map',
     title,
@@ -626,14 +616,8 @@ const MapWorkspaceCard = ({
     meta: 'MAPA GOTHAM / POIS',
     lines,
   });
-  const mapWidth = size[0] * 0.45;
-  const mapHeight = mapWidth * MAP_ASPECT_RATIO;
-  const sideX = size[0] * 0.25;
   const hasResource = Boolean(selectedResource);
-
-  useEffect(() => {
-    mapTexture.colorSpace = THREE.SRGBColorSpace;
-  }, [mapTexture]);
+  const previewSize = hasResource ? [1.12, 0.5] : [1.16, 0.46];
 
   return (
     <group position={position}>
@@ -648,63 +632,19 @@ const MapWorkspaceCard = ({
         <planeGeometry args={size} />
         <meshBasicMaterial map={headerTexture || null} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
-      <mesh
-        name="GCPD_Quest_MapWorkspace_Image"
-        position={hasResource ? [-0.47, -0.225, 0.018] : [-0.34, -0.125, 0.018]}
-        renderOrder={18}
-      >
-        <planeGeometry args={hasResource ? [mapWidth * 0.66, mapHeight * 0.66] : [mapWidth, mapHeight]} />
-        <meshBasicMaterial map={mapTexture} color="#d7ffe1" opacity={0.86} {...QUEST_UI_MATERIAL_PROPS} />
-      </mesh>
-      <mesh position={hasResource ? [-0.47, -0.225, 0.026] : [-0.34, -0.125, 0.026]} renderOrder={19}>
-        <planeGeometry args={hasResource ? [mapWidth * 0.66, mapHeight * 0.66] : [mapWidth, mapHeight]} />
-        <meshBasicMaterial color={QUEST_UI_COLORS.green} opacity={0.05} wireframe {...QUEST_UI_MATERIAL_PROPS} />
-      </mesh>
-      {items
-        .filter((item) => Number.isFinite(item.mapX) && Number.isFinite(item.mapY))
-        .slice(0, 8)
-        .map((item) => {
-          const [x, y] = mapPercentToLocal(
-            item.mapX,
-            item.mapY,
-            hasResource ? mapWidth * 0.66 : mapWidth,
-            hasResource ? mapHeight * 0.66 : mapHeight
-          );
-          const active = Boolean(item.accent);
-          return (
-            <group key={item.id} position={[hasResource ? -0.47 + x : -0.34 + x, hasResource ? -0.225 + y : -0.125 + y, 0.04]}>
-              <mesh renderOrder={24}>
-                <ringGeometry args={[active ? 0.022 : 0.014, active ? 0.033 : 0.023, 32]} />
-                <meshBasicMaterial
-                  color={active ? QUEST_UI_COLORS.red : QUEST_UI_COLORS.green}
-                  opacity={active ? 1 : 0.86}
-                  {...QUEST_UI_MATERIAL_PROPS}
-                />
-              </mesh>
-              <mesh position={[0, 0, 0.006]} renderOrder={25}>
-                <circleGeometry args={[active ? 0.01 : 0.007, 16]} />
-                <meshBasicMaterial
-                  color={active ? QUEST_UI_COLORS.red : QUEST_UI_COLORS.cyan}
-                  opacity={1}
-                  {...QUEST_UI_MATERIAL_PROPS}
-                />
-              </mesh>
-            </group>
-          );
-        })}
       <HoloLine
         name="GCPD_Quest_MapWorkspace_Divider"
-        position={[sideX - 0.1, 0.02, 0.05]}
-        size={[0.012, size[1] - 0.18]}
+        position={[-0.58, 0.02, 0.05]}
+        size={[0.012, size[1] - 0.2]}
         opacity={0.42}
       />
       {hasResource ? (
         <>
-          <MapResourcePreview resource={selectedResource} size={[0.9, 0.48]} />
+          <MapResourcePreview resource={selectedResource} size={previewSize} />
           <Card
             name="GCPD_Quest_MapResource_Meta"
-            position={[0.18, -0.35, 0.12]}
-            size={[0.9, 0.14]}
+            position={[0, -0.35, 0.12]}
+            size={[1.12, 0.14]}
             textureOptions={{
               eyebrow: selectedResource.type || 'RECURSO',
               title: selectedResource.title || selectedResource.label,
@@ -721,8 +661,8 @@ const MapWorkspaceCard = ({
           <Card
             key={`${line}-${index}`}
             name={`GCPD_Quest_MapIntel_${index}`}
-            position={[sideX + 0.06, 0.2 - index * 0.105, 0.06 + index * 0.002]}
-            size={[0.38, 0.085]}
+            position={[0, 0.18 - index * 0.105, 0.06 + index * 0.002]}
+            size={[1.14, 0.085]}
             textureOptions={{
               title: `INTEL ${index + 1}`,
               body: line,
@@ -764,10 +704,12 @@ const WorkspaceCard = ({ mode, title, body, meta, lines = [], position, size }) 
   );
 };
 
-const SectionList = ({ items, onSelect, instrument = false }) => {
-  const count = instrument ? 5 : 6;
+const SectionList = ({ items, onSelect, instrument = false, itemLimit = null }) => {
+  const count = itemLimit || (instrument ? 5 : 6);
   const startY = instrument ? 0.42 : 0.46;
-  const step = instrument ? 0.23 : 0.2;
+  const dense = count > 6;
+  const step = instrument ? 0.23 : dense ? 0.145 : 0.2;
+  const itemHeight = instrument ? 0.18 : dense ? 0.118 : 0.16;
   return (
     <group name="GCPD_Quest_SectionList" rotation={[0, 0.22, 0]}>
       <HoloPlate
@@ -786,14 +728,14 @@ const SectionList = ({ items, onSelect, instrument = false }) => {
           key={item.id || index}
           name={`GCPD_Quest_SectionItem_${item.id || index}`}
           position={[SECTION.leftX, startY - index * step, 0.18]}
-          size={[0.62, instrument ? 0.18 : 0.16]}
+          size={[0.62, itemHeight]}
           onClick={() => onSelect?.(item.id)}
           textureOptions={{
             eyebrow: item.accent ? 'ACTIVO' : '',
             title: item.label || item.id || 'REGISTRO',
             body: item.description,
             width: 720,
-            height: instrument ? 180 : 160,
+            height: instrument ? 180 : dense ? 132 : 160,
             compact: true,
             active: item.accent,
           }}
@@ -901,7 +843,6 @@ const MainWorkspace = ({
   focusBody,
   detailTitle,
   detailBody,
-  items,
   workspaceLines,
   selectedMapResource,
   instrument,
@@ -940,7 +881,6 @@ const MainWorkspace = ({
         <MapWorkspaceCard
           title={focusTitle || title}
           body={focusBody}
-          items={items}
           lines={workspaceLines}
           selectedResource={selectedMapResource}
           position={[SECTION.centerX, 0.08, 0.22]}
@@ -1001,6 +941,7 @@ const QuestSectionDashboard = ({
   actions = [],
   workspaceLines = [],
   selectedMapResource = null,
+  itemLimit = null,
   hint = '',
   onSelect,
   onAction,
@@ -1036,7 +977,7 @@ const QuestSectionDashboard = ({
         size={[SECTION.width - 0.16, 0.016]}
         opacity={0.9}
       />
-      <SectionList items={items} onSelect={onSelect} instrument={instrument} />
+      <SectionList items={items} onSelect={onSelect} instrument={instrument} itemLimit={itemLimit} />
       <MainWorkspace
         title={title}
         subtitle={subtitle}
@@ -1044,7 +985,6 @@ const QuestSectionDashboard = ({
         focusBody={focusBody}
         detailTitle={detailTitle}
         detailBody={detailBody}
-        items={items}
         workspaceLines={workspaceLines}
         selectedMapResource={selectedMapResource}
         instrument={instrument}

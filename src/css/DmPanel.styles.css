@@ -2245,6 +2245,9 @@
   padding: 8px;
   display: grid;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .dm-panel__map-media-card img {
@@ -2270,7 +2273,9 @@
 
 .dm-panel__map-media-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 
 .dm-panel__map-media-preview {
@@ -2306,10 +2311,34 @@
   justify-content: space-between;
   gap: 8px;
   align-items: center;
+  min-width: 0;
 }
 
 .dm-panel__poi-resource-card {
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.dm-panel__poi-resource-header > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-panel__poi-resource-header .dm-panel__map-media-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  max-width: 55%;
+}
+
+.dm-panel__poi-resource-header .dm-panel__ghost {
+  min-width: 44px;
+  min-height: 34px;
+  padding: 0.35rem 0.7rem;
+  white-space: nowrap;
 }
 
 .dm-panel__poi-resource-preview {
@@ -2511,17 +2540,35 @@
   gap: 10px;
 }
 
+.dm-panel__form-grid--compact > * {
+  min-width: 0;
+}
+
 .dm-panel__field--compact {
   gap: 0.25rem;
   font-size: 0.8rem;
   letter-spacing: 0.06em;
+  min-width: 0;
 }
 
 .dm-panel__field--compact input,
 .dm-panel__field--compact select,
 .dm-panel__field--compact textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   padding: 0.5rem 0.65rem;
   min-height: 34px;
+}
+
+.dm-panel__field--compact input[type="text"] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dm-panel__field--compact input[type="file"] {
+  max-width: 100%;
+  color: rgba(191, 255, 220, 0.78);
 }
 
 .dm-panel__textarea--compact {

@@ -606,9 +606,17 @@ const getPoiResources = (poi = {}) => {
     .flat()
     .filter(Boolean);
 
+  const seen = new Set();
   return resources
     .map((entry) => (typeof entry === 'string' ? { src: entry } : entry))
     .map((entry, index) => normalizePoiResourceForForm(entry, index))
+    .filter((entry) => {
+      const key = entry.id || entry.src;
+      if (!key) return false;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .sort((a, b) => Number(a.sort ?? 0) - Number(b.sort ?? 0));
 };
 

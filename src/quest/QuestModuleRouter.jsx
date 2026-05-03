@@ -19,6 +19,7 @@ const QuestModuleRouter = ({ data, session }) => {
       detailTitle={model.detailTitle}
       detailBody={model.detailBody}
       items={model.items}
+      itemLimit={model.itemLimit}
       actions={model.actions}
       workspaceLines={model.workspaceLines}
       mapResources={model.mapResources}

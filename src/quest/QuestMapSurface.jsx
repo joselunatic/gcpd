@@ -134,19 +134,28 @@ const QuestMapPoi = ({ spot, active, related, dimmed, onSelect }) => {
   const color = active || hovered ? '#e3fbff' : related ? '#8affc9' : '#73e8ff';
   const baseOpacity = dimmed ? 0.12 : related ? 0.46 : 0.34;
   const ringOpacity = dimmed ? 0.26 : related ? 0.82 : 0.62;
+  const selectSpot = (event) => {
+    event.stopPropagation();
+    onSelect?.(spot.id);
+  };
 
   return (
     <group position={[x, y, 0.045]}>
       <mesh
+        name={`GCPD_Quest_MapPoi_Hit_${spot.id}`}
         pointerEventsType={XR_RAY_POINTER_EVENTS}
         pointerEventsOrder={70}
         onPointerEnter={() => setHovered(true)}
+        onPointerOver={() => setHovered(true)}
         onPointerLeave={() => setHovered(false)}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          onSelect?.(spot.id);
-        }}
+        onPointerOut={() => setHovered(false)}
+        onClick={selectSpot}
+        onPointerDown={selectSpot}
       >
+        <circleGeometry args={[Math.max(0.06, radius * 2.4), 32]} />
+        <meshBasicMaterial color={color} opacity={active || hovered ? 0.2 : 0.001} {...UI_MATERIAL_PROPS} />
+      </mesh>
+      <mesh position={[0, 0, 0.006]} renderOrder={30}>
         <circleGeometry args={[radius * (hovered ? 1.35 : 1.1), 32]} />
         <meshBasicMaterial color={color} opacity={active || hovered ? 0.58 : baseOpacity} {...UI_MATERIAL_PROPS} />
       </mesh>
@@ -163,9 +172,13 @@ const QuestMapPoi = ({ spot, active, related, dimmed, onSelect }) => {
       {(active || hovered) && (
         <QuestMapLabel
           title={spot.label || spot.id}
-          body={spot.district || 'POI'}
+          body={[
+            spot.district || 'POI',
+            spot.resourceCount ? `${spot.resourceCount} recursos` : '',
+            summarize(spot.summary || spot.status, ''),
+          ].filter(Boolean).join(' · ')}
           position={[0.23, 0.08, 0.035]}
-          scale={[0.42, 0.13, 1]}
+          scale={[0.52, 0.16, 1]}
           accent={active}
         />
       )}
@@ -250,6 +263,7 @@ const buildSpots = (pois = [], fallbackHotspots = []) => {
         district: poi.district || '',
         summary: poi.summary || '',
         status: poi.status || '',
+        resourceCount: Array.isArray(poi.resources) ? poi.resources.length : 0,
         x: Number(geo.x),
         y: Number(geo.y),
         radius: Number(geo.radius) || 1.6,
