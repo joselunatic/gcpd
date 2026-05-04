@@ -30,10 +30,11 @@ Acercar la UI XR de `/quest` a los mockups de `docs/mockups` sin reescribir la a
 
 - `QuestSectionDashboard` mapa:
   - Mapa central ampliado para que `mapa.png` sea el foco principal.
-  - Añadida capa canvas de POIs con rings y labels visibles directamente sobre el mapa.
+  - Añadida capa canvas de POIs con decluttering: POI activo y POIs relevantes etiquetados, resto como puntos pequeños.
   - Los hit areas 3D de POI siguen activos para selección por ray.
   - Al seleccionar POI se muestra ficha con imagen, resumen, estado, distrito y datos operativos.
   - Al seleccionar recurso asociado, el recurso pasa a primer plano manteniendo el mapa como contexto.
+  - Eliminado el falso control `+/-`, coordenadas visibles y acciones laterales no contextuales (`ver caso`, `ver perfil`, `rastreo`, `atrás`) del módulo mapa.
 
 - `useQuestSession`:
   - Alias internos añadidos:
@@ -70,6 +71,7 @@ Acercar la UI XR de `/quest` a los mockups de `docs/mockups` sin reescribir la a
 - Playwright console: 0 errores en la página actual.
 - IWSDK `scene_get_hierarchy`: runtime responde y permite inspección de escena.
 - Playwright: mapa validado con `narrows` y `bancojones`; POIs visibles y recurso imagen de Banco Jones en primer plano.
+- Playwright tras sincronizar DB con 38 POIs: sin errores de consola, POIs no activos reducidos para evitar apelotonamiento.
 - Capturas generadas:
   - `quest-ui-workbench-priority-dial-clean.png`
   - `quest-ui-workbench-priority-stl-clean.png`

@@ -512,44 +512,11 @@ const buildMapaModel = ({ data, session }) => {
         y: geo.mapY,
       };
     }),
-    actions: [
-      ...resourceActions,
-      {
-        id: 'map:casos',
-        label: 'VER CASO',
-        description: relatedCases[0]?.title || session.selectedCase?.title || 'Volver al expediente en foco',
-      },
-      {
-        id: 'map:perfiles',
-        label: 'VER PERFIL',
-        description: relatedProfiles[0]?.alias || session.selectedProfile?.alias || 'Consultar entidad vinculada',
-      },
-      {
-        id: 'map:rastreo',
-        label: 'RASTREO',
-        description: 'Abrir rastreo contextual',
-      },
-    ],
+    actions: resourceActions,
     onSelect: (id) => session.actions.selectPoi(id),
     onAction: (id) => {
       if (id.startsWith('map:resource:')) {
         session.actions.selectMapResource?.(id.slice('map:resource:'.length));
-      }
-      if (id === 'map:casos') {
-        session.actions.goToCasos({ caseId: relatedCases[0]?.id || session.selectedCase?.id });
-      }
-      if (id === 'map:perfiles') {
-        session.actions.goToPerfiles({
-          profileId: relatedProfiles[0]?.id || session.selectedProfile?.id,
-        });
-      }
-      if (id === 'map:rastreo') {
-        session.actions.goToHerramientas({
-          tool: 'rastreo',
-          originModule: QUEST_MODULE_MAPA,
-          originEntityType: 'poi',
-          originEntityId: selectedPoi?.id || null,
-        });
       }
     },
     workspaceLines: listLines(

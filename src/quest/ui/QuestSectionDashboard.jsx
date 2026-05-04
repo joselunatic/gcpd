@@ -488,46 +488,71 @@ const createMapOverlayTexture = ({ items = [], selectedId = '', width = 1400, he
   context.textBaseline = 'middle';
   context.font = 'bold 25px monospace';
 
-  items.forEach((item) => {
+  const placedLabels = [];
+  const sortedItems = [...items].sort((a, b) => {
+    const score = (item) =>
+      (item.id === selectedId || item.accent ? 1000 : 0) +
+      (item.resourceCount ? 250 : 0) +
+      (item.image ? 100 : 0);
+    return score(b) - score(a);
+  });
+
+  sortedItems.forEach((item) => {
     const x = (Number(item.x) / 100) * width;
     const y = (Number(item.y) / 100) * height;
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
     const active = item.id === selectedId || Boolean(item.accent);
     const color = active ? '#d9f4ff' : '#26e28a';
-    const radius = active ? 20 : 15;
-    const label = String(item.label || 'POI').toUpperCase().slice(0, 18);
-    const labelWidth = Math.min(320, Math.max(108, context.measureText(label).width + 54));
+    const radius = active ? 20 : 7;
+    const label = String(item.label || 'POI').toUpperCase().slice(0, active ? 22 : 16);
+    const labelWidth = Math.min(active ? 360 : 260, Math.max(108, context.measureText(label).width + 42));
     const labelX = Math.min(width - labelWidth - 18, x + 24);
     const labelY = Math.max(22, Math.min(height - 22, y - 10));
+    const labelBox = {
+      x: labelX - 8,
+      y: labelY - 24,
+      width: labelWidth + 16,
+      height: 48,
+    };
+    const overlaps = placedLabels.some((box) =>
+      labelBox.x < box.x + box.width &&
+      labelBox.x + labelBox.width > box.x &&
+      labelBox.y < box.y + box.height &&
+      labelBox.y + labelBox.height > box.y
+    );
+    const shouldLabel = active || (item.resourceCount && !overlaps) || (!overlaps && placedLabels.length < 7);
 
     context.shadowColor = color;
     context.shadowBlur = active ? 18 : 10;
     context.strokeStyle = color;
-    context.lineWidth = active ? 6 : 4;
+    context.lineWidth = active ? 6 : 3;
     context.beginPath();
     context.arc(x, y, radius, 0, Math.PI * 2);
     context.stroke();
     context.beginPath();
-    context.arc(x, y, Math.max(5, radius * 0.34), 0, Math.PI * 2);
-    context.fillStyle = active ? 'rgba(217,244,255,0.9)' : 'rgba(38,226,138,0.78)';
+    context.arc(x, y, Math.max(4, radius * 0.34), 0, Math.PI * 2);
+    context.fillStyle = active ? 'rgba(217,244,255,0.9)' : 'rgba(38,226,138,0.58)';
     context.fill();
 
-    context.shadowBlur = active ? 16 : 6;
-    context.fillStyle = active ? 'rgba(8,23,35,0.92)' : 'rgba(5,15,22,0.76)';
-    context.strokeStyle = active ? '#d9f4ff' : '#26e28a';
-    context.lineWidth = active ? 4 : 2;
-    context.fillRect(labelX, labelY - 18, labelWidth, 36);
-    context.strokeRect(labelX, labelY - 18, labelWidth, 36);
-    context.fillStyle = color;
-    context.shadowBlur = 0;
-    context.fillText(label, labelX + 16, labelY + 1);
+    if (shouldLabel) {
+      placedLabels.push(labelBox);
+      context.shadowBlur = active ? 16 : 6;
+      context.fillStyle = active ? 'rgba(8,23,35,0.92)' : 'rgba(5,15,22,0.76)';
+      context.strokeStyle = active ? '#d9f4ff' : '#26e28a';
+      context.lineWidth = active ? 4 : 2;
+      context.fillRect(labelX, labelY - 18, labelWidth, 36);
+      context.strokeRect(labelX, labelY - 18, labelWidth, 36);
+      context.fillStyle = color;
+      context.shadowBlur = 0;
+      context.fillText(label, labelX + 14, labelY + 1);
 
-    if (item.resourceCount) {
-      context.fillStyle = '#ffbc42';
-      context.font = 'bold 20px monospace';
-      context.fillText(`${item.resourceCount}R`, labelX + labelWidth - 42, labelY + 1);
-      context.font = 'bold 25px monospace';
+      if (item.resourceCount) {
+        context.fillStyle = '#ffbc42';
+        context.font = 'bold 20px monospace';
+        context.fillText(`${item.resourceCount}R`, labelX + labelWidth - 38, labelY + 1);
+        context.font = 'bold 25px monospace';
+      }
     }
   });
 
@@ -640,21 +665,27 @@ const MapPoiMarker = ({ item, active, onSelect, mapWidth = MAP_PREVIEW_WIDTH, ma
         <meshBasicMaterial color={color} opacity={active || hovered ? 0.18 : 0.001} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
       <mesh position={[0, 0, 0.058]} renderOrder={72}>
-        <circleGeometry args={[radius * (active || hovered ? 1.95 : 1.42), 32]} />
-        <meshBasicMaterial color={color} opacity={active || hovered ? 0.64 : 0.42} {...QUEST_UI_MATERIAL_PROPS} />
+        <circleGeometry args={[radius * (active || hovered ? 1.95 : 0.58), 32]} />
+        <meshBasicMaterial color={color} opacity={active || hovered ? 0.64 : 0.22} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
       <mesh position={[0, 0, 0.068]} renderOrder={74}>
-        <ringGeometry args={[radius * 1.9, radius * 2.36, 32]} />
-        <meshBasicMaterial color={color} opacity={active || hovered ? 1 : 0.82} {...QUEST_UI_MATERIAL_PROPS} />
+        <ringGeometry
+          args={[
+            radius * (active || hovered ? 1.9 : 0.72),
+            radius * (active || hovered ? 2.36 : 0.98),
+            32,
+          ]}
+        />
+        <meshBasicMaterial color={color} opacity={active || hovered ? 1 : 0.36} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
-      {(active || hovered) && (
+      {hovered && (
         <Card
           name={`GCPD_Quest_CentralMapPoi_Tooltip_${item.id}`}
           position={[0.21, 0.07, 0.06]}
           size={[0.36, 0.13]}
           renderOrder={84}
           textureOptions={{
-            eyebrow: active ? 'POI ACTIVO' : 'POI',
+            eyebrow: 'POI',
             title: item.label || item.id,
             body: item.description || item.summary || '',
             width: 430,
@@ -723,19 +754,6 @@ const CentralMapPreview = ({
         size={[width, 0.006]}
         opacity={0.7}
         renderOrder={44}
-      />
-      <Card
-        name="GCPD_Quest_CentralMapPreview_Zoom"
-        position={[-width / 2 + 0.09, -height / 2 + 0.12, 0.09]}
-        size={[0.12, 0.23]}
-        renderOrder={52}
-        textureOptions={{
-          title: '+\n-',
-          body: '',
-          width: 180,
-          height: 260,
-          compact: true,
-        }}
       />
     </group>
   );
@@ -1014,14 +1032,12 @@ const MapWorkspaceCard = ({
             size={[0.78, 0.12]}
             renderOrder={70}
             textureOptions={{
-              eyebrow: 'COORDENADAS',
-              title: selectedMapItem
-                ? `X ${Math.round(Number(selectedMapItem.x || 0))} / Y ${Math.round(Number(selectedMapItem.y || 0))}`
-                : 'SIN FOCO',
+              eyebrow: selectedMapItem ? 'ESTADO DEL POI' : 'MAPA TACTICO',
+              title: selectedMapItem?.label || 'SIN FOCO',
               body: selectedMapItem
                 ? `${selectedMapItem.resourceCount || 0} recursos DM vinculados`
                 : 'Selecciona un punto de interes para consultar contexto.',
-              meta: mapItems.length ? `${mapItems.length} POIS` : 'sin coordenadas',
+              meta: selectedMapItem?.status || `${mapItems.length} POIS`,
               width: 880,
               height: 150,
               compact: true,
@@ -1112,11 +1128,11 @@ const SectionList = ({ items, onSelect, instrument = false, itemLimit = null }) 
   );
 };
 
-const ActionColumn = ({ actions, onAction, onHome, onBack }) => {
+const ActionColumn = ({ actions, onAction, onHome, onBack, mapMode = false }) => {
   const quickActions = [
     ...actions.slice(0, 4),
-    onBack ? { id: 'nav:back', label: 'ATRAS', description: 'Volver al contexto anterior' } : null,
-    onHome ? { id: 'nav:home', label: 'OPERACION', description: 'Centro operativo' } : null,
+    !mapMode && onBack ? { id: 'nav:back', label: 'ATRAS', description: 'Volver al contexto anterior' } : null,
+    !mapMode && onHome ? { id: 'nav:home', label: 'OPERACION', description: 'Centro operativo' } : null,
   ].filter(Boolean);
   const resourceActions = quickActions.filter((action) => action.resource);
   const selectedResourceAction = resourceActions.find((action) => action.accent);
@@ -1124,11 +1140,11 @@ const ActionColumn = ({ actions, onAction, onHome, onBack }) => {
   const contextTitle =
     resourceActions.length && !selectedResourceAction
       ? 'RECURSOS DEL POI'
-      : contextAction?.label || 'SIN ACCION';
+      : contextAction?.label || (mapMode ? 'SIN RECURSOS' : 'SIN ACCION');
   const contextBody =
     resourceActions.length && !selectedResourceAction
       ? `${resourceActions.length} recurso(s) disponibles. Selecciona uno para abrirlo en el panel central.`
-      : contextAction?.description || 'Acciones contextuales no disponibles.';
+      : contextAction?.description || (mapMode ? 'Este POI no tiene recursos visibles para agentes.' : 'Acciones contextuales no disponibles.');
 
   const handleAction = (id) => {
     if (id === 'nav:back') {
@@ -1158,7 +1174,7 @@ const ActionColumn = ({ actions, onAction, onHome, onBack }) => {
           eyebrow: 'CONTEXTO',
           title: contextTitle,
           body: contextBody,
-          meta: 'Accesos rapidos',
+          meta: mapMode ? 'POI actual' : 'Accesos rapidos',
           width: 740,
           height: 400,
         }}
@@ -1401,7 +1417,13 @@ const QuestSectionDashboard = ({
           onSelect={onSelect}
         />
       )}
-      <ActionColumn actions={actions} onAction={onAction} onBack={onBack} onHome={onHome} />
+      <ActionColumn
+        actions={actions}
+        onAction={onAction}
+        onBack={onBack}
+        onHome={onHome}
+        mapMode={getWorkspaceMode({ title, focusTitle, instrument }) === 'map'}
+      />
       <StatusTelemetry title={title} hint={hint} instrument={instrument} />
     </group>
   );
