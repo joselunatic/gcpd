@@ -4,8 +4,8 @@ import * as THREE from 'three';
 
 import { QUEST_MODULE_HERRAMIENTAS } from './state/questModules';
 
-const WORKBENCH_POSITION = [0, 2.0, -0.38];
-const WORKBENCH_SCALE = 0.72;
+const WORKBENCH_POSITION = [0, 1.96, -0.62];
+const WORKBENCH_SCALE = 0.68;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
 const UI_MATERIAL_PROPS = {
@@ -37,10 +37,7 @@ const AUDIO_COLORS = {
   blue: '#1769ff',
 };
 
-const clampText = (value, max = 88) => {
-  const text = String(value || '').trim();
-  return text.length > max ? `${text.slice(0, max - 3)}...` : text;
-};
+const getAudioLabel = (track = {}) => track.title || track.label || 'SIN LABEL';
 
 const drawWrapped = ({ context, text, x, y, maxWidth, lineHeight, maxLines }) => {
   const words = String(text || '').split(/\s+/).filter(Boolean);
@@ -206,8 +203,8 @@ const TrackRail = ({ tracks, selectedIndex, setSelectedIndex }) => (
         onClick={() => setSelectedIndex(index)}
         textureOptions={{
           eyebrow: index === selectedIndex ? 'ACTIVA' : '',
-          title: track.title || track.id || 'AUDIO',
-          body: track.locked ? 'bloqueada' : clampText(track.src || 'sin fuente', 42),
+          title: getAudioLabel(track),
+          body: track.locked ? 'bloqueada' : 'disponible',
           width: 760,
           height: 150,
           compact: true,
@@ -296,7 +293,7 @@ const QuestAudioWorkbench = ({ session }) => {
         selectedTrack: selectedTrack
           ? {
               id: selectedTrack.id,
-              title: selectedTrack.title,
+              title: getAudioLabel(selectedTrack),
               src: selectedTrack.src,
               locked: selectedTrack.locked,
             }
@@ -351,8 +348,8 @@ const QuestAudioWorkbench = ({ session }) => {
           size={[1.16, 0.22]}
           textureOptions={{
             eyebrow: selectedTrack?.locked ? 'BLOQUEADA' : 'ESCUCHA FORENSE',
-            title: selectedTrack?.title || 'SIN PISTA',
-            body: selectedTrack?.src || 'No hay archivo de audio seleccionado.',
+            title: selectedTrack ? getAudioLabel(selectedTrack) : 'SIN PISTA',
+            body: selectedTrack ? 'Pista preparada para análisis forense.' : 'No hay audio seleccionado.',
             meta: playing ? 'reproduciendo' : 'standby',
             width: 1260,
             height: 240,

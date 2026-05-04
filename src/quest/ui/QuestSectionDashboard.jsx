@@ -40,11 +40,11 @@ const getResourceDisplayLabel = (resource = {}) => {
     resource?.label ||
     resource?.title ||
     resource?.name ||
-    resource?.src?.split('/').pop() ||
-    'Recurso';
+    'SIN LABEL';
   const text = String(raw || '').trim();
-  if (!text || text === 'Recurso') return 'Recurso';
-  return /\.[a-z0-9]{2,5}$/i.test(text) || /[_-]/.test(text) ? humanizeResourceName(text) : text;
+  if (!text) return 'SIN LABEL';
+  if (text.includes('/') || text.includes('\\') || /\.[a-z0-9]{2,5}$/i.test(text)) return 'SIN LABEL';
+  return /[_-]/.test(text) ? humanizeResourceName(text) : text;
 };
 
 const getResourceDisplayBody = (resource = {}) =>
@@ -745,7 +745,7 @@ const AudioResourcePreview = ({ resource, size }) => {
         renderOrder={38}
         textureOptions={{
           title: playing ? 'PAUSA' : 'PLAY',
-          body: resource.src || '',
+          body: getResourceDisplayLabel(resource),
           width: 420,
           height: 160,
           compact: true,
@@ -766,7 +766,7 @@ const ResourceFallbackPreview = ({ resource, size }) => (
       eyebrow: resource?.type || 'RECURSO',
       title: resource ? getResourceDisplayLabel(resource) : 'SIN RECURSO',
       body: resource ? getResourceDisplayBody(resource) : 'El DM puede asociar imagen, video o audio a este POI.',
-      meta: resource?.src ? resource.src.split('/').pop() : 'sin fuente',
+      meta: resource ? 'recurso DM' : 'sin fuente',
       width: 980,
       height: 620,
       active: Boolean(resource),
@@ -841,7 +841,7 @@ const MapWorkspaceCard = ({
               eyebrow: selectedResource.type || 'RECURSO',
               title: getResourceDisplayLabel(selectedResource),
               body: getResourceDisplayBody(selectedResource),
-              meta: selectedResource.src ? selectedResource.src.split('/').pop() : '',
+              meta: 'recurso DM',
               width: 980,
               height: 150,
               compact: true,
@@ -1054,6 +1054,23 @@ const StatusTelemetry = ({ title, hint, instrument }) => (
   </group>
 );
 
+const ToolWorkbenchGuide = () => (
+  <group name="GCPD_Quest_ToolWorkbenchGuide">
+    <HoloLine
+      name="GCPD_Quest_ToolWorkbenchGuide_TopTrace"
+      position={[SECTION.centerX, 0.64, 0.28]}
+      size={[1.36, 0.012]}
+      opacity={0.44}
+    />
+    <HoloLine
+      name="GCPD_Quest_ToolWorkbenchGuide_FloorTrace"
+      position={[SECTION.centerX, -0.5, 0.28]}
+      size={[1.2, 0.01]}
+      opacity={0.24}
+    />
+  </group>
+);
+
 const MainWorkspace = ({
   title,
   subtitle,
@@ -1177,6 +1194,7 @@ const QuestSectionDashboard = ({
   scale = 1,
 }) => {
   const instrument = layout === 'instrument';
+  const activeInstrument = instrument && items.some((item) => item.accent);
 
   return (
     <group name="GCPD_Quest_SectionDashboard" position={position} scale={scale}>
@@ -1204,19 +1222,23 @@ const QuestSectionDashboard = ({
         opacity={0.9}
       />
       <SectionList items={items} onSelect={onSelect} instrument={instrument} itemLimit={itemLimit} />
-      <MainWorkspace
-        title={title}
-        subtitle={subtitle}
-        focusTitle={focusTitle}
-        focusBody={focusBody}
-        detailTitle={detailTitle}
-        detailBody={detailBody}
-        workspaceLines={workspaceLines}
-        selectedMapResource={selectedMapResource}
-        mapItems={items}
-        instrument={instrument}
-        onSelect={onSelect}
-      />
+      {activeInstrument ? (
+        <ToolWorkbenchGuide />
+      ) : (
+        <MainWorkspace
+          title={title}
+          subtitle={subtitle}
+          focusTitle={focusTitle}
+          focusBody={focusBody}
+          detailTitle={detailTitle}
+          detailBody={detailBody}
+          workspaceLines={workspaceLines}
+          selectedMapResource={selectedMapResource}
+          mapItems={items}
+          instrument={instrument}
+          onSelect={onSelect}
+        />
+      )}
       <ActionColumn actions={actions} onAction={onAction} onBack={onBack} onHome={onHome} />
       <StatusTelemetry title={title} hint={hint} instrument={instrument} />
     </group>

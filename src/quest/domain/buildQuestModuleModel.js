@@ -133,12 +133,14 @@ const getResourceDisplayLabel = (resource = {}) => {
     resource.label ||
     resource.title ||
     resource.name ||
-    resource.src?.split('/').pop() ||
-    'Recurso';
+    'SIN LABEL';
   const text = String(raw || '').trim();
-  if (!text || text === 'Recurso') return 'Recurso';
-  return /\.[a-z0-9]{2,5}$/i.test(text) || /[_-]/.test(text) ? humanizeResourceName(text) : text;
+  if (!text) return 'SIN LABEL';
+  if (text.includes('/') || text.includes('\\') || /\.[a-z0-9]{2,5}$/i.test(text)) return 'SIN LABEL';
+  return /[_-]/.test(text) ? humanizeResourceName(text) : text;
 };
+
+const getEvidenceDisplayLabel = (entry = {}) => entry.label || entry.title || entry.name || 'SIN LABEL';
 
 const FALLBACK_POI_GEO = {
   narrows: { x: 52, y: 46, radius: 1.8 },
@@ -460,7 +462,7 @@ const buildMapaModel = ({ data, session }) => {
       : 'Sin punto de interés seleccionado.',
     hint: selectedPoi
       ? summarize(
-          selectedMapResource?.description || selectedMapResource?.src || selectedPoi.details || selectedPoi.summary,
+          selectedMapResource?.description || selectedPoi.details || selectedPoi.summary,
           'Ubicación sin detalle.'
         )
       : 'Selecciona un punto de interés para leer su contexto.',
@@ -669,8 +671,6 @@ const TOOLS = [
 const countLabel = (count, singular, plural = `${singular}s`) =>
   `${count} ${count === 1 ? singular : plural}`;
 
-const firstAvailable = (...values) => values.find((value) => String(value || '').trim()) || '';
-
 const formatPhoneLineState = (line) => {
   if (!line) return 'sin líneas configuradas';
   const recallState = line.rellamable === false && line.llamado ? 'ya llamada' : 'disponible';
@@ -726,20 +726,19 @@ const buildToolInventory = ({ session, activeTool }) => {
       focus: 'Inspección STL compatible con SHOW W, SHOW JOKER, SHOW BALA y evidencias subidas por DM.',
       detail: [
         countLabel(allEvidence.length, 'pieza'),
-        `${builtInEvidence.length} built-in`,
-        evidence.length ? `${evidence.length} desde /api/evidence` : 'sin STL de DM cargados',
+        `${builtInEvidence.length} modelos base`,
+        evidence.length ? `${evidence.length} piezas del DM` : 'sin piezas del DM cargadas',
         selectedEvidence
-          ? `selección ${selectedEvidence.label || selectedEvidence.id}`
+          ? `selección ${getEvidenceDisplayLabel(selectedEvidence)}`
           : 'sin pieza seleccionada',
       ].join(' · '),
-      hint: selectedEvidence?.stlPath
-        ? `STL ${selectedEvidence.stlPath} · origen ${selectedEvidence.source || 'api'}`
-        : 'Los STL built-in siguen disponibles aunque el catálogo de DM esté vacío.',
+      hint: selectedEvidence
+        ? `Pieza activa: ${getEvidenceDisplayLabel(selectedEvidence)}`
+        : 'Los modelos base siguen disponibles aunque el catálogo del DM esté vacío.',
       lines: listLines([
-        `Piezas: ${allEvidence.length} totales, ${builtInEvidence.length} built-in, ${evidence.length} desde API`,
-        selectedEvidence ? `Selección: ${selectedEvidence.label || selectedEvidence.id}` : '',
-        selectedEvidence?.stlPath ? `Ruta STL: ${selectedEvidence.stlPath}` : '',
-        selectedEvidence?.source ? `Origen: ${selectedEvidence.source}` : '',
+        `Piezas: ${allEvidence.length} totales, ${builtInEvidence.length} base, ${evidence.length} del DM`,
+        selectedEvidence ? `Selección: ${getEvidenceDisplayLabel(selectedEvidence)}` : '',
+        selectedEvidence ? 'Estado: disponible para visor 3D' : '',
       ]),
     },
     audio: {
@@ -748,16 +747,15 @@ const buildToolInventory = ({ session, activeTool }) => {
         countLabel(audio.length, 'pista'),
         `${audio.filter((entry) => entry.locked).length} bloqueadas`,
         selectedAudio
-          ? `siguiente ${selectedAudio.title || selectedAudio.id}`
+          ? `siguiente ${selectedAudio.title || selectedAudio.label || 'SIN LABEL'}`
           : 'sin pistas cargadas',
       ].join(' · '),
-      hint: selectedAudio?.src
-        ? `Fuente ${selectedAudio.src}${selectedAudio.locked ? ' · requiere unlock' : ''}`
-        : 'El transporte XR aún no reproduce audio; este bloque precarga el inventario real.',
+      hint: selectedAudio
+        ? `Pista activa: ${selectedAudio.title || selectedAudio.label || 'SIN LABEL'}${selectedAudio.locked ? ' · requiere unlock' : ''}`
+        : 'No hay pista seleccionada.',
       lines: listLines([
         `Pistas: ${audio.length} totales, ${audio.filter((entry) => entry.locked).length} bloqueadas`,
-        selectedAudio ? `Activa: ${selectedAudio.title || selectedAudio.id}` : '',
-        selectedAudio?.src ? `Fuente: ${selectedAudio.src}` : '',
+        selectedAudio ? `Activa: ${selectedAudio.title || selectedAudio.label || 'SIN LABEL'}` : '',
         selectedAudio?.locked ? 'Estado: requiere desbloqueo' : 'Estado: reproducible',
       ]),
     },
@@ -768,17 +766,17 @@ const buildToolInventory = ({ session, activeTool }) => {
           ? countLabel(ballistics.length, 'muestra')
           : `${countLabel(ballisticsAssets.length, 'asset')} disponible${ballisticsAssets.length === 1 ? '' : 's'}`,
         selectedBallistic
-          ? `muestra ${selectedBallistic.label || selectedBallistic.id}`
+          ? `muestra ${selectedBallistic.label || 'SIN LABEL'}`
           : 'sin modelos balísticos de DM',
         selectedBallistic?.caseCode ? `código ${selectedBallistic.caseCode}` : 'sin código activo',
       ].join(' · '),
       hint: ballistics.length
-        ? firstAvailable(selectedBallistic?.pngPath, selectedBallistic?.assetId, 'dataset listo para comparar')
-        : 'Hay assets PNG en /assets/ballistics; falta dataset de comparación en /api/ballistics.',
+        ? (selectedBallistic?.label || 'dataset listo para comparar')
+        : 'Dataset balístico pendiente de configurar por el DM.',
       lines: listLines([
         `Muestras DB: ${ballistics.length}`,
         `Assets PNG: ${ballisticsAssets.length}`,
-        selectedBallistic ? `Muestra activa: ${selectedBallistic.label || selectedBallistic.id}` : '',
+        selectedBallistic ? `Muestra activa: ${selectedBallistic.label || 'SIN LABEL'}` : '',
         selectedBallistic?.caseCode ? `Código de caso: ${selectedBallistic.caseCode}` : '',
         'Mantener minijuego MATCH por códigos izquierdo/derecho.',
       ]),
@@ -883,7 +881,7 @@ const buildHerramientasModel = ({ session }) => {
     focusBody: inventory.focus,
     detailTitle: 'CONSOLA ACTIVA',
     detailBody: inventory.detail,
-    hint: `${inventory.hint} · origen ${originModule}`,
+    hint: inventory.hint,
     items: TOOLS.map((entry) => ({
       ...entry,
       description:

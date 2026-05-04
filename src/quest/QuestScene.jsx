@@ -12,6 +12,7 @@ import QuestHdriEnvironment from './QuestHdriEnvironment';
 import QuestMapSurface from './QuestMapSurface';
 import QuestMonitorSurface from './QuestMonitorSurface';
 import QuestStlEvidenceViewer from './QuestStlEvidenceViewer';
+import QuestWorkbenchRayBlocker from './QuestWorkbenchRayBlocker';
 import { useQuestControllerNavigation } from './hooks/useQuestControllerNavigation';
 import { useQuestSceneMcpRuntime } from './hooks/useQuestSceneMcpRuntime';
 
@@ -239,6 +240,7 @@ const QuestScene = ({ data, session, recenterKey }) => {
         session={session}
         panelAnchor={environmentAnchors?.panel}
       />
+      <QuestWorkbenchRayBlocker session={session} />
       <QuestStlEvidenceViewer session={session} />
       <QuestBallisticsWorkbench session={session} />
       <QuestAudioWorkbench session={session} />

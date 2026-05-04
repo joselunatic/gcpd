@@ -11,7 +11,7 @@ import {
   setQuestPointerFocus,
 } from './utils/questPointerFocus';
 
-const VIEWER_POSITION = [0, 2.0, -0.38];
+const VIEWER_POSITION = [0, 1.96, -0.62];
 const VIEWER_SCALE = 0.5;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 const STICK_DEADZONE = 0.16;
@@ -74,6 +74,8 @@ const getNextEvidenceId = (session, offset = 1) => {
 };
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const getEvidenceLabel = (evidence = {}) => evidence.label || evidence.title || evidence.name || 'SIN LABEL';
 
 const drawWrapped = ({ context, text, x, y, maxWidth, lineHeight, maxLines }) => {
   const words = String(text || '').split(/\s+/).filter(Boolean);
@@ -328,8 +330,8 @@ const EvidenceSelector = ({ items, activeId, onSelect }) => (
         focusGroup="stl-left"
         textureOptions={{
           eyebrow: item.id === activeId ? 'ACTIVA' : '',
-          title: item.label || item.id,
-          body: item.source === 'builtin' ? 'built-in' : item.command || item.source || 'dm',
+          title: getEvidenceLabel(item),
+          body: item.source === 'builtin' ? 'modelo base' : 'modelo DM',
           width: 680,
           height: 150,
           compact: true,
@@ -400,9 +402,9 @@ const AnalysisReadout = ({ evidence, zoom, mode }) => (
       size={[1.18, 0.18]}
       textureOptions={{
         eyebrow: 'VISOR STL // EVIDENCIA',
-        title: evidence?.label || evidence?.id || 'SIN PIEZA',
-        body: evidence?.stlPath || 'sin stlPath',
-        meta: `${evidence?.source === 'builtin' ? 'built-in' : 'dm/api'} // zoom ${(zoom * 100).toFixed(0)} // ${mode}`,
+        title: evidence ? getEvidenceLabel(evidence) : 'SIN PIEZA',
+        body: evidence ? 'Modelo preparado para inspección XR.' : 'Sin modelo seleccionado.',
+        meta: `${evidence?.source === 'builtin' ? 'modelo base' : 'modelo DM'} // zoom ${(zoom * 100).toFixed(0)} // ${mode}`,
         width: 1300,
         height: 210,
         compact: true,
@@ -644,7 +646,7 @@ const QuestStlEvidenceViewer = ({ session }) => {
           onPointerMove={() => setQuestPointerFocus('stl-center')}
           onPointerOver={() => setQuestPointerFocus('stl-center')}
           pointerEventsType={XR_RAY_POINTER_EVENTS}
-          pointerEventsOrder={38}
+          pointerEventsOrder={46}
         >
           <cylinderGeometry args={[0.55, 0.55, 0.16, 96]} />
           <meshBasicMaterial color={COLORS.cyan} opacity={0.018} {...VIEWER_MATERIAL_PROPS} />

@@ -5,8 +5,8 @@ import * as THREE from 'three';
 
 import { QUEST_MODULE_HERRAMIENTAS } from './state/questModules';
 
-const WORKBENCH_POSITION = [0, 2.0, -0.38];
-const WORKBENCH_SCALE = 0.74;
+const WORKBENCH_POSITION = [0, 1.96, -0.62];
+const WORKBENCH_SCALE = 0.7;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
 const PANEL_MATERIAL_PROPS = {
@@ -26,7 +26,7 @@ const buildDataset = (models = []) =>
     .map((entry, index) => ({
       ...entry,
       id: entry.id || entry.bulletId || entry.assetId || `ballistic-${index}`,
-      label: entry.label || entry.id || entry.bulletId || `B-${String(index + 1).padStart(2, '0')}`,
+      label: entry.label || 'SIN LABEL',
       caseCode: normalizeCaseCode(entry.caseCode || entry.id || entry.label),
       image: resolveBallisticImage(entry),
       bulletId: entry.bulletId || `BULLET-${String(index + 1).padStart(2, '0')}`,
@@ -124,7 +124,7 @@ const EvidencePlate = ({ entry, side, position, onClick }) => {
         position={[0, 0.29, 0.02]}
         onClick={onClick}
         pointerEventsType={XR_RAY_POINTER_EVENTS}
-        pointerEventsOrder={19}
+        pointerEventsOrder={44}
       >
         <planeGeometry args={[0.82, 0.52]} />
         <meshBasicMaterial map={texture} transparent toneMapped={false} />
@@ -153,7 +153,7 @@ const WorkbenchButton = ({ label, position, onClick, accent = false }) => {
       position={position}
       onClick={onClick}
       pointerEventsType={XR_RAY_POINTER_EVENTS}
-      pointerEventsOrder={22}
+      pointerEventsOrder={46}
     >
       <planeGeometry args={[0.38, 0.14]} />
       <meshBasicMaterial map={texture || null} {...PANEL_MATERIAL_PROPS} />

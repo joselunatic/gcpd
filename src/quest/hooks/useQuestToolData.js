@@ -31,13 +31,20 @@ const listFromPayload = (payload, key) => {
 
 const normalizeDigits = (value = '') => String(value).replace(/\D/g, '');
 
+const sanitizeAgentLabel = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return 'SIN LABEL';
+  if (text.includes('/') || text.includes('\\') || /\.[a-z0-9]{2,5}$/i.test(text)) return 'SIN LABEL';
+  return text;
+};
+
 const normalizeEvidence = (payload) =>
   listFromPayload(payload, 'models')
     .filter((entry) => entry?.visible !== false && entry?.visibility !== 'hidden')
     .map((entry) => ({
       ...entry,
       id: entry.id || entry.label || entry.name || entry.stlPath,
-      label: entry.label || entry.name || entry.title || entry.id || 'EVIDENCIA',
+      label: sanitizeAgentLabel(entry.label || entry.name || entry.title),
       stlPath: entry.stlPath || entry.path || entry.src || '',
       source: 'api',
     }));
@@ -46,7 +53,7 @@ const normalizeBallistics = (payload) =>
   listFromPayload(payload, 'models').map((entry) => ({
     ...entry,
     id: entry.bulletId || entry.id || entry.assetId || entry.pngPath,
-    label: entry.label || entry.bulletId || entry.assetId || entry.id || 'MUESTRA',
+    label: sanitizeAgentLabel(entry.label),
     caseCode: String(entry.caseCode || entry.caseId || entry.caseNumber || '').trim(),
     assetId: entry.assetId || '',
     pngPath: entry.pngPath || '',
@@ -56,7 +63,7 @@ const normalizeBallisticAssets = (payload) =>
   listFromPayload(payload, 'assets').map((entry) => ({
     ...entry,
     id: entry.id || entry.filename || entry.url,
-    label: entry.id || entry.filename || 'ASSET',
+    label: sanitizeAgentLabel(entry.label || entry.title),
     url: entry.url || '',
   }));
 
@@ -64,7 +71,7 @@ const normalizeAudio = (payload) =>
   listFromPayload(payload, 'models').map((entry) => ({
     ...entry,
     id: entry.id || entry.title || entry.originalSrc || entry.src,
-    title: entry.title || entry.id || 'AUDIO',
+    title: sanitizeAgentLabel(entry.title || entry.label),
     src: entry.originalSrc || entry.src || entry.garbledSrc || '',
     locked: Boolean(entry.isGarbled && entry.passwordHash),
   }));
