@@ -385,26 +385,29 @@ function ensureMapStyles() {
       align-items: center;
       justify-content: center;
       box-sizing: border-box;
-      width: max-content;
-      height: auto;
-      min-width: 0;
-      min-height: 0;
+      width: fit-content !important;
+      inline-size: fit-content !important;
+      height: auto !important;
+      min-width: 0 !important;
+      min-height: 0 !important;
       border-radius: 999px;
-      border: 1px solid rgba(124, 255, 178, 0.9);
-      background: rgba(4, 8, 7, 0.76);
-      color: #bfffdc;
+      border: 1px solid rgba(176, 255, 210, 0.96);
+      background: rgba(1, 6, 5, 0.9);
+      color: #f2fff7;
       font: 600 8px/1 "Courier New", monospace;
       letter-spacing: 0.04em;
       text-transform: uppercase;
       cursor: pointer;
-      box-shadow: 0 0 6px rgba(124, 255, 178, 0.25);
+      text-shadow: 0 1px 2px #000, 0 0 5px rgba(0, 0, 0, 0.95);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.78),
+        0 0 7px rgba(124, 255, 178, 0.34);
       padding: 1px 5px;
       z-index: 2;
       transition: border-color 120ms ease-out, box-shadow 120ms ease-out,
         background-color 120ms ease-out, opacity 120ms ease-out;
       outline: none;
       white-space: nowrap;
-      max-width: 150px;
+      max-width: 150px !important;
       overflow: hidden;
       text-overflow: ellipsis;
     }
@@ -416,22 +419,22 @@ function ensureMapStyles() {
       background: transparent;
     }
     .terminal-map-overlay.is-dense .terminal-map-hotspot {
-      border-color: rgba(124, 255, 178, 0.62);
-      background: rgba(4, 8, 7, 0.58);
-      color: rgba(191, 255, 220, 0.82);
+      border-color: rgba(176, 255, 210, 0.86);
+      background: rgba(1, 6, 5, 0.86);
+      color: rgba(242, 255, 247, 0.96);
       font-size: 7px;
       letter-spacing: 0.02em;
       padding: 1px 4px;
-      box-shadow: none;
-      opacity: 0.86;
-      max-width: 118px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.72);
+      opacity: 0.94;
+      max-width: 118px !important;
     }
     .terminal-map-hotspot.is-cluster {
-      border-color: rgba(103, 207, 255, 0.82);
-      background: rgba(5, 18, 24, 0.78);
-      color: #d9f6ff;
-      box-shadow: 0 0 0 1px rgba(103, 207, 255, 0.24),
-        0 0 10px rgba(103, 207, 255, 0.24);
+      border-color: rgba(166, 226, 255, 0.98);
+      background: rgba(2, 12, 18, 0.92);
+      color: #f1fbff;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.86),
+        0 0 9px rgba(103, 207, 255, 0.46);
     }
     .terminal-map-hotspot.is-locked {
       border-style: dashed;
@@ -442,10 +445,10 @@ function ensureMapStyles() {
     .terminal-map-hotspot:hover,
     .terminal-map-hotspot.is-active {
       border-color: #dfffee;
-      background: rgba(14, 26, 20, 0.92);
+      background: rgba(0, 11, 8, 0.98);
       box-shadow: 0 0 0 1px rgba(191, 255, 220, 0.5),
         0 0 14px rgba(124, 255, 178, 0.75);
-      color: #e4fff3;
+      color: #ffffff;
       opacity: 1;
       z-index: 3;
     }
@@ -454,7 +457,7 @@ function ensureMapStyles() {
       outline-offset: 2px;
     }
     .terminal-map-panel__poi-button {
-      width: 100%;
+      width: 100% !important;
       border: 1px solid rgba(124, 255, 178, 0.28);
       background: rgba(4, 8, 7, 0.54);
       color: #bfffdc;
@@ -1070,7 +1073,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
       node.style.top = `${y}%`;
       const dense = overlay.classList.contains("is-dense");
       const maxLabelWidth = dense ? 118 : 150;
-      node.style.maxWidth = `${Math.max(64, Math.min(maxLabelWidth, Math.floor(fitted.width * 0.42)))}px`;
+      node.style.maxWidth = `${Math.max(44, Math.min(maxLabelWidth, Math.floor(fitted.width * 0.42)))}px`;
     });
   };
 
