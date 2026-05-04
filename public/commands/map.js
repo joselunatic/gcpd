@@ -426,6 +426,13 @@ function ensureMapStyles() {
       opacity: 0.86;
       max-width: 118px;
     }
+    .terminal-map-hotspot.is-cluster {
+      border-color: rgba(103, 207, 255, 0.82);
+      background: rgba(5, 18, 24, 0.78);
+      color: #d9f6ff;
+      box-shadow: 0 0 0 1px rgba(103, 207, 255, 0.24),
+        0 0 10px rgba(103, 207, 255, 0.24);
+    }
     .terminal-map-hotspot.is-locked {
       border-style: dashed;
       color: rgba(124, 255, 178, 0.5);
@@ -445,6 +452,26 @@ function ensureMapStyles() {
     .terminal-map-hotspot:focus-visible {
       outline: 2px solid rgba(228, 255, 243, 0.98);
       outline-offset: 2px;
+    }
+    .terminal-map-panel__poi-button {
+      width: 100%;
+      border: 1px solid rgba(124, 255, 178, 0.28);
+      background: rgba(4, 8, 7, 0.54);
+      color: #bfffdc;
+      font: inherit;
+      letter-spacing: inherit;
+      text-align: left;
+      text-transform: uppercase;
+      padding: 5px 7px;
+      cursor: pointer;
+      overflow-wrap: anywhere;
+    }
+    .terminal-map-panel__poi-button:hover,
+    .terminal-map-panel__poi-button:focus-visible {
+      border-color: rgba(228, 255, 243, 0.88);
+      color: #e4fff3;
+      outline: none;
+      background: rgba(14, 26, 20, 0.92);
     }
     .terminal-map-ui {
       position: absolute;
@@ -815,6 +842,92 @@ async function showMapOverlay({ pois, hotspotsData }) {
     }
   };
 
+  const resetPanelImage = (message = "SELECCIONA UN POI DEL SECTOR.") => {
+    selectedImageSrc = "";
+    selectedImageTitle = "";
+    closeLightbox();
+    if (imageEl) {
+      imageEl.removeAttribute("src");
+      imageEl.style.display = "none";
+    }
+    if (imagePlaceholder) {
+      imagePlaceholder.style.display = "block";
+      imagePlaceholder.textContent = message;
+    }
+    if (imageCaption) {
+      imageCaption.style.display = "none";
+      imageCaption.textContent = "";
+    }
+    if (imageFrame) {
+      imageFrame.classList.remove("is-clickable");
+      imageFrame.tabIndex = -1;
+      imageFrame.setAttribute("aria-disabled", "true");
+      imageFrame.setAttribute("aria-label", "Sin evidencia disponible");
+    }
+  };
+
+  const selectPoiFromNode = async (button, poi, evaluation) => {
+    if (!evaluation.unlocked) {
+      const unlocked = await attemptUnlock(poi, evaluation);
+      if (!unlocked) {
+        return false;
+      }
+    }
+    if (activeHotspot && activeHotspot !== button) {
+      activeHotspot.classList.remove("is-active");
+    }
+    if (button) {
+      button.classList.add("is-active");
+      activeHotspot = button;
+    }
+    updatePanel(poi, evaluation);
+    return true;
+  };
+
+  const updateClusterPanel = (cluster, button) => {
+    if (!cluster?.entries?.length) return;
+    panel.querySelector(".terminal-map-panel__title").textContent =
+      `SECTOR :: ${cluster.label}`;
+    const meta = panel.querySelectorAll(".terminal-map-panel__meta div");
+    const unlockedCount = cluster.entries.filter(({ evaluation }) => evaluation.unlocked).length;
+    if (meta.length >= 8) {
+      meta[1].textContent = cluster.id;
+      meta[3].textContent = `${cluster.entries.length} POIS`;
+      meta[5].textContent = `${unlockedCount}/${cluster.entries.length} ONLINE`;
+      meta[7].textContent = "GRID";
+    }
+    const summaryNode = panel.querySelector("[data-panel='summary'] .terminal-map-panel__copy");
+    if (summaryNode) {
+      summaryNode.textContent =
+        "Sector denso. Selecciona un POI de la lista para abrir su ficha.";
+    }
+    const detailNode = panel.querySelector("[data-panel='details'] .terminal-map-panel__list");
+    if (detailNode) {
+      detailNode.innerHTML = "";
+      cluster.entries.forEach(({ poi, evaluation }) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "terminal-map-panel__poi-button";
+        item.textContent = `${poi.name || poi.id}${poi.district ? ` · ${poi.district}` : ""}`;
+        item.addEventListener("click", () => selectPoiFromNode(button, poi, evaluation));
+        detailNode.appendChild(item);
+      });
+    }
+    const contactNode = panel.querySelector("[data-panel='contacts'] .terminal-map-panel__list");
+    if (contactNode) {
+      contactNode.innerHTML = cluster.entries
+        .map(({ poi }) => `<div>${escapeHtml(poi.status || "SIN ESTADO")}</div>`)
+        .join("");
+    }
+    const notesNode = panel.querySelector("[data-panel='notes'] .terminal-map-panel__list");
+    if (notesNode) {
+      notesNode.innerHTML = `<div>${escapeHtml(
+        "El cluster agrupa POIs cercanos para evitar solapamiento visual."
+      )}</div>`;
+    }
+    resetPanelImage("SELECCIONA UN POI DEL SECTOR.");
+  };
+
   const addHotspot = (spot, poi, evaluation) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -831,20 +944,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
     button.setAttribute("aria-label", fullLabel);
     button.tabIndex = 0;
 
-    button.addEventListener("click", async () => {
-      if (!evaluation.unlocked) {
-        const unlocked = await attemptUnlock(poi, evaluation);
-        if (!unlocked) {
-          return;
-        }
-      }
-      if (activeHotspot && activeHotspot !== button) {
-        activeHotspot.classList.remove("is-active");
-      }
-      button.classList.add("is-active");
-      activeHotspot = button;
-      updatePanel(poi, evaluation);
-    });
+    button.addEventListener("click", () => selectPoiFromNode(button, poi, evaluation));
     button.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
@@ -856,16 +956,91 @@ async function showMapOverlay({ pois, hotspotsData }) {
     hotspotNodes.push(button);
   };
 
+  const addCluster = (cluster) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "terminal-map-hotspot is-cluster";
+    button.dataset.x = String(cluster.x);
+    button.dataset.y = String(cluster.y);
+    button.textContent = `${cluster.entries.length} POIS`;
+    button.title = `${cluster.label}: ${cluster.entries
+      .map(({ poi }) => poi.name || poi.id)
+      .join(", ")}`;
+    button.setAttribute("aria-label", button.title);
+    button.tabIndex = 0;
+    button.addEventListener("click", () => {
+      if (activeHotspot && activeHotspot !== button) {
+        activeHotspot.classList.remove("is-active");
+      }
+      button.classList.add("is-active");
+      activeHotspot = button;
+      updateClusterPanel(cluster, button);
+    });
+    button.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        button.click();
+      }
+    });
+    viewport.appendChild(button);
+    hotspotNodes.push(button);
+  };
+
+  const buildClusterGroups = (entries = []) => {
+    const cols = 6;
+    const rows = 8;
+    const groups = new Map();
+    entries.forEach((entry) => {
+      const col = Math.max(0, Math.min(cols - 1, Math.floor((Number(entry.spot.x) / 100) * cols)));
+      const row = Math.max(0, Math.min(rows - 1, Math.floor((Number(entry.spot.y) / 100) * rows)));
+      const key = `${col}:${row}`;
+      if (!groups.has(key)) groups.set(key, { col, row, entries: [] });
+      groups.get(key).entries.push(entry);
+    });
+    return Array.from(groups.values()).map((group) => {
+      const x =
+        group.entries.reduce((sum, entry) => sum + Number(entry.spot.x || 0), 0) /
+        group.entries.length;
+      const y =
+        group.entries.reduce((sum, entry) => sum + Number(entry.spot.y || 0), 0) /
+        group.entries.length;
+      return {
+        ...group,
+        id: `X${group.col + 1}-Y${group.row + 1}`,
+        label: `X${group.col + 1} / Y${group.row + 1}`,
+        x,
+        y,
+      };
+    });
+  };
+
   const spots = Array.isArray(hotspotsData?.hotspots) ? hotspotsData.hotspots : [];
-  if (spots.length > 12) {
+  const visibleEntries = spots
+    .map((spot) => {
+      const poi = pois.find((entry) => entry.id === spot.id);
+      if (!poi) return null;
+      const evaluation = evaluateAccess(poi, campaignState);
+      if (!evaluation.visible && !evaluation.listed) return null;
+      return { spot, poi, evaluation };
+    })
+    .filter(Boolean);
+  if (visibleEntries.length > 12) {
     overlay.classList.add("is-dense");
   }
-  spots.forEach((spot) => {
-    const poi = pois.find((entry) => entry.id === spot.id);
-    if (!poi) return;
-    const evaluation = evaluateAccess(poi, campaignState);
-    if (!evaluation.visible && !evaluation.listed) return;
-    addHotspot(spot, poi, evaluation);
+  const clusterGroups = overlay.classList.contains("is-dense")
+    ? buildClusterGroups(visibleEntries)
+    : [];
+  const shouldCluster = clusterGroups.some((group) => group.entries.length > 1);
+  if (shouldCluster) {
+    overlay.classList.add("is-clustered");
+  }
+  (shouldCluster ? clusterGroups : visibleEntries).forEach((entry) => {
+    if (entry.entries?.length > 1) {
+      addCluster(entry);
+      return;
+    }
+    const single = entry.entries ? entry.entries[0] : entry;
+    addHotspot(single.spot, single.poi, single.evaluation);
   });
 
   const layout = () => {
