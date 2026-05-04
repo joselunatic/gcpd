@@ -13,7 +13,7 @@ import {
 import pause from "/utils/pause.js";
 import alert from "/utils/alert.js";
 import say from "/utils/speak.js";
-import showMap from "/commands/map.js";
+import showMap from "/commands/map.js?v8";
 import villainsGallery from "/commands/villains.js";
 import casesCommand from "/commands/cases.js";
 import { renderStatusHeader } from "/utils/status.js";

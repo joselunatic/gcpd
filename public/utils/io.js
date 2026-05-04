@@ -18,6 +18,8 @@ const FAST_MODE_MULTIPLIER = 0.15;
 const MIN_TICK_MS = 4;
 let fastMode = false;
 let activeInput = null;
+const RUNTIME_MODULE_VERSION = "v8";
+const importRuntimeModule = (path) => import(`${path}?${RUNTIME_MODULE_VERSION}`);
 
 try {
   fastMode = localStorage.getItem(FAST_MODE_STORAGE_KEY) === "true";
@@ -668,7 +670,7 @@ async function parse(input) {
 
   let matches = String(input).match(/^(\w+)(?:\s([A-Za-z0-9\s\-()+#]+))?$/);
   if (!matches) {
-    const invalid = await import("/commands/__invalid.js");
+    const invalid = await importRuntimeModule("/commands/__invalid.js");
     if (invalid?.output) await type(invalid.output);
     return;
   }
@@ -685,7 +687,7 @@ async function parse(input) {
   let module;
   let isValidCommand = false;
   try {
-    module = await import(`/commands/${command}.js`);
+    module = await importRuntimeModule(`/commands/${command}.js`);
     isValidCommand = true;
   } catch (e) {
     console.error("Command import failed:", command, e);
@@ -717,7 +719,7 @@ async function parse(input) {
     if (countWords(matches[0]) >= 3) {
       console.log("Input has 3 or more words");
       try {
-        module = await import("/commands/__sentences.js");
+        module = await importRuntimeModule("/commands/__sentences.js");
       } catch (e) {
         console.error(e);
         return await type("Error while executing command");
@@ -733,7 +735,7 @@ async function parse(input) {
     }
 
     try {
-      module = await import("/commands/__invalid.js");
+      module = await importRuntimeModule("/commands/__invalid.js");
       if (module && module.output) {
         await type(module.output);
       }

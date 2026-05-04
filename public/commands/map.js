@@ -824,7 +824,6 @@ async function showMapOverlay({ pois, hotspotsData }) {
     button.dataset.y = String(spot.y || 0);
     button.dataset.poi = poi.id;
     const fullLabel = String(spot.label || poi.name || poi.id).toUpperCase();
-    button.textContent = fullLabel.slice(0, 2);
     button.title = fullLabel;
     button.setAttribute("aria-label", fullLabel);
     button.tabIndex = 0;

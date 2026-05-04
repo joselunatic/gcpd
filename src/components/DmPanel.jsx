@@ -2070,15 +2070,6 @@ const DmPanel = () => {
     };
   }, [poiForm.mapX, poiForm.mapY, poiForm.mapRadius]);
 
-  const mapMarkerLabel = useMemo(() => {
-    return (
-      poiForm.mapLabel?.trim() ||
-      poiForm.name?.trim() ||
-      poiForm.id?.trim() ||
-      ''
-    );
-  }, [poiForm.mapLabel, poiForm.name, poiForm.id]);
-
   const resolvePoiMapMeta = useCallback(
     (poiId = '') => {
       if (!poiId) return null;
@@ -2141,11 +2132,6 @@ const DmPanel = () => {
       height: '4%',
     };
   }, [tracerHotspotForm.x, tracerHotspotForm.y]);
-
-  const tracerMarkerLabel = useMemo(
-    () => tracerHotspotForm.label?.trim() || tracerHotspotForm.id?.trim() || '',
-    [tracerHotspotForm.label, tracerHotspotForm.id]
-  );
 
   const resetTracerHotspotForm = useCallback(() => {
     setTracerHotspotForm({ ...initialTracerHotspotForm });
@@ -4481,7 +4467,7 @@ const DmPanel = () => {
                     aspectRatio: MAP_ASPECT_RATIO,
                     imageUrl: MAP_IMAGE,
                     markerStyle: mapMarkerStyle,
-                    markerLabel: mapMarkerLabel,
+                    markerLabel: '',
                     onPick: handleMapPick,
                   }}
                   mapFineOpen={Boolean(advancedByView.poiFineTune)}
@@ -6044,7 +6030,7 @@ const DmPanel = () => {
                   aspectRatio={MAP_ASPECT_RATIO}
                   imageUrl={MAP_IMAGE}
                   markerStyle={tracerMarkerStyle}
-                  markerLabel={tracerMarkerLabel}
+                  markerLabel=""
                   values={{
                     x: tracerHotspotForm.x,
                     y: tracerHotspotForm.y,
@@ -6563,7 +6549,7 @@ const DmPanel = () => {
                       ? undefined
                       : 'none',
                 },
-                markerLabel: poiQuickCreateDraft.mapLabel || poiQuickCreateDraft.name || '',
+                markerLabel: '',
                 onPick: (rawX, rawY) => {
                   const x = Number(rawX);
                   const y = Number(rawY);
