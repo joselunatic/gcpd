@@ -1,4 +1,4 @@
-const VERSION = "v9";
+const VERSION = "v10";
 const STATIC_CACHE = `wopr-static-${VERSION}`;
 
 const PRECACHE_URLS = [
