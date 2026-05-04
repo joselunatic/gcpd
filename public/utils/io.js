@@ -18,7 +18,7 @@ const FAST_MODE_MULTIPLIER = 0.15;
 const MIN_TICK_MS = 4;
 let fastMode = false;
 let activeInput = null;
-const RUNTIME_MODULE_VERSION = "v8";
+const RUNTIME_MODULE_VERSION = "v9";
 const importRuntimeModule = (path) => import(`${path}?${RUNTIME_MODULE_VERSION}`);
 
 try {

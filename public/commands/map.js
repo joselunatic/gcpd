@@ -386,20 +386,22 @@ function ensureMapStyles() {
       justify-content: center;
       border-radius: 999px;
       border: 1px solid rgba(124, 255, 178, 0.9);
-      background: rgba(4, 8, 7, 0.7);
+      background: rgba(4, 8, 7, 0.82);
       color: #bfffdc;
-      font: 600 10px/1 "Courier New", monospace;
+      font: 600 9px/1 "Courier New", monospace;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       cursor: pointer;
       box-shadow: 0 0 8px rgba(124, 255, 178, 0.35);
-      padding: 0;
-      min-width: 12px;
-      min-height: 12px;
+      padding: 2px 6px;
       z-index: 2;
       transition: border-color 120ms ease-out, box-shadow 120ms ease-out,
         background-color 120ms ease-out;
       outline: none;
+      white-space: nowrap;
+      max-width: 230px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .terminal-map-hotspot::before {
       content: "";
@@ -423,24 +425,6 @@ function ensureMapStyles() {
     .terminal-map-hotspot:focus-visible {
       outline: 2px solid rgba(228, 255, 243, 0.98);
       outline-offset: 2px;
-    }
-    .terminal-map-hotspot__label {
-      position: absolute;
-      left: 12px;
-      top: -14px;
-      white-space: nowrap;
-      font-size: 9px;
-      color: rgba(191, 255, 220, 0.9);
-      text-shadow: 0 0 4px rgba(124, 255, 178, 0.4);
-      background: rgba(4, 8, 7, 0.8);
-      border: 1px solid rgba(124, 255, 178, 0.4);
-      padding: 2px 6px;
-      border-radius: 999px;
-      display: inline-block;
-      pointer-events: none;
-      max-width: 230px;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
     .terminal-map-ui {
       position: absolute;
@@ -818,20 +802,14 @@ async function showMapOverlay({ pois, hotspotsData }) {
     if (!evaluation.unlocked) {
       button.classList.add("is-locked");
     }
-    const radiusPercent = Number(spot.radius || 1.4);
-    button.dataset.radius = String(radiusPercent);
     button.dataset.x = String(spot.x || 0);
     button.dataset.y = String(spot.y || 0);
     button.dataset.poi = poi.id;
     const fullLabel = String(spot.label || poi.name || poi.id).toUpperCase();
+    button.textContent = fullLabel;
     button.title = fullLabel;
     button.setAttribute("aria-label", fullLabel);
     button.tabIndex = 0;
-
-    const label = document.createElement("span");
-    label.className = "terminal-map-hotspot__label";
-    label.textContent = fullLabel;
-    button.appendChild(label);
 
     button.addEventListener("click", async () => {
       if (!evaluation.unlocked) {
@@ -890,15 +868,9 @@ async function showMapOverlay({ pois, hotspotsData }) {
     hotspotNodes.forEach((node) => {
       const x = Number(node.dataset.x || 0);
       const y = Number(node.dataset.y || 0);
-      const radius = Number(node.dataset.radius || 1.4);
-      const sizePx = Math.max(
-        10,
-        Math.round((fitted.width * radius) / 100)
-      );
       node.style.left = `${x}%`;
       node.style.top = `${y}%`;
-      node.style.width = `${sizePx}px`;
-      node.style.height = `${sizePx}px`;
+      node.style.maxWidth = `${Math.max(96, Math.floor(fitted.width * 0.55))}px`;
     });
   };
 
