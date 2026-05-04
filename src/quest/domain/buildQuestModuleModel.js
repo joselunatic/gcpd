@@ -170,6 +170,25 @@ const getPoiGeo = (poi = {}) => {
   };
 };
 
+const getPoiImage = (poi = {}) =>
+  poi?.poiV2?.geo?.image ||
+  poi?.commands?.mapMeta?.image ||
+  poi?.image ||
+  poi?.thumbnail ||
+  '';
+
+const getPoiContentLines = (poi = {}) => {
+  const content = poi?.poiV2?.content || {};
+  return [
+    ...(Array.isArray(content.details) ? content.details : []),
+    ...(Array.isArray(poi.details) ? poi.details : []),
+    ...(Array.isArray(content.contacts) ? content.contacts : []),
+    ...(Array.isArray(poi.contacts) ? poi.contacts : []),
+    ...(Array.isArray(content.notes) ? content.notes : []),
+    ...(Array.isArray(poi.notes) ? poi.notes : []),
+  ].filter(Boolean);
+};
+
 const hasPoiGeo = (poi = {}) => {
   const geo = getPoiGeo(poi);
   return Number.isFinite(geo.mapX) && Number.isFinite(geo.mapY);
@@ -475,16 +494,24 @@ const buildMapaModel = ({ data, session }) => {
         )
       : 'Selecciona un punto de interés para leer su contexto.',
     itemLimit: 9,
-    items: orderedPois.map((entry) => ({
-      id: entry.id,
-      label: entry.name || entry.id,
-      description: `${listPoiResources(entry).length ? `${listPoiResources(entry).length} recursos · ` : ''}${entry.district || 'sin distrito'} · ${summarize(entry.summary, 'Sin resumen.')}`,
-      status: entry.status,
-      summary: entry.summary,
-      district: entry.district,
-      accent: entry.id === selectedPoi?.id,
-      ...getPoiGeo(entry),
-    })),
+    items: orderedPois.map((entry) => {
+      const geo = getPoiGeo(entry);
+      return {
+        id: entry.id,
+        label: entry.name || entry.id,
+        description: `${listPoiResources(entry).length ? `${listPoiResources(entry).length} recursos · ` : ''}${entry.district || 'sin distrito'} · ${summarize(entry.summary, 'Sin resumen.')}`,
+        status: entry.status,
+        summary: entry.summary,
+        details: getPoiContentLines(entry),
+        district: entry.district,
+        image: getPoiImage(entry),
+        resourceCount: listPoiResources(entry).length,
+        accent: entry.id === selectedPoi?.id,
+        ...geo,
+        x: geo.mapX,
+        y: geo.mapY,
+      };
+    }),
     actions: [
       ...resourceActions,
       {

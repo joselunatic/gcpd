@@ -18,7 +18,7 @@ const SECTION = {
   rightX: 1.18,
 };
 const MAP_TEXTURE_URL = '/mapa.png';
-const MAP_PREVIEW_WIDTH = 1.08;
+const MAP_PREVIEW_WIDTH = 1.36;
 const MAP_PREVIEW_HEIGHT = MAP_PREVIEW_WIDTH * 0.744;
 const truncate = (value, max = 92) => {
   const text = String(value || '').trim();
@@ -247,14 +247,14 @@ const drawModuleVisual = ({ context, width, height, mode, colors }) => {
   drawGrid({ context, width, height });
 
   if (mode === 'map') {
-    context.fillStyle = 'rgba(38,226,138,0.14)';
-    context.fillRect(78, 126, width - 156, height - 238);
-    context.strokeStyle = colors.green;
-    context.lineWidth = 4;
-    context.strokeRect(78, 126, width - 156, height - 238);
+    context.fillStyle = 'rgba(38,226,138,0.06)';
+    context.fillRect(54, 98, width - 108, height - 172);
+    context.strokeStyle = 'rgba(38,226,138,0.26)';
+    context.lineWidth = 3;
+    context.strokeRect(54, 98, width - 108, height - 172);
     context.fillStyle = colors.green;
     context.font = 'bold 28px monospace';
-    context.fillText('MAPA TACTICO /mapa.png', 104, 150);
+    context.fillText('MAPA TACTICO / POIS', 84, 122);
     return;
   }
 
@@ -477,6 +477,76 @@ const useWorkspaceTexture = (options) => {
   return texture;
 };
 
+const createMapOverlayTexture = ({ items = [], selectedId = '', width = 1400, height = 1040 }) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+
+  context.clearRect(0, 0, width, height);
+  context.textBaseline = 'middle';
+  context.font = 'bold 25px monospace';
+
+  items.forEach((item) => {
+    const x = (Number(item.x) / 100) * width;
+    const y = (Number(item.y) / 100) * height;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+    const active = item.id === selectedId || Boolean(item.accent);
+    const color = active ? '#d9f4ff' : '#26e28a';
+    const radius = active ? 20 : 15;
+    const label = String(item.label || 'POI').toUpperCase().slice(0, 18);
+    const labelWidth = Math.min(320, Math.max(108, context.measureText(label).width + 54));
+    const labelX = Math.min(width - labelWidth - 18, x + 24);
+    const labelY = Math.max(22, Math.min(height - 22, y - 10));
+
+    context.shadowColor = color;
+    context.shadowBlur = active ? 18 : 10;
+    context.strokeStyle = color;
+    context.lineWidth = active ? 6 : 4;
+    context.beginPath();
+    context.arc(x, y, radius, 0, Math.PI * 2);
+    context.stroke();
+    context.beginPath();
+    context.arc(x, y, Math.max(5, radius * 0.34), 0, Math.PI * 2);
+    context.fillStyle = active ? 'rgba(217,244,255,0.9)' : 'rgba(38,226,138,0.78)';
+    context.fill();
+
+    context.shadowBlur = active ? 16 : 6;
+    context.fillStyle = active ? 'rgba(8,23,35,0.92)' : 'rgba(5,15,22,0.76)';
+    context.strokeStyle = active ? '#d9f4ff' : '#26e28a';
+    context.lineWidth = active ? 4 : 2;
+    context.fillRect(labelX, labelY - 18, labelWidth, 36);
+    context.strokeRect(labelX, labelY - 18, labelWidth, 36);
+    context.fillStyle = color;
+    context.shadowBlur = 0;
+    context.fillText(label, labelX + 16, labelY + 1);
+
+    if (item.resourceCount) {
+      context.fillStyle = '#ffbc42';
+      context.font = 'bold 20px monospace';
+      context.fillText(`${item.resourceCount}R`, labelX + labelWidth - 42, labelY + 1);
+      context.font = 'bold 25px monospace';
+    }
+  });
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+};
+
+const useMapOverlayTexture = ({ items, selectedId }) => {
+  const texture = useMemo(
+    () => createMapOverlayTexture({ items, selectedId }),
+    [items, selectedId]
+  );
+
+  useEffect(() => () => texture?.dispose?.(), [texture]);
+
+  return texture;
+};
+
 const HoloPlate = ({ name, position, size, opacity = 0.04, renderOrder = 1 }) => (
   <mesh name={name} position={position} renderOrder={renderOrder}>
     <planeGeometry args={size} />
@@ -543,10 +613,10 @@ const Card = ({ name, position, size, textureOptions, onClick, renderOrder = 12 
   );
 };
 
-const MapPoiMarker = ({ item, active, onSelect }) => {
+const MapPoiMarker = ({ item, active, onSelect, mapWidth = MAP_PREVIEW_WIDTH, mapHeight = MAP_PREVIEW_HEIGHT }) => {
   const [hovered, setHovered] = useState(false);
-  const [x, y] = mapPercentToLocal(item.x ?? 50, item.y ?? 50);
-  const radius = Math.max(0.014, (Number(item.radius || 1.8) / 100) * MAP_PREVIEW_WIDTH);
+  const [x, y] = mapPercentToLocal(item.x ?? 50, item.y ?? 50, mapWidth, mapHeight);
+  const radius = Math.max(0.017, (Number(item.radius || 1.8) / 100) * mapWidth);
   const color = active || hovered ? QUEST_UI_COLORS.text : item.status ? QUEST_UI_COLORS.green : QUEST_UI_COLORS.cyan;
   const select = (event) => {
     event.stopPropagation();
@@ -569,20 +639,20 @@ const MapPoiMarker = ({ item, active, onSelect }) => {
         <circleGeometry args={[Math.max(0.045, radius * 2.65), 32]} />
         <meshBasicMaterial color={color} opacity={active || hovered ? 0.18 : 0.001} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
-      <mesh position={[0, 0, 0.01]} renderOrder={41}>
-        <circleGeometry args={[radius * (active || hovered ? 1.6 : 1.2), 32]} />
-        <meshBasicMaterial color={color} opacity={active || hovered ? 0.5 : 0.28} {...QUEST_UI_MATERIAL_PROPS} />
+      <mesh position={[0, 0, 0.058]} renderOrder={72}>
+        <circleGeometry args={[radius * (active || hovered ? 1.95 : 1.42), 32]} />
+        <meshBasicMaterial color={color} opacity={active || hovered ? 0.64 : 0.42} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
-      <mesh position={[0, 0, 0.018]} renderOrder={42}>
-        <ringGeometry args={[radius * 1.7, radius * 2.06, 32]} />
-        <meshBasicMaterial color={color} opacity={active || hovered ? 0.96 : 0.6} {...QUEST_UI_MATERIAL_PROPS} />
+      <mesh position={[0, 0, 0.068]} renderOrder={74}>
+        <ringGeometry args={[radius * 1.9, radius * 2.36, 32]} />
+        <meshBasicMaterial color={color} opacity={active || hovered ? 1 : 0.82} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
       {(active || hovered) && (
         <Card
           name={`GCPD_Quest_CentralMapPoi_Tooltip_${item.id}`}
           position={[0.21, 0.07, 0.06]}
           size={[0.36, 0.13]}
-          renderOrder={60}
+          renderOrder={84}
           textureOptions={{
             eyebrow: active ? 'POI ACTIVO' : 'POI',
             title: item.label || item.id,
@@ -598,7 +668,14 @@ const MapPoiMarker = ({ item, active, onSelect }) => {
   );
 };
 
-const CentralMapPreview = ({ items = [], selectedId, onSelect }) => {
+const CentralMapPreview = ({
+  items = [],
+  selectedId,
+  onSelect,
+  width = MAP_PREVIEW_WIDTH,
+  height = MAP_PREVIEW_HEIGHT,
+  position = [-0.08, -0.02, 0.08],
+}) => {
   const mapTexture = useLoader(THREE.TextureLoader, MAP_TEXTURE_URL);
 
   useEffect(() => {
@@ -606,24 +683,29 @@ const CentralMapPreview = ({ items = [], selectedId, onSelect }) => {
   }, [mapTexture]);
 
   const mappableItems = items.filter((item) => Number.isFinite(Number(item.x)) && Number.isFinite(Number(item.y)));
+  const overlayTexture = useMapOverlayTexture({ items: mappableItems, selectedId });
 
   return (
-    <group name="GCPD_Quest_CentralMapPreview" position={[-0.08, -0.02, 0.08]}>
+    <group name="GCPD_Quest_CentralMapPreview" position={position}>
       <mesh position={[0, 0, -0.014]} renderOrder={24}>
-        <planeGeometry args={[MAP_PREVIEW_WIDTH + 0.06, MAP_PREVIEW_HEIGHT + 0.06]} />
+        <planeGeometry args={[width + 0.06, height + 0.06]} />
         <meshBasicMaterial color="#02070d" opacity={0.94} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
       <mesh renderOrder={25}>
-        <planeGeometry args={[MAP_PREVIEW_WIDTH, MAP_PREVIEW_HEIGHT]} />
+        <planeGeometry args={[width, height]} />
         <meshBasicMaterial map={mapTexture} color="#7fb6ff" opacity={0.88} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
       <mesh position={[0, 0, 0.022]} renderOrder={26}>
-        <planeGeometry args={[MAP_PREVIEW_WIDTH, MAP_PREVIEW_HEIGHT]} />
+        <planeGeometry args={[width, height]} />
         <meshBasicMaterial color="#02101a" opacity={0.34} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
       <mesh position={[0, 0, 0.034]} renderOrder={27}>
-        <planeGeometry args={[MAP_PREVIEW_WIDTH, MAP_PREVIEW_HEIGHT]} />
+        <planeGeometry args={[width, height]} />
         <meshBasicMaterial color={QUEST_UI_COLORS.cyan} opacity={0.08} wireframe {...QUEST_UI_MATERIAL_PROPS} />
+      </mesh>
+      <mesh name="GCPD_Quest_CentralMapPoi_Overlay" position={[0, 0, 0.066]} renderOrder={68}>
+        <planeGeometry args={[width, height]} />
+        <meshBasicMaterial map={overlayTexture || null} opacity={0.96} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
       {mappableItems.map((item) => (
         <MapPoiMarker
@@ -631,18 +713,20 @@ const CentralMapPreview = ({ items = [], selectedId, onSelect }) => {
           item={item}
           active={item.id === selectedId || Boolean(item.accent)}
           onSelect={onSelect}
+          mapWidth={width}
+          mapHeight={height}
         />
       ))}
       <HoloLine
         name="GCPD_Quest_CentralMapPreview_Scanline"
-        position={[0, 0.25, 0.075]}
-        size={[MAP_PREVIEW_WIDTH, 0.006]}
+        position={[0, height * 0.28, 0.075]}
+        size={[width, 0.006]}
         opacity={0.7}
         renderOrder={44}
       />
       <Card
         name="GCPD_Quest_CentralMapPreview_Zoom"
-        position={[-MAP_PREVIEW_WIDTH / 2 + 0.09, -MAP_PREVIEW_HEIGHT / 2 + 0.12, 0.09]}
+        position={[-width / 2 + 0.09, -height / 2 + 0.12, 0.09]}
         size={[0.12, 0.23]}
         renderOrder={52}
         textureOptions={{
@@ -788,6 +872,72 @@ const MapResourcePreview = ({ resource, size }) => {
   return <ResourceFallbackPreview resource={resource} size={size} />;
 };
 
+const PoiImagePreview = ({ image, size }) => {
+  const texture = useLoader(THREE.TextureLoader, image);
+
+  useEffect(() => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+  }, [texture]);
+
+  return (
+    <mesh name="GCPD_Quest_MapPoi_Image" position={[0.43, 0.3, 0.18]} renderOrder={66}>
+      <planeGeometry args={size} />
+      <meshBasicMaterial map={texture} color="#d8ffe8" opacity={0.9} {...QUEST_UI_MATERIAL_PROPS} />
+    </mesh>
+  );
+};
+
+const SelectedPoiIntel = ({ item, body, lines = [] }) => {
+  const details = item?.details?.length ? item.details : lines;
+  const intelBody = [
+    body,
+    details?.[0],
+    details?.[1],
+  ].filter(Boolean).join(' ');
+
+  return (
+    <group name="GCPD_Quest_MapPoi_Intel">
+      {item?.image ? (
+        <PoiImagePreview image={item.image} size={[0.52, 0.26]} />
+      ) : (
+        <Card
+          name="GCPD_Quest_MapPoi_NoImage"
+          position={[0.43, 0.3, 0.18]}
+          size={[0.52, 0.26]}
+          renderOrder={66}
+          textureOptions={{
+            eyebrow: 'EVIDENCIA',
+            title: 'SIN IMAGEN',
+            body: 'El DM puede asociar imagen de POI desde el panel de control.',
+            width: 640,
+            height: 320,
+            compact: true,
+          }}
+        />
+      )}
+      <Card
+        name="GCPD_Quest_MapPoi_PrimaryIntel"
+        position={[0.43, -0.08, 0.19]}
+        size={[0.54, 0.42]}
+        renderOrder={68}
+        textureOptions={{
+          eyebrow: 'FICHA POI',
+          title: item?.label || 'SIN UBICACION',
+          body: intelBody || 'Sin resumen operativo disponible.',
+          meta: [
+            item?.status ? String(item.status).toUpperCase() : 'SIN ESTADO',
+            item?.district || 'SIN DISTRITO',
+          ].join(' · '),
+          width: 700,
+          height: 500,
+          compact: true,
+          active: true,
+        }}
+      />
+    </group>
+  );
+};
+
 const MapWorkspaceCard = ({
   title,
   body,
@@ -806,7 +956,7 @@ const MapWorkspaceCard = ({
     meta: hasResource ? 'RECURSO DEL POI' : 'MAPA GOTHAM / POIS',
     lines: hasResource ? [] : lines,
   });
-  const previewSize = hasResource ? [1.22, 0.58] : [1.16, 0.46];
+  const previewSize = [0.82, 0.46];
   const selectedMapItem = mapItems.find((item) => item.accent) || null;
 
   return (
@@ -822,14 +972,20 @@ const MapWorkspaceCard = ({
         <planeGeometry args={size} />
         <meshBasicMaterial map={headerTexture || null} {...QUEST_UI_MATERIAL_PROPS} />
       </mesh>
-      {hasResource ? (
-        <HoloLine
-          name="GCPD_Quest_MapWorkspace_Divider"
-          position={[-0.58, 0.02, 0.05]}
-          size={[0.012, size[1] - 0.2]}
-          opacity={0.42}
-        />
-      ) : null}
+      <CentralMapPreview
+        items={mapItems}
+        selectedId={selectedMapItem?.id}
+        onSelect={onSelect}
+        width={1.42}
+        height={1.06}
+        position={[-0.05, 0.03, 0.08]}
+      />
+      <HoloLine
+        name="GCPD_Quest_MapWorkspace_Divider"
+        position={[0.04, 0.02, 0.16]}
+        size={[0.012, size[1] - 0.2]}
+        opacity={0.32}
+      />
       {hasResource ? (
         <>
           <MapResourcePreview resource={selectedResource} size={previewSize} />
@@ -851,19 +1007,23 @@ const MapWorkspaceCard = ({
         </>
       ) : (
         <>
-          <CentralMapPreview items={mapItems} selectedId={selectedMapItem?.id} onSelect={onSelect} />
+          <SelectedPoiIntel item={selectedMapItem} body={body} lines={lines} />
           <Card
             name="GCPD_Quest_MapPoi_Summary"
-            position={[0.04, -0.34, 0.17]}
-            size={[0.94, 0.14]}
-            renderOrder={58}
+            position={[-0.24, -0.51, 0.2]}
+            size={[0.78, 0.12]}
+            renderOrder={70}
             textureOptions={{
-              eyebrow: selectedMapItem ? 'RESUMEN DEL POI' : 'MAPA TACTICO',
-              title: title || 'SIN UBICACION',
-              body: body || lines[0] || 'Selecciona un punto de interes para consultar contexto.',
+              eyebrow: 'COORDENADAS',
+              title: selectedMapItem
+                ? `X ${Math.round(Number(selectedMapItem.x || 0))} / Y ${Math.round(Number(selectedMapItem.y || 0))}`
+                : 'SIN FOCO',
+              body: selectedMapItem
+                ? `${selectedMapItem.resourceCount || 0} recursos DM vinculados`
+                : 'Selecciona un punto de interes para consultar contexto.',
               meta: mapItems.length ? `${mapItems.length} POIS` : 'sin coordenadas',
-              width: 1060,
-              height: 160,
+              width: 880,
+              height: 150,
               compact: true,
               active: true,
             }}
@@ -1091,7 +1251,7 @@ const MainWorkspace = ({
       <HoloPlate
         name="GCPD_Quest_MainWorkspace_Aura"
         position={[SECTION.centerX, 0.08, 0.02]}
-        size={[1.56, 1.28]}
+        size={mode === 'map' ? [1.78, 1.52] : [1.56, 1.28]}
         opacity={0.04}
       />
       <HoloLine
@@ -1100,20 +1260,22 @@ const MainWorkspace = ({
         size={[1.58, 0.014]}
         opacity={0.82}
       />
-      <Card
-        name="GCPD_Quest_InfoCard_section_header"
-        position={[SECTION.centerX, mode === 'map' ? 0.55 : 0.5, 0.18]}
-        size={mode === 'map' ? [1.42, 0.18] : [1.42, 0.24]}
-        textureOptions={{
-          eyebrow: instrument ? 'HERRAMIENTAS' : title,
-          title,
-          body: subtitle,
-          width: 1460,
-          height: mode === 'map' ? 190 : 250,
-          active: true,
-          compact: true,
-        }}
-      />
+      {mode === 'map' ? null : (
+        <Card
+          name="GCPD_Quest_InfoCard_section_header"
+          position={[SECTION.centerX, 0.5, 0.18]}
+          size={[1.42, 0.24]}
+          textureOptions={{
+            eyebrow: instrument ? 'HERRAMIENTAS' : title,
+            title,
+            body: subtitle,
+            width: 1460,
+            height: 250,
+            active: true,
+            compact: true,
+          }}
+        />
+      )}
       {mode === 'map' ? (
         <MapWorkspaceCard
           title={focusTitle || title}
@@ -1122,8 +1284,8 @@ const MainWorkspace = ({
           selectedResource={selectedMapResource}
           mapItems={mapItems}
           onSelect={onSelect}
-          position={[SECTION.centerX, 0.05, 0.22]}
-          size={[1.42, 0.82]}
+          position={[SECTION.centerX, 0.07, 0.22]}
+          size={[1.58, 1.34]}
         />
       ) : (
         <WorkspaceCard

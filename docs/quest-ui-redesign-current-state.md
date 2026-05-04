@@ -25,6 +25,15 @@ Acercar la UI XR de `/quest` a los mockups de `docs/mockups` sin reescribir la a
 - `buildQuestModuleModel`:
   - Labels de recursos de POI usan texto legible en lugar de `src/filename`.
   - El mapa evita mostrar `INTEL 1`, `INTEL 2`, etc. cuando no hay recurso seleccionado.
+  - Los POIs de Quest exponen `x/y` derivados de `poiV2.geo` para que los hotspots XR se pinten sobre `public/mapa.png`.
+  - La ficha de POI de Quest consume `poiV2.geo.image` y `poiV2.content.details/contacts/notes` cuando existen.
+
+- `QuestSectionDashboard` mapa:
+  - Mapa central ampliado para que `mapa.png` sea el foco principal.
+  - Añadida capa canvas de POIs con rings y labels visibles directamente sobre el mapa.
+  - Los hit areas 3D de POI siguen activos para selección por ray.
+  - Al seleccionar POI se muestra ficha con imagen, resumen, estado, distrito y datos operativos.
+  - Al seleccionar recurso asociado, el recurso pasa a primer plano manteniendo el mapa como contexto.
 
 - `useQuestSession`:
   - Alias internos añadidos:
@@ -60,6 +69,7 @@ Acercar la UI XR de `/quest` a los mockups de `docs/mockups` sin reescribir la a
 - Playwright/IWSDK en `http://localhost:5174/quest`
 - Playwright console: 0 errores en la página actual.
 - IWSDK `scene_get_hierarchy`: runtime responde y permite inspección de escena.
+- Playwright: mapa validado con `narrows` y `bancojones`; POIs visibles y recurso imagen de Banco Jones en primer plano.
 - Capturas generadas:
   - `quest-ui-workbench-priority-dial-clean.png`
   - `quest-ui-workbench-priority-stl-clean.png`
@@ -73,6 +83,7 @@ Acercar la UI XR de `/quest` a los mockups de `docs/mockups` sin reescribir la a
 
 - Operación, casos y mapa tienen más contraste y lectura de visor.
 - Mapa ya presenta POIs sobre mapa central y recursos en primer plano.
+- Mapa usa coordenadas `poiV2.geo` reales de DM/API; si un POI no tiene geo, queda en la lista pero no se pinta como hotspot.
 - Herramientas ya no carga STL directamente al entrar; muestra hub y submenú.
 - Al seleccionar STL/DIAL/audio/balística/traza, el workbench activo domina el centro.
 - DIAL se abre correctamente también si se invoca como `openTool('dial')`.
