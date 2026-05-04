@@ -38,14 +38,33 @@ Acercar la UI XR de `/quest` a los mockups de `docs/mockups` sin reescribir la a
 - `DmPanel.styles.css`:
   - Fix previo de layout en `DM > Tracer`, donde las líneas se rompían en texto vertical.
 
+- `QuestWorkbenchRayBlocker`:
+  - Añadida capa XR transparente alrededor del workbench activo en `herramientas`.
+  - Bloquea rayos fuera del área central del workbench para evitar activar botones del dashboard inferior.
+  - Mantiene prioridad menor que los controles del workbench, para no romper selección interna.
+
+- Workbenches especializados:
+  - DIAL/TRAZA, AUDIO, BALÍSTICA y STL se han reposicionado más lejos de cámara.
+  - El objetivo es reducir la sensación de estar demasiado encima al abrir una herramienta.
+
+- Saneado de labels visibles:
+  - La UI de agentes no debe mostrar rutas internas, endpoints, nombres de archivo ni ids técnicos.
+  - Si no hay label de producto válido se muestra `SIN LABEL`.
+  - Las rutas siguen existiendo solo como datos internos para cargar recursos.
+
 ## Validación realizada
 
 - `npx eslint src/quest/ui/QuestSectionDashboard.jsx src/quest/hooks/useQuestSession.js --ext js,jsx --report-unused-disable-directives --max-warnings 0`
 - `npm run smoke:quest-tools`
+- `npm run build`
 - Playwright/IWSDK en `http://localhost:5174/quest`
+- Playwright console: 0 errores en la página actual.
+- IWSDK `scene_get_hierarchy`: runtime responde y permite inspección de escena.
 - Capturas generadas:
   - `quest-ui-workbench-priority-dial-clean.png`
   - `quest-ui-workbench-priority-stl-clean.png`
+  - `quest-ux-fixes-dial-balanced.png`
+  - `quest-ux-fixes-stl-balanced.png`
   - `quest-ui-pass-operation-2.png`
   - `quest-ui-pass-casos.png`
   - `quest-ui-pass-mapa-2.png`
@@ -57,6 +76,8 @@ Acercar la UI XR de `/quest` a los mockups de `docs/mockups` sin reescribir la a
 - Herramientas ya no carga STL directamente al entrar; muestra hub y submenú.
 - Al seleccionar STL/DIAL/audio/balística/traza, el workbench activo domina el centro.
 - DIAL se abre correctamente también si se invoca como `openTool('dial')`.
+- Al abrir un workbench hay bloqueo transparente de rayos alrededor del área central.
+- Los labels visibles ya no deben caer a `src`, `stlPath`, `pngPath`, `/api`, `/uploads` ni nombres de fichero.
 
 ## Riesgos / deuda UX pendiente
 
@@ -64,6 +85,8 @@ Acercar la UI XR de `/quest` a los mockups de `docs/mockups` sin reescribir la a
 - DIAL/TRAZA siguen siendo los más densos por coexistencia de dial, mapa, ruta y estado.
 - El viewer STL funciona, pero aún puede acercarse más al mockup si se amplía el escenario central y se reducen mini-controles.
 - Faltan ajustes finos de navegación con stick derecho por grupo si el ray apunta a rail/centro/derecha.
+- La capa de bloqueo usa cuatro planos transparentes dejando una apertura central; si aún hay fugas de rayos por huecos del workbench, ampliar esa máscara o añadir shields específicos por herramienta.
+- IWSDK conserva logs antiguos de sockets suspendidos (`ERR_NETWORK_IO_SUSPENDED`) de sesiones previas, pero Playwright no ve errores actuales tras la navegación.
 - Las capturas de validación están sin trackear; decidir si se conservan como evidencia o se limpian antes de commit.
 
 ## Siguiente bloque recomendado
