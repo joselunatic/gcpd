@@ -142,6 +142,14 @@ const getResourceDisplayLabel = (resource = {}) => {
 
 const getEvidenceDisplayLabel = (entry = {}) => entry.label || entry.title || entry.name || 'SIN LABEL';
 
+const getModuleDisplayLabel = (moduleId) => ({
+  [QUEST_MODULE_OPERACION]: 'OPERACION',
+  [QUEST_MODULE_CASOS]: 'CASOS',
+  [QUEST_MODULE_MAPA]: 'MAPA',
+  [QUEST_MODULE_PERFILES]: 'PERFILES',
+  [QUEST_MODULE_HERRAMIENTAS]: 'HERRAMIENTAS',
+}[moduleId] || 'OPERACION');
+
 const FALLBACK_POI_GEO = {
   narrows: { x: 52, y: 46, radius: 1.8 },
   oldtown: { x: 55, y: 30, radius: 1.6 },
@@ -827,6 +835,7 @@ const buildHerramientasModel = ({ session }) => {
   const activeToolData = TOOLS.find((entry) => entry.id === activeTool) || TOOLS[0];
   const originModule =
     session.toolContext?.originModule || session.lastPrimaryModule || QUEST_MODULE_OPERACION;
+  const originLabel = getModuleDisplayLabel(originModule);
   const inventory = activeTool
     ? buildToolInventory({ session, activeTool })
     : {
@@ -845,7 +854,7 @@ const buildHerramientasModel = ({ session }) => {
     {
       id: 'tool:return',
       label: 'VOLVER',
-      description: `Retornar a ${originModule}`,
+      description: `Retornar a ${originLabel}`,
     },
     activeTool === 'evidencias'
       ? {
@@ -876,7 +885,7 @@ const buildHerramientasModel = ({ session }) => {
   return {
     layout: 'instrument',
     title: 'HERRAMIENTAS',
-    subtitle: activeTool ? `${activeToolData.label} · ${originModule}` : `SELECCION DE UTILIDAD · ${originModule}`,
+    subtitle: activeTool ? `${activeToolData.label} · ${originLabel}` : `SELECCION DE UTILIDAD · ${originLabel}`,
     focusTitle: activeTool ? activeToolData.label : 'SELECCIONAR HERRAMIENTA',
     focusBody: inventory.focus,
     detailTitle: 'CONSOLA ACTIVA',
