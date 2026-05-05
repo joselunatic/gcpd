@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import './styles/quest.css';
 
@@ -17,6 +17,7 @@ const QuestRoute = () => {
   const toolData = useQuestToolData();
   const session = useQuestSession(data, toolData);
   const [recenterKey, setRecenterKey] = useState(0);
+  const [preflightDismissed, setPreflightDismissed] = useState(false);
   useQuestDebugBridge({ data, session });
 
   const handleRecenter = () => {
@@ -32,11 +33,13 @@ const QuestRoute = () => {
       />
       <QuestSessionControls onRecenter={handleRecenter}>
         {({ supportState, message, handleEnterVr }) => (
-          <QuestPreflightOverlay
+          <QuestPreflightGate
             data={data}
             session={session}
             supportState={supportState}
             message={message}
+            preflightDismissed={preflightDismissed}
+            onDismiss={() => setPreflightDismissed(true)}
             onEnterVr={handleEnterVr}
             onRecenter={handleRecenter}
           />
@@ -45,6 +48,37 @@ const QuestRoute = () => {
       <QuestPhoneOverlay session={session} />
       <QuestHud data={data} session={session} />
     </div>
+  );
+};
+
+const QuestPreflightGate = ({
+  data,
+  session,
+  supportState,
+  message,
+  preflightDismissed,
+  onDismiss,
+  onEnterVr,
+  onRecenter,
+}) => {
+  useEffect(() => {
+    if (supportState === 'unsupported') {
+      onDismiss();
+    }
+  }, [onDismiss, supportState]);
+
+  if (preflightDismissed || supportState === 'unsupported') return null;
+
+  return (
+    <QuestPreflightOverlay
+      data={data}
+      session={session}
+      supportState={supportState}
+      message={message}
+      onEnterVr={onEnterVr}
+      onPreviewDesktop={onDismiss}
+      onRecenter={onRecenter}
+    />
   );
 };
 

@@ -16,6 +16,7 @@ const QuestPreflightOverlay = ({
   supportState = 'checking',
   message = '',
   onEnterVr,
+  onPreviewDesktop,
   onRecenter,
 }) => {
   const primaryLead = session.openLeads?.[0] || null;
@@ -49,10 +50,23 @@ const QuestPreflightOverlay = ({
               Entrar en VR
             </button>
           ) : (
-            <div className="quest-preflight__badge">
+            <button
+              type="button"
+              className="quest-preflight__enter"
+              onClick={onPreviewDesktop}
+            >
               {supportState === 'checking' ? 'Comprobando XR' : 'Vista previa escritorio'}
-            </div>
+            </button>
           )}
+          {supportState === 'supported' ? (
+            <button
+              type="button"
+              className="quest-preflight__recenter"
+              onClick={onPreviewDesktop}
+            >
+              Vista escritorio
+            </button>
+          ) : null}
           <button
             type="button"
             className="quest-preflight__recenter"

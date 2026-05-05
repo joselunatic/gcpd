@@ -134,7 +134,8 @@
   min-width: min(21rem, 100%);
 }
 
-.quest-preflight__enter {
+.quest-preflight__enter,
+.quest-preflight__badge {
   cursor: pointer;
 }
 
