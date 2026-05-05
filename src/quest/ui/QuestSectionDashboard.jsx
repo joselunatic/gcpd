@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unknown-property */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -24,6 +24,46 @@ const truncate = (value, max = 92) => {
   const text = String(value || '').trim();
   if (!text) return '';
   return text.length > max ? `${text.slice(0, max - 3)}...` : text;
+};
+
+const useStableTexture = (src) => {
+  const [texture, setTexture] = useState(null);
+  const currentTextureRef = useRef(null);
+
+  useEffect(() => {
+    if (!src) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const loader = new THREE.TextureLoader();
+    loader.load(src, (nextTexture) => {
+      if (cancelled) {
+        nextTexture.dispose?.();
+        return;
+      }
+      nextTexture.colorSpace = THREE.SRGBColorSpace;
+      const previous = currentTextureRef.current;
+      currentTextureRef.current = nextTexture;
+      setTexture(nextTexture);
+      if (previous && previous !== nextTexture) {
+        previous.dispose?.();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  useEffect(
+    () => () => {
+      currentTextureRef.current?.dispose?.();
+    },
+    []
+  );
+
+  return texture;
 };
 
 const humanizeResourceName = (value = '') => {
@@ -766,11 +806,7 @@ const CentralMapPreview = ({
 };
 
 const ImageResourcePreview = ({ resource, size, position = [0.18, -0.02, 0.08] }) => {
-  const texture = useLoader(THREE.TextureLoader, resource.src || resource.thumbnail);
-
-  useEffect(() => {
-    texture.colorSpace = THREE.SRGBColorSpace;
-  }, [texture]);
+  const texture = useStableTexture(resource.src || resource.thumbnail);
 
   return (
     <mesh name="GCPD_Quest_MapResource_Image" position={position} renderOrder={32}>
@@ -897,11 +933,7 @@ const MapResourcePreview = ({ resource, size, position }) => {
 };
 
 const PoiImagePreview = ({ image, size, position = [0.43, 0.3, 0.18], renderOrder = 66 }) => {
-  const texture = useLoader(THREE.TextureLoader, image);
-
-  useEffect(() => {
-    texture.colorSpace = THREE.SRGBColorSpace;
-  }, [texture]);
+  const texture = useStableTexture(image);
 
   return (
     <mesh name="GCPD_Quest_MapPoi_Image" position={position} renderOrder={renderOrder}>
