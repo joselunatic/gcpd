@@ -759,7 +759,7 @@ const CentralMapPreview = ({
   );
 };
 
-const ImageResourcePreview = ({ resource, size }) => {
+const ImageResourcePreview = ({ resource, size, position = [0.18, -0.02, 0.08] }) => {
   const texture = useLoader(THREE.TextureLoader, resource.src || resource.thumbnail);
 
   useEffect(() => {
@@ -767,14 +767,14 @@ const ImageResourcePreview = ({ resource, size }) => {
   }, [texture]);
 
   return (
-    <mesh name="GCPD_Quest_MapResource_Image" position={[0.18, -0.02, 0.08]} renderOrder={32}>
+    <mesh name="GCPD_Quest_MapResource_Image" position={position} renderOrder={32}>
       <planeGeometry args={size} />
       <meshBasicMaterial map={texture} color="#e6fbff" opacity={0.92} {...QUEST_UI_MATERIAL_PROPS} />
     </mesh>
   );
 };
 
-const VideoResourcePreview = ({ resource, size }) => {
+const VideoResourcePreview = ({ resource, size, position = [0.18, -0.02, 0.08] }) => {
   const texture = useMemo(() => {
     if (!resource?.src || typeof document === 'undefined') return null;
     const video = document.createElement('video');
@@ -792,14 +792,14 @@ const VideoResourcePreview = ({ resource, size }) => {
   useEffect(() => () => texture?.dispose?.(), [texture]);
 
   return (
-    <mesh name="GCPD_Quest_MapResource_Video" position={[0.18, -0.02, 0.08]} renderOrder={32}>
+    <mesh name="GCPD_Quest_MapResource_Video" position={position} renderOrder={32}>
       <planeGeometry args={size} />
       <meshBasicMaterial map={texture || null} color="#e6fbff" opacity={0.92} {...QUEST_UI_MATERIAL_PROPS} />
     </mesh>
   );
 };
 
-const AudioResourcePreview = ({ resource, size }) => {
+const AudioResourcePreview = ({ resource, size, position = [0.18, -0.02, 0.08] }) => {
   const [playing, setPlaying] = useState(false);
   const audioRef = useMemo(() => {
     if (!resource?.src || typeof Audio === 'undefined') return null;
@@ -821,7 +821,7 @@ const AudioResourcePreview = ({ resource, size }) => {
   };
 
   return (
-    <group name="GCPD_Quest_MapResource_Audio" position={[0.18, -0.02, 0.08]}>
+    <group name="GCPD_Quest_MapResource_Audio" position={position}>
       <mesh renderOrder={30}>
         <planeGeometry args={size} />
         <meshBasicMaterial color="#04131d" opacity={0.82} {...QUEST_UI_MATERIAL_PROPS} />
@@ -858,10 +858,10 @@ const AudioResourcePreview = ({ resource, size }) => {
   );
 };
 
-const ResourceFallbackPreview = ({ resource, size }) => (
+const ResourceFallbackPreview = ({ resource, size, position = [0.18, -0.02, 0.08] }) => (
   <Card
     name="GCPD_Quest_MapResource_Fallback"
-    position={[0.18, -0.02, 0.08]}
+    position={position}
     size={size}
     renderOrder={32}
     textureOptions={{
@@ -876,21 +876,21 @@ const ResourceFallbackPreview = ({ resource, size }) => (
   />
 );
 
-const MapResourcePreview = ({ resource, size }) => {
-  if (!resource) return <ResourceFallbackPreview resource={resource} size={size} />;
+const MapResourcePreview = ({ resource, size, position }) => {
+  if (!resource) return <ResourceFallbackPreview resource={resource} size={size} position={position} />;
   if (resource.type === 'image' && (resource.src || resource.thumbnail)) {
-    return <ImageResourcePreview resource={resource} size={size} />;
+    return <ImageResourcePreview resource={resource} size={size} position={position} />;
   }
   if (resource.type === 'video' && resource.src) {
-    return <VideoResourcePreview resource={resource} size={size} />;
+    return <VideoResourcePreview resource={resource} size={size} position={position} />;
   }
   if (resource.type === 'audio' && resource.src) {
-    return <AudioResourcePreview resource={resource} size={size} />;
+    return <AudioResourcePreview resource={resource} size={size} position={position} />;
   }
-  return <ResourceFallbackPreview resource={resource} size={size} />;
+  return <ResourceFallbackPreview resource={resource} size={size} position={position} />;
 };
 
-const PoiImagePreview = ({ image, size }) => {
+const PoiImagePreview = ({ image, size, position = [0.43, 0.3, 0.18], renderOrder = 66 }) => {
   const texture = useLoader(THREE.TextureLoader, image);
 
   useEffect(() => {
@@ -898,31 +898,44 @@ const PoiImagePreview = ({ image, size }) => {
   }, [texture]);
 
   return (
-    <mesh name="GCPD_Quest_MapPoi_Image" position={[0.43, 0.3, 0.18]} renderOrder={66}>
+    <mesh name="GCPD_Quest_MapPoi_Image" position={position} renderOrder={renderOrder}>
       <planeGeometry args={size} />
       <meshBasicMaterial map={texture} color="#d8ffe8" opacity={0.9} {...QUEST_UI_MATERIAL_PROPS} />
     </mesh>
   );
 };
 
-const SelectedPoiIntel = ({ item, body, lines = [] }) => {
+const MapPoiSidePanel = ({ item, body, lines = [], selectedResource = null, actions = [] }) => {
   const details = item?.details?.length ? item.details : lines;
   const intelBody = [
     body,
     details?.[0],
     details?.[1],
   ].filter(Boolean).join(' ');
+  const resourceActions = actions.filter((action) => action.resource);
+  const resourceCount = resourceActions.length || item?.resourceCount || 0;
 
   return (
-    <group name="GCPD_Quest_MapPoi_Intel">
+    <group name="GCPD_Quest_MapPoi_SidePanel" rotation={[0, -0.22, 0]}>
+      <HoloPlate
+        name="GCPD_Quest_MapPoi_SidePanel_Aura"
+        position={[SECTION.rightX, 0.12, 0.07]}
+        size={[0.8, 1.34]}
+        opacity={0.04}
+      />
       {item?.image ? (
-        <PoiImagePreview image={item.image} size={[0.52, 0.26]} />
+        <PoiImagePreview
+          image={item.image}
+          size={[0.62, 0.3]}
+          position={[SECTION.rightX, 0.47, 0.22]}
+          renderOrder={72}
+        />
       ) : (
         <Card
           name="GCPD_Quest_MapPoi_NoImage"
-          position={[0.43, 0.3, 0.18]}
-          size={[0.52, 0.26]}
-          renderOrder={66}
+          position={[SECTION.rightX, 0.47, 0.22]}
+          size={[0.62, 0.3]}
+          renderOrder={72}
           textureOptions={{
             eyebrow: 'EVIDENCIA',
             title: 'SIN IMAGEN',
@@ -935,9 +948,9 @@ const SelectedPoiIntel = ({ item, body, lines = [] }) => {
       )}
       <Card
         name="GCPD_Quest_MapPoi_PrimaryIntel"
-        position={[0.43, -0.08, 0.19]}
-        size={[0.54, 0.42]}
-        renderOrder={68}
+        position={[SECTION.rightX, 0.16, 0.24]}
+        size={[0.66, 0.26]}
+        renderOrder={74}
         textureOptions={{
           eyebrow: 'FICHA POI',
           title: item?.label || 'SIN UBICACION',
@@ -952,6 +965,49 @@ const SelectedPoiIntel = ({ item, body, lines = [] }) => {
           active: true,
         }}
       />
+      {selectedResource ? (
+        <>
+          <MapResourcePreview
+            resource={selectedResource}
+            size={[0.64, 0.28]}
+            position={[SECTION.rightX, -0.19, 0.22]}
+          />
+          <Card
+            name="GCPD_Quest_MapPoi_ResourceMeta"
+            position={[SECTION.rightX, -0.46, 0.25]}
+            size={[0.66, 0.17]}
+            renderOrder={76}
+            textureOptions={{
+              eyebrow: selectedResource.type || 'RECURSO QUEST',
+              title: getResourceDisplayLabel(selectedResource),
+              body: getResourceDisplayBody(selectedResource),
+              meta: `${resourceCount} recurso(s) Quest`,
+              width: 700,
+              height: 190,
+              compact: true,
+              active: true,
+            }}
+          />
+        </>
+      ) : (
+        <Card
+          name="GCPD_Quest_MapPoi_ResourceEmpty"
+          position={[SECTION.rightX, -0.28, 0.24]}
+          size={[0.66, 0.22]}
+          renderOrder={76}
+          textureOptions={{
+            eyebrow: 'RECURSOS QUEST',
+            title: resourceCount ? 'SELECCIONA RECURSO' : 'SIN RECURSOS',
+            body: resourceCount
+              ? `${resourceCount} recurso(s) disponibles debajo.`
+              : 'Este POI no tiene recursos especificos para Quest.',
+            meta: item?.label || 'POI actual',
+            width: 700,
+            height: 240,
+            compact: true,
+          }}
+        />
+      )}
     </group>
   );
 };
@@ -960,21 +1016,18 @@ const MapWorkspaceCard = ({
   title,
   body,
   lines = [],
-  selectedResource = null,
   mapItems = [],
   onSelect,
   position,
   size,
 }) => {
-  const hasResource = Boolean(selectedResource);
   const headerTexture = useWorkspaceTexture({
     mode: 'map',
     title,
     body,
-    meta: hasResource ? 'RECURSO DEL POI' : 'MAPA GOTHAM / POIS',
-    lines: hasResource ? [] : lines,
+    meta: 'MAPA GOTHAM / POIS',
+    lines,
   });
-  const previewSize = [0.82, 0.46];
   const selectedMapItem = mapItems.find((item) => item.accent) || null;
 
   return (
@@ -998,54 +1051,6 @@ const MapWorkspaceCard = ({
         height={1.06}
         position={[-0.05, 0.03, 0.08]}
       />
-      <HoloLine
-        name="GCPD_Quest_MapWorkspace_Divider"
-        position={[0.04, 0.02, 0.16]}
-        size={[0.012, size[1] - 0.2]}
-        opacity={0.32}
-      />
-      {hasResource ? (
-        <>
-          <MapResourcePreview resource={selectedResource} size={previewSize} />
-          <Card
-            name="GCPD_Quest_MapResource_Meta"
-            position={[0, -0.37, 0.12]}
-            size={[1.22, 0.13]}
-            textureOptions={{
-              eyebrow: selectedResource.type || 'RECURSO',
-              title: getResourceDisplayLabel(selectedResource),
-              body: getResourceDisplayBody(selectedResource),
-              meta: 'recurso DM',
-              width: 980,
-              height: 150,
-              compact: true,
-              active: true,
-            }}
-          />
-        </>
-      ) : (
-        <>
-          <SelectedPoiIntel item={selectedMapItem} body={body} lines={lines} />
-          <Card
-            name="GCPD_Quest_MapPoi_Summary"
-            position={[-0.24, -0.51, 0.2]}
-            size={[0.78, 0.12]}
-            renderOrder={70}
-            textureOptions={{
-              eyebrow: selectedMapItem ? 'ESTADO DEL POI' : 'MAPA TACTICO',
-              title: selectedMapItem?.label || 'SIN FOCO',
-              body: selectedMapItem
-                ? `${selectedMapItem.resourceCount || 0} recursos DM vinculados`
-                : 'Selecciona un punto de interes para consultar contexto.',
-              meta: selectedMapItem?.status || `${mapItems.length} POIS`,
-              width: 880,
-              height: 150,
-              compact: true,
-              active: true,
-            }}
-          />
-        </>
-      )}
     </group>
   );
 };
@@ -1158,6 +1163,35 @@ const ActionColumn = ({ actions, onAction, onHome, onBack, mapMode = false }) =>
     onAction?.(id);
   };
 
+  if (mapMode) {
+    return (
+      <group name="GCPD_Quest_ActionColumn_MapResources" rotation={[0, -0.22, 0]}>
+        {resourceActions.slice(0, 4).map((action, index) => (
+          <Card
+            key={action.id || index}
+            name={`GCPD_Quest_MapResourceButton_${action.id || index}`}
+            position={[
+              SECTION.rightX + (index % 2 === 0 ? -0.17 : 0.17),
+              -0.58 - Math.floor(index / 2) * 0.13,
+              0.29 + index * 0.012,
+            ]}
+            size={[0.3, 0.1]}
+            onClick={() => handleAction(action.id)}
+            textureOptions={{
+              title: action.label || action.id,
+              body: '',
+              meta: action.resource ? 'Recurso' : '',
+              width: 360,
+              height: 120,
+              compact: true,
+              active: Boolean(action.accent),
+            }}
+          />
+        ))}
+      </group>
+    );
+  }
+
   return (
     <group name="GCPD_Quest_ActionColumn" rotation={[0, -0.22, 0]}>
       <HoloPlate
@@ -1255,7 +1289,6 @@ const MainWorkspace = ({
   detailTitle,
   detailBody,
   workspaceLines,
-  selectedMapResource,
   mapItems,
   instrument,
   onSelect,
@@ -1297,7 +1330,6 @@ const MainWorkspace = ({
           title={focusTitle || title}
           body={focusBody}
           lines={workspaceLines}
-          selectedResource={selectedMapResource}
           mapItems={mapItems}
           onSelect={onSelect}
           position={[SECTION.centerX, 0.07, 0.22]}
@@ -1373,6 +1405,9 @@ const QuestSectionDashboard = ({
 }) => {
   const instrument = layout === 'instrument';
   const activeInstrument = instrument && items.some((item) => item.accent);
+  const workspaceMode = getWorkspaceMode({ title, focusTitle, instrument });
+  const mapMode = workspaceMode === 'map';
+  const selectedMapItem = mapMode ? items.find((item) => item.accent) || items[0] || null : null;
 
   return (
     <group name="GCPD_Quest_SectionDashboard" position={position} scale={scale}>
@@ -1411,18 +1446,26 @@ const QuestSectionDashboard = ({
           detailTitle={detailTitle}
           detailBody={detailBody}
           workspaceLines={workspaceLines}
-          selectedMapResource={selectedMapResource}
           mapItems={items}
           instrument={instrument}
           onSelect={onSelect}
         />
       )}
+      {mapMode && !activeInstrument ? (
+        <MapPoiSidePanel
+          item={selectedMapItem}
+          body={focusBody}
+          lines={workspaceLines}
+          selectedResource={selectedMapResource}
+          actions={actions}
+        />
+      ) : null}
       <ActionColumn
         actions={actions}
         onAction={onAction}
         onBack={onBack}
         onHome={onHome}
-        mapMode={getWorkspaceMode({ title, focusTitle, instrument }) === 'map'}
+        mapMode={mapMode}
       />
       <StatusTelemetry title={title} hint={hint} instrument={instrument} />
     </group>
