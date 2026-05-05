@@ -954,8 +954,8 @@ const MapPoiSidePanel = ({ item, body, lines = [], selectedResource = null, acti
       )}
       <Card
         name="GCPD_Quest_MapPoi_PrimaryIntel"
-        position={[SECTION.rightX, 0.08, 0.24]}
-        size={[0.66, 0.42]}
+        position={[SECTION.rightX, 0.0, 0.24]}
+        size={[0.66, 0.5]}
         renderOrder={74}
         textureOptions={{
           eyebrow: 'FICHA POI',
@@ -966,11 +966,12 @@ const MapPoiSidePanel = ({ item, body, lines = [], selectedResource = null, acti
             item?.district || 'SIN DISTRITO',
           ].join(' · '),
           width: 700,
-          height: 520,
+          height: 620,
           compact: true,
-          bodyFontSize: 20,
-          bodyLineHeight: 25,
-          bodyMaxLines: 12,
+          bodyFontSize: 18,
+          bodyLineHeight: 22,
+          bodyMaxLines: 16,
+          bodyStartY: 112,
           active: true,
         }}
       />

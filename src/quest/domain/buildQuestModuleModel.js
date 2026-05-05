@@ -472,7 +472,7 @@ const buildMapaModel = ({ data, session }) => {
       : `${data.pois.length} ubicaciones indexadas`,
     focusTitle: selectedPoi?.name || 'SIN UBICACIÓN',
     focusBody: selectedPoi
-      ? summarize(selectedPoi.summary, 'Ubicación sin resumen.')
+      ? (selectedPoi.summary || 'Ubicación sin resumen.')
       : 'Selecciona un punto de interés para leer su contexto.',
     detailTitle: 'CONTEXTO ESPACIAL',
     detailBody: selectedPoi
