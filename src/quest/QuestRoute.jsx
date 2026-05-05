@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import './styles/quest.css';
 
 import QuestCanvas from './QuestCanvas';
-import QuestHud from './QuestHud';
 import QuestPhoneOverlay from './QuestPhoneOverlay';
 import QuestPreflightOverlay from './QuestPreflightOverlay';
 import QuestSessionControls from './QuestSessionControls';
@@ -46,7 +45,6 @@ const QuestRoute = () => {
         )}
       </QuestSessionControls>
       <QuestPhoneOverlay session={session} />
-      <QuestHud data={data} session={session} />
     </div>
   );
 };

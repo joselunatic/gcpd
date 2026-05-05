@@ -160,6 +160,10 @@ const createPanelTexture = ({
   active = false,
   danger = false,
   compact = false,
+  bodyMaxLines = null,
+  bodyFontSize = null,
+  bodyLineHeight = null,
+  bodyStartY = null,
 }) => {
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -187,15 +191,17 @@ const createPanelTexture = ({
 
   if (body) {
     context.fillStyle = colors.muted;
-    context.font = `${compact ? 22 : 30}px monospace`;
+    const resolvedBodyFontSize = bodyFontSize || (compact ? 22 : 30);
+    const resolvedLineHeight = bodyLineHeight || (compact ? 29 : 40);
+    context.font = `${resolvedBodyFontSize}px monospace`;
     drawWrapped({
       context,
       text: body,
       x: 44,
-      y: compact ? 120 : 156,
+      y: bodyStartY || (compact ? 120 : 156),
       maxWidth: width - 88,
-      lineHeight: compact ? 29 : 40,
-      maxLines: compact ? 2 : 4,
+      lineHeight: resolvedLineHeight,
+      maxLines: bodyMaxLines || (compact ? 2 : 4),
     });
   }
 
@@ -926,15 +932,15 @@ const MapPoiSidePanel = ({ item, body, lines = [], selectedResource = null, acti
       {item?.image ? (
         <PoiImagePreview
           image={item.image}
-          size={[0.62, 0.3]}
-          position={[SECTION.rightX, 0.47, 0.22]}
+          size={[0.62, 0.24]}
+          position={[SECTION.rightX, 0.52, 0.22]}
           renderOrder={72}
         />
       ) : (
         <Card
           name="GCPD_Quest_MapPoi_NoImage"
-          position={[SECTION.rightX, 0.47, 0.22]}
-          size={[0.62, 0.3]}
+          position={[SECTION.rightX, 0.52, 0.22]}
+          size={[0.62, 0.24]}
           renderOrder={72}
           textureOptions={{
             eyebrow: 'EVIDENCIA',
@@ -948,8 +954,8 @@ const MapPoiSidePanel = ({ item, body, lines = [], selectedResource = null, acti
       )}
       <Card
         name="GCPD_Quest_MapPoi_PrimaryIntel"
-        position={[SECTION.rightX, 0.16, 0.24]}
-        size={[0.66, 0.26]}
+        position={[SECTION.rightX, 0.08, 0.24]}
+        size={[0.66, 0.42]}
         renderOrder={74}
         textureOptions={{
           eyebrow: 'FICHA POI',
@@ -960,8 +966,11 @@ const MapPoiSidePanel = ({ item, body, lines = [], selectedResource = null, acti
             item?.district || 'SIN DISTRITO',
           ].join(' · '),
           width: 700,
-          height: 500,
+          height: 520,
           compact: true,
+          bodyFontSize: 20,
+          bodyLineHeight: 25,
+          bodyMaxLines: 12,
           active: true,
         }}
       />
@@ -969,13 +978,13 @@ const MapPoiSidePanel = ({ item, body, lines = [], selectedResource = null, acti
         <>
           <MapResourcePreview
             resource={selectedResource}
-            size={[0.64, 0.28]}
-            position={[SECTION.rightX, -0.19, 0.22]}
+            size={[0.64, 0.22]}
+            position={[SECTION.rightX, -0.39, 0.22]}
           />
           <Card
             name="GCPD_Quest_MapPoi_ResourceMeta"
-            position={[SECTION.rightX, -0.46, 0.25]}
-            size={[0.66, 0.17]}
+            position={[SECTION.rightX, -0.61, 0.25]}
+            size={[0.66, 0.13]}
             renderOrder={76}
             textureOptions={{
               eyebrow: selectedResource.type || 'RECURSO QUEST',
@@ -983,7 +992,7 @@ const MapPoiSidePanel = ({ item, body, lines = [], selectedResource = null, acti
               body: getResourceDisplayBody(selectedResource),
               meta: `${resourceCount} recurso(s) Quest`,
               width: 700,
-              height: 190,
+              height: 150,
               compact: true,
               active: true,
             }}
@@ -992,8 +1001,8 @@ const MapPoiSidePanel = ({ item, body, lines = [], selectedResource = null, acti
       ) : (
         <Card
           name="GCPD_Quest_MapPoi_ResourceEmpty"
-          position={[SECTION.rightX, -0.28, 0.24]}
-          size={[0.66, 0.22]}
+          position={[SECTION.rightX, -0.45, 0.24]}
+          size={[0.66, 0.18]}
           renderOrder={76}
           textureOptions={{
             eyebrow: 'RECURSOS QUEST',
@@ -1003,7 +1012,7 @@ const MapPoiSidePanel = ({ item, body, lines = [], selectedResource = null, acti
               : 'Este POI no tiene recursos especificos para Quest.',
             meta: item?.label || 'POI actual',
             width: 700,
-            height: 240,
+            height: 200,
             compact: true,
           }}
         />
@@ -1172,10 +1181,10 @@ const ActionColumn = ({ actions, onAction, onHome, onBack, mapMode = false }) =>
             name={`GCPD_Quest_MapResourceButton_${action.id || index}`}
             position={[
               SECTION.rightX + (index % 2 === 0 ? -0.17 : 0.17),
-              -0.58 - Math.floor(index / 2) * 0.13,
+              -0.74 - Math.floor(index / 2) * 0.11,
               0.29 + index * 0.012,
             ]}
-            size={[0.3, 0.1]}
+            size={[0.3, 0.09]}
             onClick={() => handleAction(action.id)}
             textureOptions={{
               title: action.label || action.id,
