@@ -213,6 +213,10 @@ const PhonePanel = () => {
   const shouldGuideAnswer = Boolean(
     prioritizedCall && prioritizedCall.state !== 'answered' && wsState === 'online'
   );
+  const nextTraceStage = prioritizedCall?.state === 'answered'
+    ? Math.min(3, (Number(prioritizedCall.stage) || 0) + 1)
+    : 0;
+  const advanceLabel = nextTraceStage >= 2 ? `Avanzar fase ${nextTraceStage}` : 'Avanzar fase';
 
   return (
     <div className="phone-panel">
@@ -295,7 +299,7 @@ const PhonePanel = () => {
                     className="phone-panel__btn phone-panel__btn--advance"
                     onClick={() => sendAction('tracer:advance_stage', prioritizedCall.callId)}
                   >
-                    Avanzar fase
+                    {advanceLabel}
                   </button>
                   <button
                     type="button"

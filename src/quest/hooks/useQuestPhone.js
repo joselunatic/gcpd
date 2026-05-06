@@ -352,8 +352,8 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
             hotspotLabel: String(payload.hotspot?.label || ''),
             lastAction:
               phoneBridgeModeRef.current === PHONE_MODE_TRACER
-                ? `Operador respondió.${payload.hotspot?.label ? ` Hotspot ${payload.hotspot.label}.` : ' Traza en curso.'}`
-                : 'DM descolgó la línea.',
+                ? `Hackeo iniciado.${payload.hotspot?.label ? ` Hotspot ${payload.hotspot.label}.` : ' Traza en curso.'}`
+                : 'Línea descolgada.',
           }));
           return;
         }

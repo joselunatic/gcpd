@@ -647,7 +647,7 @@ async function startTracer({ number = "" } = {}) {
         lastStage = 0;
 
         statusEl.textContent = "TRACER // MODO TRAZAR LLAMADA";
-        popupEl.textContent = "Operador DM descolgo // iniciando triangulacion.";
+        popupEl.textContent = "Hackeo iniciado // iniciando triangulacion.";
         hintEl.textContent = "ESC para abortar llamada";
         stopSound(callTone);
         playSound(pickupTone, { restart: true });
