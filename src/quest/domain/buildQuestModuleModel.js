@@ -703,7 +703,6 @@ const buildToolInventory = ({ session, activeTool }) => {
   const ballisticsAssets = toolData.ballisticsAssets || [];
   const audio = toolData.audio || [];
   const phoneLines = toolData.phoneLines || [];
-  const tracerLines = toolData.tracerConfig?.lines || [];
   const tracerHotspots = toolData.tracerConfig?.hotspots || [];
   const selectedResourceId = session.selection.herramientas.resourceId;
   const selectedEvidence =
@@ -804,7 +803,6 @@ const buildToolInventory = ({ session, activeTool }) => {
       focus: 'TRACER usa el bridge WebSocket de agente y progresa fases sobre hotspot de mapa.',
       detail: [
         `ws ${session.phoneState?.tracerWsState || 'offline'}`,
-        countLabel(tracerLines.length, 'línea trazable'),
         countLabel(tracerHotspots.length, 'hotspot'),
         activeTraceNumber ? `objetivo ${activeTraceNumber}` : 'sin objetivo activo',
       ].join(' · '),
@@ -813,7 +811,6 @@ const buildToolInventory = ({ session, activeTool }) => {
         : 'La traza exacta requiere que el operador DM conteste desde /phone.',
       lines: listLines([
         `WebSocket: ${session.phoneState?.tracerWsState || 'offline'}`,
-        `Líneas trazables: ${tracerLines.length}`,
         `Hotspots: ${tracerHotspots.length}`,
         activeTraceNumber ? `Objetivo: ${activeTraceNumber}` : 'Objetivo: sin número activo',
         session.phoneState?.hotspotLabel ? `Hotspot: ${session.phoneState.hotspotLabel}` : '',
@@ -844,37 +841,40 @@ const buildHerramientasModel = ({ session }) => {
           'TRAZA: triangulación por WebSocket y hotspot.',
         ]),
       };
-  const actions = [
-    {
-      id: 'tool:return',
-      label: 'VOLVER',
-      description: `Retornar a ${originLabel}`,
-    },
-    activeTool === 'evidencias'
-      ? {
-          id: 'tool:next-evidence',
-          label: 'SIG STL',
-          description: 'Ciclar pieza 3D',
-        }
-      : null,
-    {
-      id: 'tool:casos',
-      label: 'CASO',
-      description: session.selectedCase?.title || 'Ir a expediente en foco',
-    },
-    {
-      id: 'tool:mapa',
-      label: 'MAPA',
-      description: session.selectedPoi?.name || 'Ir a ubicación monitorizada',
-    },
-    activeTool && activeTool !== 'evidencias'
-      ? {
-          id: 'tool:perfiles',
-          label: 'PERFIL',
-          description: session.selectedProfile?.alias || 'Ir a perfil destacado',
-        }
-      : null,
-  ].filter(Boolean);
+  const actions =
+    activeTool === 'rastreo'
+      ? []
+      : [
+          {
+            id: 'tool:return',
+            label: 'VOLVER',
+            description: `Retornar a ${originLabel}`,
+          },
+          activeTool === 'evidencias'
+            ? {
+                id: 'tool:next-evidence',
+                label: 'SIG STL',
+                description: 'Ciclar pieza 3D',
+              }
+            : null,
+          {
+            id: 'tool:casos',
+            label: 'CASO',
+            description: session.selectedCase?.title || 'Ir a expediente en foco',
+          },
+          {
+            id: 'tool:mapa',
+            label: 'MAPA',
+            description: session.selectedPoi?.name || 'Ir a ubicación monitorizada',
+          },
+          activeTool && activeTool !== 'evidencias'
+            ? {
+                id: 'tool:perfiles',
+                label: 'PERFIL',
+                description: session.selectedProfile?.alias || 'Ir a perfil destacado',
+              }
+            : null,
+        ].filter(Boolean);
 
   return {
     layout: 'instrument',

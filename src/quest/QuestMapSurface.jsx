@@ -285,8 +285,8 @@ const QuestMapSurface = ({ data, session, panelAnchor = null }) => {
   const isCaseFilterActive = activeFilter === 'caso-activo' && relatedPoiIds.size > 0;
   const activeTracer = session?.phoneState?.activeMode === PHONE_MODE_TRACER;
   const shouldShow =
-    (session?.currentModule === QUEST_MODULE_HERRAMIENTAS && activeTool === 'rastreo') ||
-    activeTracer;
+    !activeTracer &&
+    (session?.currentModule === QUEST_MODULE_HERRAMIENTAS && activeTool !== 'rastreo');
 
   useEffect(() => {
     let cancelled = false;

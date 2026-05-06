@@ -741,11 +741,12 @@ function handleDmAnswer(payload = {}) {
   }
   call.state = 'answered';
   call.answeredAt = Date.now();
-  call.stage = 0;
+  call.stage = 1;
   wsSend(call.agentSocket, {
     type: 'tracer:answered',
     callId,
     answeredAt: call.answeredAt,
+    stage: 1,
     line: {
       id: call.line.id,
       number: call.line.number,
@@ -768,7 +769,7 @@ function handleDmAnswer(payload = {}) {
     type: 'tracer:answered',
     callId,
     answeredAt: call.answeredAt,
-    stage: 0,
+    stage: 1,
     line: {
       id: call.line.id,
       number: call.line.number,

@@ -644,7 +644,7 @@ async function startTracer({ number = "" } = {}) {
         geometry = computeGeometry(mapEl, hotspot);
         tracing = true;
         frozen = false;
-        lastStage = 0;
+        lastStage = 1;
 
         statusEl.textContent = "TRACER // MODO TRAZAR LLAMADA";
         popupEl.textContent = "Hackeo iniciado // iniciando triangulacion.";
@@ -653,7 +653,7 @@ async function startTracer({ number = "" } = {}) {
         playSound(pickupTone, { restart: true });
 
         runSweep();
-        applyStage(0);
+        applyStage(1);
         startFlavorFeed();
 
         if (traceTick) clearInterval(traceTick);
@@ -661,7 +661,7 @@ async function startTracer({ number = "" } = {}) {
           const elapsed = Math.max(0, Date.now() - answeredAt);
           clockEl.textContent = `T+${(elapsed / 1000).toFixed(1)}s`;
         }, 120);
-        applyStage(0);
+        applyStage(1);
         return;
       }
 

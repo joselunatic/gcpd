@@ -303,9 +303,8 @@ const LineRail = ({ lines, selectedIndex, setSelectedIndex }) => (
   </group>
 );
 
-const DialPad = ({ session, selectedNumber, activeMode }) => {
+const DialPad = ({ session, selectedNumber, activeMode, callLabel = 'LLAMAR' }) => {
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
-  const callLabel = activeMode ? 'COLGAR' : 'LLAMAR';
 
   return (
     <group name="GCPD_Comms_DialPad">
@@ -329,7 +328,7 @@ const DialPad = ({ session, selectedNumber, activeMode }) => {
         name="GCPD_Comms_Dial_Call"
         position={[0, -0.4, 0.04]}
         size={[0.58, 0.14]}
-        onClick={() => session.actions.dialPhoneNumber?.(selectedNumber, PHONE_MODE_CALL)}
+        onClick={() => session.actions.pressPhoneKey?.('Call')}
         textureOptions={{
           title: callLabel,
           body: selectedNumber ? `#${selectedNumber}` : 'sin numero',
@@ -382,7 +381,7 @@ const SignalProp = ({ label, meta, position, active = false, danger = false }) =
   </group>
 );
 
-const TraceMap = ({ session, selectedNumber, selectedLine, phase }) => {
+const TraceMap = ({ session, selectedNumber, selectedLine, phase, minimal = false }) => {
   const mapTexture = useLoader(THREE.TextureLoader, MAP_TEXTURE_URL);
   const [traceState, setTraceState] = useState({
     stage: 0,
@@ -417,11 +416,14 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase }) => {
     : phase === 'ready'
       ? 'listo para iniciar'
       : 'reposo';
+  const panelSize = minimal ? [1.74, 1.16] : [1.26, 0.78];
+  const imageSize = minimal ? [1.6, 1.19] : [MAP_WIDTH, MAP_HEIGHT];
+  const imagePosition = minimal ? [0, 0.01, 0.01] : [-0.18, 0.03, 0.01];
 
   return (
     <group name="GCPD_Comms_TraceMap">
       <mesh position={[0, 0.02, -0.02]} renderOrder={8}>
-        <planeGeometry args={[1.26, 0.78]} />
+        <planeGeometry args={panelSize} />
         <meshStandardMaterial
           color={COMMS_COLORS.panel}
           emissive="#08263a"
@@ -430,16 +432,16 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase }) => {
           {...PANEL_MATERIAL_PROPS}
         />
       </mesh>
-      <mesh name="GCPD_Comms_TraceMap_Image" position={[-0.18, 0.03, 0.01]} renderOrder={18}>
-        <planeGeometry args={[MAP_WIDTH, MAP_HEIGHT]} />
+      <mesh name="GCPD_Comms_TraceMap_Image" position={imagePosition} renderOrder={18}>
+        <planeGeometry args={imageSize} />
         <meshBasicMaterial map={mapTexture} color="#d7ffe1" opacity={0.8} {...UI_MATERIAL_PROPS} />
       </mesh>
-      <mesh position={[-0.18, 0.03, 0.02]} renderOrder={19}>
-        <planeGeometry args={[MAP_WIDTH, MAP_HEIGHT]} />
+      <mesh position={imagePosition} renderOrder={19}>
+        <planeGeometry args={imageSize} />
         <meshBasicMaterial color={COMMS_COLORS.green} opacity={0.05} wireframe {...UI_MATERIAL_PROPS} />
       </mesh>
 
-      <group position={[-0.18 + hotspotX, 0.03 + hotspotY, 0.05]}>
+      <group position={[imagePosition[0] + hotspotX, imagePosition[1] + hotspotY, 0.05]}>
         <mesh renderOrder={28}>
           <ringGeometry args={[radius, radius + 0.008, 96]} />
           <meshBasicMaterial color={exact ? COMMS_COLORS.red : COMMS_COLORS.green} opacity={0.9} {...UI_MATERIAL_PROPS} />
@@ -458,162 +460,199 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase }) => {
         </mesh>
       </group>
 
-      <HoloLine
-        name="GCPD_Comms_SignalPath_A"
-        position={[-0.43, 0.25, 0.06]}
-        size={[0.28, 0.012]}
-        color={activeTrace ? COMMS_COLORS.green : COMMS_COLORS.cyan}
-        opacity={activeTrace ? 0.95 : 0.42}
-      />
-      <HoloLine
-        name="GCPD_Comms_SignalPath_B"
-        position={[-0.12, 0.13, 0.06]}
-        size={[0.32, 0.012]}
-        color={activeTrace ? COMMS_COLORS.amber : COMMS_COLORS.cyan}
-        opacity={activeTrace ? 0.86 : 0.34}
-      />
-      <HoloLine
-        name="GCPD_Comms_SignalPath_C"
-        position={[0.19, -0.02, 0.06]}
-        size={[0.28, 0.012]}
-        color={exact ? COMMS_COLORS.red : COMMS_COLORS.green}
-        opacity={activeTrace ? 0.9 : 0.3}
-      />
+      {minimal ? null : (
+        <>
+          <HoloLine
+            name="GCPD_Comms_SignalPath_A"
+            position={[-0.43, 0.25, 0.06]}
+            size={[0.28, 0.012]}
+            color={activeTrace ? COMMS_COLORS.green : COMMS_COLORS.cyan}
+            opacity={activeTrace ? 0.95 : 0.42}
+          />
+          <HoloLine
+            name="GCPD_Comms_SignalPath_B"
+            position={[-0.12, 0.13, 0.06]}
+            size={[0.32, 0.012]}
+            color={activeTrace ? COMMS_COLORS.amber : COMMS_COLORS.cyan}
+            opacity={activeTrace ? 0.86 : 0.34}
+          />
+          <HoloLine
+            name="GCPD_Comms_SignalPath_C"
+            position={[0.19, -0.02, 0.06]}
+            size={[0.28, 0.012]}
+            color={exact ? COMMS_COLORS.red : COMMS_COLORS.green}
+            opacity={activeTrace ? 0.9 : 0.3}
+          />
 
-      <SignalProp
-        label="CELL TOWER"
-        meta="triangulando"
-        position={[-0.64, 0.27, 0.08]}
-        active={activeTrace}
-      />
-      <SignalProp
-        label="MOBILE PROXY"
-        meta="salto 4G/LTE"
-        position={[-0.34, 0.12, 0.08]}
-        active={traceState.stage >= 1}
-      />
-      <SignalProp
-        label="WAYNEMOBILE"
-        meta="backdoor activo"
-        position={[0.0, -0.04, 0.08]}
-        active={traceState.stage >= 2}
-      />
-      <SignalProp
-        label="HOTSPOT"
-        meta={exact ? hotspot.label || 'exacto' : 'radio vivo'}
-        position={[0.33, -0.21, 0.08]}
-        active={exact}
-        danger={exact}
-      />
+          <SignalProp
+            label="CELL TOWER"
+            meta="triangulando"
+            position={[-0.64, 0.27, 0.08]}
+            active={activeTrace}
+          />
+          <SignalProp
+            label="MOBILE PROXY"
+            meta="salto 4G/LTE"
+            position={[-0.34, 0.12, 0.08]}
+            active={traceState.stage >= 1}
+          />
+          <SignalProp
+            label="WAYNEMOBILE"
+            meta="backdoor activo"
+            position={[0.0, -0.04, 0.08]}
+            active={traceState.stage >= 2}
+          />
+          <SignalProp
+            label="HOTSPOT"
+            meta={exact ? hotspot.label || 'exacto' : 'radio vivo'}
+            position={[0.33, -0.21, 0.08]}
+            active={exact}
+            danger={exact}
+          />
 
-      <TextCard
-        name="GCPD_Comms_TraceStatus"
-        position={[0.44, 0.22, 0.08]}
-        size={[0.42, 0.18]}
-        textureOptions={{
-          eyebrow: 'TRAZA',
-          title: status,
-          body: selectedNumber ? `#${selectedNumber}` : 'selecciona linea',
-          meta: `${traceState.clock} // fase ${activeTrace ? traceState.stage : 0}`,
-          width: 520,
-          height: 210,
-          compact: true,
-          active: activeTrace,
-        }}
-      />
-      <TextCard
-        name="GCPD_Comms_TraceAction"
-        position={[0.44, -0.03, 0.08]}
-        size={[0.42, 0.16]}
-        onClick={() => session.actions.dialPhoneNumber?.(selectedNumber, PHONE_MODE_TRACER)}
-        textureOptions={{
-          title: activeTrace ? 'COLGAR' : 'INICIAR TRAZA',
-          body: activeTrace ? 'cortar websocket' : 'llamada DM',
-          width: 520,
-          height: 180,
-          compact: true,
-          active: !activeTrace,
-        }}
-      />
-      <TextCard
-        name="GCPD_Comms_TraceLog"
-        position={[0.44, -0.27, 0.08]}
-        size={[0.42, 0.2]}
-        textureOptions={{
-          eyebrow: 'LOG',
-          title: session.phoneState?.tracerWsState || 'offline',
-          body: clampText(session.phoneState?.lastAction || 'sistema en espera', 96),
-          meta: session.phoneState?.hotspotLabel || 'sin hotspot',
-          width: 520,
-          height: 230,
-          compact: true,
-        }}
-      />
+          <TextCard
+            name="GCPD_Comms_TraceStatus"
+            position={[0.44, 0.22, 0.08]}
+            size={[0.42, 0.18]}
+            textureOptions={{
+              eyebrow: 'TRAZA',
+              title: status,
+              body: selectedNumber ? `#${selectedNumber}` : 'selecciona linea',
+              meta: `${traceState.clock} // fase ${activeTrace ? traceState.stage : 0}`,
+              width: 520,
+              height: 210,
+              compact: true,
+              active: activeTrace,
+            }}
+          />
+          <TextCard
+            name="GCPD_Comms_TraceAction"
+            position={[0.44, -0.03, 0.08]}
+            size={[0.42, 0.16]}
+            onClick={() => session.actions.pressPhoneKey?.('Call')}
+            textureOptions={{
+              title: activeTrace ? 'COLGAR' : 'INICIAR TRAZA',
+              body: activeTrace ? 'cortar websocket' : 'llamada DM',
+              width: 520,
+              height: 180,
+              compact: true,
+              active: !activeTrace,
+            }}
+          />
+          <TextCard
+            name="GCPD_Comms_TraceLog"
+            position={[0.44, -0.27, 0.08]}
+            size={[0.42, 0.2]}
+            textureOptions={{
+              eyebrow: 'LOG',
+              title: session.phoneState?.tracerWsState || 'offline',
+              body: clampText(session.phoneState?.lastAction || 'sistema en espera', 96),
+              meta: session.phoneState?.hotspotLabel || 'sin hotspot',
+              width: 520,
+              height: 230,
+              compact: true,
+            }}
+          />
+        </>
+      )}
     </group>
   );
 };
 
-const DialPanel = ({ session, lines, selectedLine, selectedIndex, setSelectedIndex }) => {
-  const selectedNumber = normalizeDigits(selectedLine?.number || session.phoneState?.dialedDigits);
+const DialPanel = ({
+  session,
+  lines,
+  selectedLine,
+  selectedIndex,
+  setSelectedIndex,
+  hideLines = false,
+  traceMode = false,
+  position = [-0.86, -0.02, 0.08],
+  rotation = [0, -0.12, 0],
+}) => {
+  const selectedNumber = normalizeDigits(
+    session.phoneState?.dialedDigits ||
+      session.phoneState?.lastDialedNumber ||
+      selectedLine?.number
+  );
   const activeMode = session.phoneState?.activeMode;
   const displayNumber = session.phoneState?.dialedDigits || selectedNumber || session.phoneState?.lastDialedNumber || '';
+  const activeCallMode = activeMode === PHONE_MODE_CALL;
+  const callLabel = activeMode ? 'COLGAR' : traceMode ? 'TRAZA' : 'LLAMAR';
 
   return (
-    <group name="GCPD_Comms_DialPanel" position={[-0.86, -0.02, 0.08]} rotation={[0, -0.12, 0]}>
+    <group name="GCPD_Comms_DialPanel" position={position} rotation={rotation}>
       <HoloPlate name="GCPD_Comms_DialPanel_Aura" position={[0, 0, -0.04]} size={[0.86, 1.28]} opacity={0.045} />
       <TextCard
         name="GCPD_Comms_DialHeader"
         position={[0, 0.54, 0.02]}
         size={[0.76, 0.18]}
         textureOptions={{
-          eyebrow: 'DIAL',
+          eyebrow: traceMode ? 'DIAL / TRAZA' : 'DIAL',
           title: displayNumber || 'SIN MARCAR',
-          body: activeMode === PHONE_MODE_CALL ? 'línea conectada' : 'llamada manual',
+          body: traceMode ? 'contexto elegido' : activeMode === PHONE_MODE_CALL ? 'línea conectada' : 'llamada manual',
           meta: session.phoneState?.lineStatus || 'colgada',
           width: 820,
           height: 220,
           compact: true,
-          active: activeMode === PHONE_MODE_CALL,
+          active: activeCallMode || traceMode,
         }}
       />
       <group position={[-0.24, 0.01, 0.03]}>
-        <DialPad session={session} selectedNumber={selectedNumber || displayNumber} activeMode={activeMode === PHONE_MODE_CALL} />
+        <DialPad
+          session={session}
+          selectedNumber={selectedNumber || displayNumber}
+          activeMode={activeCallMode}
+          callLabel={callLabel}
+        />
       </group>
-      <group position={[0.28, 0.0, 0.02]}>
-        <LineRail lines={lines} selectedIndex={selectedIndex} setSelectedIndex={setSelectedIndex} />
-      </group>
+      {hideLines ? null : (
+        <group position={[0.28, 0.0, 0.02]}>
+          <LineRail lines={lines} selectedIndex={selectedIndex} setSelectedIndex={setSelectedIndex} />
+        </group>
+      )}
     </group>
   );
 };
 
-const TracePanel = ({ session, selectedLine }) => {
-  const selectedNumber = normalizeDigits(selectedLine?.number || session.phoneState?.lastDialedNumber || session.phoneState?.dialedDigits);
+const TracePanel = ({ session, selectedLine, minimal = false, position = [0.52, 0.0, 0.1] }) => {
+  const selectedNumber = normalizeDigits(
+    session.phoneState?.dialedDigits || session.phoneState?.lastDialedNumber || selectedLine?.number
+  );
   const phase = selectedNumber ? 'ready' : 'idle';
 
   return (
-    <group name="GCPD_Comms_TracePanel" position={[0.52, 0.0, 0.1]} rotation={[0, 0.1, 0]}>
-      <HoloPlate name="GCPD_Comms_TracePanel_Aura" position={[0, 0, -0.04]} size={[1.48, 1.28]} opacity={0.04} />
-      <TextCard
-        name="GCPD_Comms_TraceHeader"
-        position={[0, 0.54, 0.03]}
-        size={[1.22, 0.18]}
-        textureOptions={{
-          eyebrow: 'TRAZA',
-          title: 'ANALISIS DE SEÑAL',
-          body: 'cell tower // proxy móvil // WayneMobile // hotspot',
-          meta: session.phoneState?.tracerWsState || 'offline',
-          width: 1250,
-          height: 220,
-          compact: true,
-          active: session.phoneState?.activeMode === PHONE_MODE_TRACER,
-        }}
+    <group name="GCPD_Comms_TracePanel" position={position} rotation={[0, 0.1, 0]}>
+      <HoloPlate
+        name="GCPD_Comms_TracePanel_Aura"
+        position={[0, 0, -0.04]}
+        size={minimal ? [1.74, 1.34] : [1.48, 1.28]}
+        opacity={0.04}
       />
-      <group position={[0, -0.03, 0.04]}>
+      {minimal ? null : (
+        <TextCard
+          name="GCPD_Comms_TraceHeader"
+          position={[0, 0.54, 0.03]}
+          size={[1.22, 0.18]}
+          textureOptions={{
+            eyebrow: 'TRAZA',
+            title: 'ANALISIS DE SEÑAL',
+            body: 'cell tower // proxy móvil // WayneMobile // hotspot',
+            meta: session.phoneState?.tracerWsState || 'offline',
+            width: 1250,
+            height: 220,
+            compact: true,
+            active: session.phoneState?.activeMode === PHONE_MODE_TRACER,
+          }}
+        />
+      )}
+      <group position={[0, minimal ? 0 : -0.03, 0.04]}>
         <TraceMap
           session={session}
           selectedNumber={selectedNumber}
           selectedLine={selectedLine}
           phase={phase}
+          minimal={minimal}
         />
       </group>
     </group>
@@ -642,7 +681,8 @@ const StatusStrip = ({ session }) => (
 
 const QuestCommsWorkbench = ({ session }) => {
   const activeTool = session?.selection?.herramientas?.activeTool;
-  const lines = useMemo(() => getCommsLines(session, activeTool), [activeTool, session]);
+  const traceMode = activeTool === 'rastreo';
+  const lines = useMemo(() => (traceMode ? [] : getCommsLines(session, activeTool)), [activeTool, session, traceMode]);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
@@ -653,7 +693,7 @@ const QuestCommsWorkbench = ({ session }) => {
     session?.currentModule === QUEST_MODULE_HERRAMIENTAS &&
     (activeTool === 'comunicaciones' || activeTool === 'rastreo');
 
-  const selectedLine = lines[selectedIndex % Math.max(lines.length, 1)] || null;
+  const selectedLine = traceMode ? null : lines[selectedIndex % Math.max(lines.length, 1)] || null;
 
   if (!isActive) return null;
 
@@ -675,17 +715,23 @@ const QuestCommsWorkbench = ({ session }) => {
       <HoloLine name="GCPD_Comms_MidBus_A" position={[-0.18, 0.26, 0.12]} size={[0.46, 0.01]} color={COMMS_COLORS.blue} opacity={0.82} />
       <HoloLine name="GCPD_Comms_MidBus_B" position={[-0.18, -0.08, 0.12]} size={[0.46, 0.01]} color={COMMS_COLORS.blue} opacity={0.66} />
 
-      <group position={[-0.02, 0.69, 0.12]}>
-        <ModeTabs activeTool={activeTool} session={session} />
-      </group>
+      {traceMode ? null : (
+        <group position={[-0.02, 0.69, 0.12]}>
+          <ModeTabs activeTool={activeTool} session={session} />
+        </group>
+      )}
       <DialPanel
         session={session}
         lines={lines}
         selectedLine={selectedLine}
         selectedIndex={selectedIndex}
         setSelectedIndex={setSelectedIndex}
+        hideLines={traceMode}
+        traceMode={traceMode}
+        position={traceMode ? [0.96, -0.04, 0.08] : [-0.86, -0.02, 0.08]}
+        rotation={traceMode ? [0, 0.1, 0] : [0, -0.12, 0]}
       />
-      <TracePanel session={session} selectedLine={selectedLine} />
+      <TracePanel session={session} selectedLine={selectedLine} minimal={traceMode} position={traceMode ? [0, 0.0, 0.1] : [0.52, 0.0, 0.1]} />
       <StatusStrip session={session} />
     </group>
   );

@@ -179,7 +179,7 @@ const PhonePanel = () => {
   }, [wsState, calls]);
 
   const tracerTelemetry = useMemo(() => {
-    if (!prioritizedCall) {
+  if (!prioritizedCall) {
       return {
         clock: 'T+00.0s',
         stage: 0,
@@ -190,7 +190,7 @@ const PhonePanel = () => {
 
     if (prioritizedCall.state === 'answered' && prioritizedCall.answeredAt) {
       const elapsedMs = Math.max(0, clockNow - Number(prioritizedCall.answeredAt || 0));
-      const stage = Number(prioritizedCall.stage) || 0;
+      const stage = Math.max(1, Number(prioritizedCall.stage) || 1);
       return {
         clock: formatClock(elapsedMs),
         stage,
@@ -214,7 +214,7 @@ const PhonePanel = () => {
     prioritizedCall && prioritizedCall.state !== 'answered' && wsState === 'online'
   );
   const nextTraceStage = prioritizedCall?.state === 'answered'
-    ? Math.min(3, (Number(prioritizedCall.stage) || 0) + 1)
+    ? Math.min(3, Math.max(1, Number(prioritizedCall.stage) || 1) + 1)
     : 0;
   const advanceLabel = nextTraceStage >= 2 ? `Avanzar fase ${nextTraceStage}` : 'Avanzar fase';
 

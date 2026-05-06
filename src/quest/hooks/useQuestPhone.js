@@ -346,7 +346,7 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
             activeCallId: String(payload.callId || current.activeCallId || ''),
             tracerPhase: 'answered',
             tracerAnsweredAt: Number(payload.answeredAt) || Date.now(),
-            tracerStage: Number(payload.stage) || 0,
+            tracerStage: Math.max(1, Number(payload.stage) || 1),
             lineStatus: phoneBridgeModeRef.current === PHONE_MODE_TRACER ? 'trazando' : 'conectada',
             hotspot: payload.hotspot || null,
             hotspotLabel: String(payload.hotspot?.label || ''),
@@ -361,7 +361,7 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
         if (payload.type === 'tracer:stage') {
           setPhoneState((current) => ({
             ...current,
-            tracerStage: Number(payload.stage) || current.tracerStage || 0,
+            tracerStage: Math.max(1, Number(payload.stage) || current.tracerStage || 1),
             tracerAnsweredAt: Number(payload.answeredAt) || current.tracerAnsweredAt || Date.now(),
             lastAction: String(payload.message || current.lastAction || 'Traza avanzada.'),
           }));
