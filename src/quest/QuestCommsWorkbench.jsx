@@ -305,6 +305,12 @@ const LineRail = ({ lines, selectedIndex, setSelectedIndex }) => (
 
 const DialPad = ({ session, selectedNumber, activeMode, callLabel = 'LLAMAR' }) => {
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
+  const keyWidth = 0.18;
+  const keyHeight = 0.13;
+  const keySpacingX = 0.22;
+  const keySpacingY = 0.17;
+  const actionWidth = 0.64;
+  const actionHeight = 0.15;
 
   return (
     <group name="GCPD_Comms_DialPad">
@@ -312,8 +318,12 @@ const DialPad = ({ session, selectedNumber, activeMode, callLabel = 'LLAMAR' }) 
         <TextCard
           key={key}
           name={`GCPD_Comms_Key_${key}`}
-          position={[-0.2 + (index % 3) * 0.2, 0.26 - Math.floor(index / 3) * 0.15, 0.03]}
-          size={[0.16, 0.11]}
+          position={[
+            -0.23 + (index % 3) * keySpacingX,
+            0.28 - Math.floor(index / 3) * keySpacingY,
+            0.03,
+          ]}
+          size={[keyWidth, keyHeight]}
           onClick={() => session.actions.pressPhoneKey?.(key)}
           textureOptions={{
             title: key,
@@ -326,8 +336,8 @@ const DialPad = ({ session, selectedNumber, activeMode, callLabel = 'LLAMAR' }) 
       ))}
       <TextCard
         name="GCPD_Comms_Dial_Call"
-        position={[0, -0.4, 0.04]}
-        size={[0.58, 0.14]}
+        position={[0, -0.42, 0.04]}
+        size={[actionWidth, actionHeight]}
         onClick={() => session.actions.pressPhoneKey?.('Call')}
         textureOptions={{
           title: callLabel,
@@ -340,8 +350,8 @@ const DialPad = ({ session, selectedNumber, activeMode, callLabel = 'LLAMAR' }) 
       />
       <TextCard
         name="GCPD_Comms_Dial_Clear"
-        position={[0, -0.57, 0.04]}
-        size={[0.58, 0.11]}
+        position={[0, -0.61, 0.04]}
+        size={[actionWidth, 0.12]}
         onClick={() => session.actions.clearPhoneDial?.()}
         textureOptions={{
           title: 'CLEAR',
@@ -578,19 +588,20 @@ const DialPanel = ({
   const activeMode = session.phoneState?.activeMode;
   const displayNumber = session.phoneState?.dialedDigits || selectedNumber || session.phoneState?.lastDialedNumber || '';
   const activeCallMode = activeMode === PHONE_MODE_CALL;
-  const callLabel = activeMode ? 'COLGAR' : traceMode ? 'TRAZA' : 'LLAMAR';
+  const callLabel = activeMode ? 'COLGAR' : traceMode ? 'INICIAR TRAZA' : 'LLAMAR';
+  const panelScale = traceMode ? 1.12 : 1;
 
   return (
-    <group name="GCPD_Comms_DialPanel" position={position} rotation={rotation}>
+    <group name="GCPD_Comms_DialPanel" position={position} rotation={rotation} scale={panelScale}>
       <HoloPlate name="GCPD_Comms_DialPanel_Aura" position={[0, 0, -0.04]} size={[0.9, 1.32]} opacity={0.045} />
       <TextCard
         name="GCPD_Comms_DialHeader"
         position={[0, 0.56, 0.02]}
         size={[0.82, 0.18]}
         textureOptions={{
-          eyebrow: traceMode ? 'DIAL / TRAZA' : 'DIAL',
+          eyebrow: traceMode ? 'TRAZA' : 'DIAL',
           title: displayNumber || 'SIN MARCAR',
-          body: traceMode ? 'contexto elegido' : activeMode === PHONE_MODE_CALL ? 'línea conectada' : 'llamada manual',
+          body: traceMode ? 'línea lista para rastreo' : activeMode === PHONE_MODE_CALL ? 'línea conectada' : 'llamada manual',
           meta: session.phoneState?.lineStatus || 'colgada',
           width: 820,
           height: 220,
@@ -682,7 +693,7 @@ const StatusStrip = ({ session }) => (
 const QuestCommsWorkbench = ({ session }) => {
   const activeTool = session?.selection?.herramientas?.activeTool;
   const traceMode = activeTool === 'rastreo';
-  const lines = useMemo(() => (traceMode ? [] : getCommsLines(session, activeTool)), [activeTool, session, traceMode]);
+  const lines = useMemo(() => getCommsLines(session, activeTool), [activeTool, session]);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
@@ -693,7 +704,7 @@ const QuestCommsWorkbench = ({ session }) => {
     session?.currentModule === QUEST_MODULE_HERRAMIENTAS &&
     (activeTool === 'comunicaciones' || activeTool === 'rastreo');
 
-  const selectedLine = traceMode ? null : lines[selectedIndex % Math.max(lines.length, 1)] || null;
+  const selectedLine = lines[selectedIndex % Math.max(lines.length, 1)] || null;
 
   if (!isActive) return null;
 
@@ -726,9 +737,9 @@ const QuestCommsWorkbench = ({ session }) => {
         selectedLine={selectedLine}
         selectedIndex={selectedIndex}
         setSelectedIndex={setSelectedIndex}
-        hideLines={traceMode}
+        hideLines={false}
         traceMode={traceMode}
-        position={traceMode ? [2.28, -0.02, 0.08] : [-0.86, -0.02, 0.08]}
+        position={traceMode ? [2.1, -0.02, 0.08] : [-0.86, -0.02, 0.08]}
         rotation={traceMode ? [0, 0.02, 0] : [0, -0.12, 0]}
       />
       <TracePanel session={session} selectedLine={selectedLine} minimal={traceMode} position={traceMode ? [-0.36, 0.0, 0.1] : [0.52, 0.0, 0.1]} />

@@ -478,8 +478,8 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
         playPhoneTone('errorTone', { restart: true });
         return {
           ...current,
-          lineStatus: 'colgada',
-          lastAction: 'Bridge TRACER offline.',
+          lineStatus: 'esperando operador',
+          lastAction: 'Bridge TRACER offline. Abre /phone para iniciar la traza.',
           pressedKey: 'Call',
         };
       }
@@ -489,8 +489,8 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
         playPhoneTone('errorTone', { restart: true });
         return {
           ...current,
-          lineStatus: 'colgada',
-          lastAction: 'No se pudo contactar con el bridge TRACER.',
+          lineStatus: 'esperando operador',
+          lastAction: 'No se pudo contactar con el bridge TRACER. Abre /phone para iniciar la traza.',
           pressedKey: 'Call',
         };
       }
