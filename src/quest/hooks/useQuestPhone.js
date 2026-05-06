@@ -367,6 +367,13 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
             ...current,
             tracerStage: Math.max(1, Number(payload.stage) || current.tracerStage || 1),
             tracerAnsweredAt: Number(payload.answeredAt) || current.tracerAnsweredAt || Date.now(),
+            hotspot: payload.hotspot || current.hotspot || null,
+            hotspotLabel: String(
+              payload.hotspot?.label ||
+                current.hotspotLabel ||
+                current.hotspot?.label ||
+                ''
+            ),
             lastAction: String(payload.message || current.lastAction || 'Traza avanzada.'),
           }));
           return;

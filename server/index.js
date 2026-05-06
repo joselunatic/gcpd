@@ -812,6 +812,14 @@ function handleDmAdvanceStage(payload = {}) {
     answeredAt: call.answeredAt,
     elapsedMs,
     message,
+    hotspot: call.hotspot
+      ? {
+          id: call.hotspot.id,
+          label: call.hotspot.label,
+          x: call.hotspot.x,
+          y: call.hotspot.y,
+        }
+      : null,
   });
   wsSend(tracerDmSocket, {
     type: 'tracer:stage',
@@ -820,6 +828,14 @@ function handleDmAdvanceStage(payload = {}) {
     answeredAt: call.answeredAt,
     elapsedMs,
     message,
+    hotspot: call.hotspot
+      ? {
+          id: call.hotspot.id,
+          label: call.hotspot.label,
+          x: call.hotspot.x,
+          y: call.hotspot.y,
+        }
+      : null,
   });
 }
 

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <filter id="glowAmber" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g fill="none" stroke="#ffbc42" stroke-linecap="square" filter="url(#glowAmber)">
+    <circle cx="128" cy="128" r="44" stroke-width="4" opacity="0.88"/>
+    <circle cx="128" cy="128" r="18" stroke-width="2" opacity="0.7"/>
+    <path d="M128 52v36M128 168v36M52 128h36M168 128h36" stroke-width="5" opacity="0.9"/>
+    <path d="M92 92l12 12M164 92l-12 12M92 164l12-12M164 164l-12-12" stroke-width="3" opacity="0.6"/>
+  </g>
+</svg>

@@ -1,14 +1,19 @@
 /* eslint-disable react/no-unknown-property */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
+import QuestTracerPositionalAudio from './audio/QuestTracerPositionalAudio';
 import { PHONE_MODE_CALL, PHONE_MODE_TRACER } from './hooks/useQuestSession';
 import { QUEST_MODULE_HERRAMIENTAS } from './state/questModules';
 
 const WORKBENCH_POSITION = [0, 1.94, -0.62];
 const WORKBENCH_SCALE = 0.68;
 const MAP_TEXTURE_URL = '/mapa.png';
+const TRACE_LOCK_RETICLE_URL = '/assets/quest/tracer/trace-lock-reticle.svg';
+const TRACE_GHOST_MARKER_URL = '/assets/quest/tracer/trace-ghost-marker.svg';
+const TRACE_SWEEP_SECTOR_URL = '/assets/quest/tracer/trace-sweep-sector.svg';
+const TRACE_NOISE_MASK_URL = '/assets/quest/tracer/trace-noise-mask.svg';
 const MAP_WIDTH = 1.0;
 const MAP_HEIGHT = MAP_WIDTH * 0.744;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
@@ -79,6 +84,14 @@ const buildGhostHotspots = (hotspot, seedText = '') => {
     y: clampMapPercent(baseY + offset.y),
     phase: offset.phase,
   }));
+};
+
+const setupTexture = (texture) => {
+  if (!texture) return;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.needsUpdate = true;
 };
 
 const getCommsLines = (session, activeTool) => {
@@ -401,7 +414,16 @@ const SignalProp = ({ label, meta, position, active = false, danger = false }) =
 );
 
 const TraceMap = ({ session, selectedNumber, phase, minimal = false }) => {
-  const mapTexture = useLoader(THREE.TextureLoader, MAP_TEXTURE_URL);
+  const [mapTexture, lockReticleTexture, ghostMarkerTexture, sweepSectorTexture, noiseMaskTexture] = useLoader(
+    THREE.TextureLoader,
+    [
+      MAP_TEXTURE_URL,
+      TRACE_LOCK_RETICLE_URL,
+      TRACE_GHOST_MARKER_URL,
+      TRACE_SWEEP_SECTOR_URL,
+      TRACE_NOISE_MASK_URL,
+    ]
+  );
   const [traceState, setTraceState] = useState({
     stage: 0,
     clock: 'T+00.0s',
@@ -411,8 +433,8 @@ const TraceMap = ({ session, selectedNumber, phase, minimal = false }) => {
   });
 
   useEffect(() => {
-    mapTexture.colorSpace = THREE.SRGBColorSpace;
-  }, [mapTexture]);
+    [mapTexture, lockReticleTexture, ghostMarkerTexture, sweepSectorTexture, noiseMaskTexture].forEach(setupTexture);
+  }, [ghostMarkerTexture, lockReticleTexture, mapTexture, noiseMaskTexture, sweepSectorTexture]);
 
   useFrame((_, delta) => {
     setTraceState((current) => {
@@ -443,6 +465,7 @@ const TraceMap = ({ session, selectedNumber, phase, minimal = false }) => {
   const exact = activeTrace && traceState.stage >= 3;
   const ghostCount = traceState.stage >= 2 ? 3 : traceState.stage >= 1 ? 2 : 0;
   const lockFlash = 0.3 + traceState.lock * 0.7;
+  const exactHotspotLabel = hotspot.label || session.phoneState?.hotspotLabel || 'OBJETIVO';
   const status = activeTrace
     ? session.phoneState?.lineStatus || 'trazando'
     : phase === 'ready'
@@ -473,9 +496,29 @@ const TraceMap = ({ session, selectedNumber, phase, minimal = false }) => {
         <meshBasicMaterial color={COMMS_COLORS.green} opacity={0.05} wireframe {...UI_MATERIAL_PROPS} />
       </mesh>
       {activeTrace ? (
-        <mesh position={[imagePosition[0], imagePosition[1], 0.035]} rotation={[0, 0, traceState.sweep - 0.24]} renderOrder={24}>
-          <ringGeometry args={[0.08, Math.max(radius * 1.75, 0.36), 48, 1, 0, 0.48]} />
-          <meshBasicMaterial color={exact ? COMMS_COLORS.red : COMMS_COLORS.cyanBright} opacity={exact ? 0.18 + traceState.lock * 0.2 : 0.12} {...UI_MATERIAL_PROPS} />
+        <mesh position={[imagePosition[0], imagePosition[1], 0.028]} renderOrder={20}>
+          <planeGeometry args={imageSize} />
+          <meshBasicMaterial
+            map={noiseMaskTexture}
+            color={traceState.stage >= 2 ? COMMS_COLORS.cyanBright : COMMS_COLORS.green}
+            opacity={traceState.stage >= 2 ? 0.22 : 0.12}
+            {...UI_MATERIAL_PROPS}
+          />
+        </mesh>
+      ) : null}
+      {activeTrace ? (
+        <mesh
+          position={[imagePosition[0], imagePosition[1], 0.032]}
+          rotation={[0, 0, traceState.sweep - 0.46]}
+          renderOrder={24}
+        >
+          <planeGeometry args={[imageSize[0] * 1.04, imageSize[1] * 1.04]} />
+          <meshBasicMaterial
+            map={sweepSectorTexture}
+            color={exact ? COMMS_COLORS.red : COMMS_COLORS.cyanBright}
+            opacity={exact ? 0.2 + traceState.lock * 0.2 : 0.18}
+            {...UI_MATERIAL_PROPS}
+          />
         </mesh>
       ) : null}
 
@@ -485,22 +528,30 @@ const TraceMap = ({ session, selectedNumber, phase, minimal = false }) => {
         return (
           <group key={ghost.id} position={[imagePosition[0] + ghostX, imagePosition[1] + ghostY, 0.04]}>
             <mesh renderOrder={25}>
-              <ringGeometry args={[0.045, 0.06, 48]} />
-              <meshBasicMaterial color={COMMS_COLORS.amber} opacity={ghostPulse} {...UI_MATERIAL_PROPS} />
-            </mesh>
-            <mesh renderOrder={25}>
-              <planeGeometry args={[0.1, 0.004]} />
-              <meshBasicMaterial color={COMMS_COLORS.amber} opacity={ghostPulse * 0.95} {...UI_MATERIAL_PROPS} />
-            </mesh>
-            <mesh rotation={[0, 0, Math.PI / 2]} renderOrder={25}>
-              <planeGeometry args={[0.1, 0.004]} />
-              <meshBasicMaterial color={COMMS_COLORS.amber} opacity={ghostPulse * 0.95} {...UI_MATERIAL_PROPS} />
+              <planeGeometry args={[0.17, 0.17]} />
+              <meshBasicMaterial
+                map={ghostMarkerTexture}
+                color={COMMS_COLORS.amber}
+                opacity={ghostPulse}
+                {...UI_MATERIAL_PROPS}
+              />
             </mesh>
           </group>
         );
       })}
 
       <group position={[imagePosition[0] + hotspotX, imagePosition[1] + hotspotY, 0.05]}>
+        {exact ? (
+          <mesh renderOrder={29}>
+            <planeGeometry args={[0.34, 0.34]} />
+            <meshBasicMaterial
+              map={lockReticleTexture}
+              color={COMMS_COLORS.red}
+              opacity={0.9 * lockFlash}
+              {...UI_MATERIAL_PROPS}
+            />
+          </mesh>
+        ) : null}
         <mesh renderOrder={28}>
           <ringGeometry args={[radius, radius + 0.008, 96]} />
           <meshBasicMaterial color={exact ? COMMS_COLORS.red : COMMS_COLORS.green} opacity={0.9} {...UI_MATERIAL_PROPS} />
@@ -540,14 +591,14 @@ const TraceMap = ({ session, selectedNumber, phase, minimal = false }) => {
         {exact ? (
           <TextCard
             name="GCPD_Comms_TraceHotspotLabel"
-            position={[0.02, radius + 0.11, 0.08]}
-            size={[0.38, 0.12]}
+            position={[0.18, radius + 0.12, 0.08]}
+            size={[0.58, 0.14]}
             textureOptions={{
               eyebrow: 'HOTSPOT',
-              title: hotspot.label || session.phoneState?.hotspotLabel || 'EXACTO',
-              meta: `${Math.round(Number(hotspot.x ?? 50))} / ${Math.round(Number(hotspot.y ?? 50))}`,
-              width: 420,
-              height: 150,
+              title: exactHotspotLabel,
+              meta: `OBJETIVO FIJADO // ${Math.round(Number(hotspot.x ?? 50))} / ${Math.round(Number(hotspot.y ?? 50))}`,
+              width: 620,
+              height: 180,
               compact: true,
               active: true,
               danger: true,
@@ -715,6 +766,11 @@ const TracePanel = ({ session, minimal = false, position = [0.52, 0.0, 0.1] }) =
     session.phoneState?.dialedDigits || session.phoneState?.lastDialedNumber
   );
   const phase = selectedNumber ? 'ready' : 'idle';
+  const exact = session.phoneState?.activeMode === PHONE_MODE_TRACER && Number(session.phoneState?.tracerStage || 0) >= 3;
+  const exactHotspotLabel =
+    session.phoneState?.hotspot?.label ||
+    session.phoneState?.hotspotLabel ||
+    '';
 
   return (
     <group name="GCPD_Comms_TracePanel" position={position} rotation={[0, 0.1, 0]}>
@@ -749,6 +805,24 @@ const TracePanel = ({ session, minimal = false, position = [0.52, 0.0, 0.1] }) =
           minimal={minimal}
         />
       </group>
+      {exact && exactHotspotLabel ? (
+        <TextCard
+          name="GCPD_Comms_TraceExactBanner"
+          position={[minimal ? 0.06 : 0.1, minimal ? 0.79 : 0.72, 0.09]}
+          size={[minimal ? 1.16 : 0.98, minimal ? 0.2 : 0.18]}
+          textureOptions={{
+            eyebrow: 'OBJETIVO LOCALIZADO',
+            title: exactHotspotLabel,
+            body: 'Hotspot confirmado. Procede a identificar y explotar el punto.',
+            meta: 'LOCK COMPLETO // PRIORIDAD ALTA',
+            width: 1120,
+            height: 220,
+            compact: true,
+            active: true,
+            danger: true,
+          }}
+        />
+      ) : null}
     </group>
   );
 };
@@ -778,6 +852,7 @@ const QuestCommsWorkbench = ({ session }) => {
   const traceMode = activeTool === 'rastreo';
   const lines = useMemo(() => getCommsLines(session, activeTool), [activeTool, session]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const tracerAudioAnchorRef = useRef(null);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -823,6 +898,19 @@ const QuestCommsWorkbench = ({ session }) => {
           <ModeTabs activeTool={activeTool} session={session} />
         </group>
       )}
+      <group
+        ref={tracerAudioAnchorRef}
+        name="GCPD_Comms_TracerAudioAnchor"
+        position={traceMode ? [2.08, 0.08, 0.18] : [-0.84, 0.08, 0.18]}
+        rotation={traceMode ? [0, 0.02, 0] : [0, -0.12, 0]}
+      >
+        <QuestTracerPositionalAudio
+          anchorRef={tracerAudioAnchorRef}
+          phoneState={session.phoneState}
+          currentModule={session.currentModule}
+          activeTool={activeTool}
+        />
+      </group>
       <DialPanel
         session={session}
         lines={lines}
