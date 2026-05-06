@@ -64,17 +64,6 @@ const mapPercentToLocal = (x = 50, y = 50) => [
 const getCommsLines = (session, activeTool) => {
   const toolData = session?.toolData || {};
   const phoneLines = toolData.phoneLines || [];
-  const tracerLines = toolData.tracerConfig?.lines || [];
-
-  if (activeTool === 'rastreo' && tracerLines.length) {
-    return tracerLines.map((line) => ({
-      ...line,
-      number: line.number || line.normalizedNumber || line.normalized || '',
-      label: line.label || line.id || line.number || 'TRAZA',
-      mode: PHONE_MODE_TRACER,
-      source: 'tracer',
-    }));
-  }
 
   return phoneLines.map((line) => ({
     ...line,
@@ -391,7 +380,7 @@ const SignalProp = ({ label, meta, position, active = false, danger = false }) =
   </group>
 );
 
-const TraceMap = ({ session, selectedNumber, selectedLine, phase, minimal = false }) => {
+const TraceMap = ({ session, selectedNumber, phase, minimal = false }) => {
   const mapTexture = useLoader(THREE.TextureLoader, MAP_TEXTURE_URL);
   const [traceState, setTraceState] = useState({
     stage: 0,
@@ -416,7 +405,7 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase, minimal = fals
     });
   });
 
-  const hotspot = session.phoneState?.hotspot || selectedLine?.hotspot || selectedLine || { x: 50, y: 50 };
+  const hotspot = session.phoneState?.hotspot || { x: 50, y: 50 };
   const [hotspotX, hotspotY] = mapPercentToLocal(hotspot.x ?? 50, hotspot.y ?? 50);
   const activeTrace = session.phoneState?.activeMode === PHONE_MODE_TRACER;
   const radius = ringRadiusForStage(traceState.stage);
@@ -426,9 +415,9 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase, minimal = fals
     : phase === 'ready'
       ? 'listo para iniciar'
       : 'reposo';
-  const panelSize = minimal ? [2.34, 1.66] : [1.26, 0.78];
-  const imageSize = minimal ? [2.2, 1.66] : [MAP_WIDTH, MAP_HEIGHT];
-  const imagePosition = minimal ? [-0.06, 0.0, 0.01] : [-0.18, 0.03, 0.01];
+  const panelSize = minimal ? [2.02, 1.5] : [1.26, 0.78];
+  const imageSize = minimal ? [1.88, 1.42] : [MAP_WIDTH, MAP_HEIGHT];
+  const imagePosition = minimal ? [0.02, 0.0, 0.01] : [-0.18, 0.03, 0.01];
 
   return (
     <group name="GCPD_Comms_TraceMap">
@@ -527,7 +516,7 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase, minimal = fals
             textureOptions={{
               eyebrow: 'TRAZA',
               title: status,
-              body: selectedNumber ? `#${selectedNumber}` : 'selecciona linea',
+              body: selectedNumber ? `#${selectedNumber}` : 'introduce número',
               meta: `${traceState.clock} // fase ${activeTrace ? traceState.stage : 0}`,
               width: 520,
               height: 210,
@@ -572,7 +561,6 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase, minimal = fals
 const DialPanel = ({
   session,
   lines,
-  selectedLine,
   selectedIndex,
   setSelectedIndex,
   hideLines = false,
@@ -582,8 +570,7 @@ const DialPanel = ({
 }) => {
   const selectedNumber = normalizeDigits(
     session.phoneState?.dialedDigits ||
-      session.phoneState?.lastDialedNumber ||
-      selectedLine?.number
+      session.phoneState?.lastDialedNumber
   );
   const activeMode = session.phoneState?.activeMode;
   const displayNumber = session.phoneState?.dialedDigits || selectedNumber || session.phoneState?.lastDialedNumber || '';
@@ -601,7 +588,7 @@ const DialPanel = ({
         textureOptions={{
           eyebrow: traceMode ? 'TRAZA' : 'DIAL',
           title: displayNumber || 'SIN MARCAR',
-          body: traceMode ? 'línea lista para rastreo' : activeMode === PHONE_MODE_CALL ? 'línea conectada' : 'llamada manual',
+          body: traceMode ? 'marcación ciega preparada' : activeMode === PHONE_MODE_CALL ? 'línea conectada' : 'llamada manual',
           meta: session.phoneState?.lineStatus || 'colgada',
           width: 820,
           height: 220,
@@ -626,9 +613,9 @@ const DialPanel = ({
   );
 };
 
-const TracePanel = ({ session, selectedLine, minimal = false, position = [0.52, 0.0, 0.1] }) => {
+const TracePanel = ({ session, minimal = false, position = [0.52, 0.0, 0.1] }) => {
   const selectedNumber = normalizeDigits(
-    session.phoneState?.dialedDigits || session.phoneState?.lastDialedNumber || selectedLine?.number
+    session.phoneState?.dialedDigits || session.phoneState?.lastDialedNumber
   );
   const phase = selectedNumber ? 'ready' : 'idle';
 
@@ -661,7 +648,6 @@ const TracePanel = ({ session, selectedLine, minimal = false, position = [0.52, 
         <TraceMap
           session={session}
           selectedNumber={selectedNumber}
-          selectedLine={selectedLine}
           phase={phase}
           minimal={minimal}
         />
@@ -700,11 +686,20 @@ const QuestCommsWorkbench = ({ session }) => {
     setSelectedIndex(0);
   }, [activeTool, lines.length]);
 
+  useEffect(() => {
+    if (activeTool === 'rastreo') {
+      session.actions.setPhoneMode?.(PHONE_MODE_TRACER);
+      return;
+    }
+
+    if (activeTool === 'comunicaciones') {
+      session.actions.setPhoneMode?.(PHONE_MODE_CALL);
+    }
+  }, [activeTool, session.actions]);
+
   const isActive =
     session?.currentModule === QUEST_MODULE_HERRAMIENTAS &&
     (activeTool === 'comunicaciones' || activeTool === 'rastreo');
-
-  const selectedLine = lines[selectedIndex % Math.max(lines.length, 1)] || null;
 
   if (!isActive) return null;
 
@@ -734,15 +729,14 @@ const QuestCommsWorkbench = ({ session }) => {
       <DialPanel
         session={session}
         lines={lines}
-        selectedLine={selectedLine}
         selectedIndex={selectedIndex}
         setSelectedIndex={setSelectedIndex}
-        hideLines={false}
+        hideLines
         traceMode={traceMode}
         position={traceMode ? [2.1, -0.02, 0.08] : [-0.86, -0.02, 0.08]}
         rotation={traceMode ? [0, 0.02, 0] : [0, -0.12, 0]}
       />
-      <TracePanel session={session} selectedLine={selectedLine} minimal={traceMode} position={traceMode ? [-0.36, 0.0, 0.1] : [0.52, 0.0, 0.1]} />
+      <TracePanel session={session} minimal={traceMode} position={traceMode ? [0.38, 0.0, 0.1] : [0.52, 0.0, 0.1]} />
       <StatusStrip session={session} />
     </group>
   );

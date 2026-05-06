@@ -109,6 +109,10 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
         };
       }
 
+      if (current.mode === mode) {
+        return current;
+      }
+
       return {
         ...current,
         mode,

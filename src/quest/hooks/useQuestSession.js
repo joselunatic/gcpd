@@ -263,6 +263,19 @@ const useQuestSession = (data, toolData = null) => {
     goToHerramientas,
   });
 
+  useEffect(() => {
+    if (currentModule !== QUEST_MODULE_HERRAMIENTAS) return;
+
+    if (selection.herramientas.activeTool === 'rastreo') {
+      phoneActions.setPhoneMode(PHONE_MODE_TRACER);
+      return;
+    }
+
+    if (selection.herramientas.activeTool === 'comunicaciones') {
+      phoneActions.setPhoneMode(PHONE_MODE_CALL);
+    }
+  }, [currentModule, phoneActions, selection.herramientas.activeTool]);
+
   const goBack = useCallback(() => {
     if (phoneState.focusMode) {
       phoneActions.dismissPhoneFocus();
