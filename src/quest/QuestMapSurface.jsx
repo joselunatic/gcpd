@@ -4,7 +4,7 @@ import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { PHONE_MODE_TRACER } from './hooks/useQuestSession';
-import { QUEST_MODULE_HERRAMIENTAS } from './state/questModules';
+import { QUEST_MODULE_MAPA } from './state/questModules';
 
 const MAP_TEXTURE_URL = '/mapa.png';
 const HOTSPOTS_URL = '/data/map/hotspots.json';
@@ -280,13 +280,12 @@ const QuestMapSurface = ({ data, session, panelAnchor = null }) => {
       ),
     [session?.questContext?.relatedPoisForCase]
   );
-  const activeTool = session?.selection?.herramientas?.activeTool;
   const activeFilter = session?.selection?.mapa?.activeFilter || 'caso-activo';
   const isCaseFilterActive = activeFilter === 'caso-activo' && relatedPoiIds.size > 0;
   const activeTracer = session?.phoneState?.activeMode === PHONE_MODE_TRACER;
   const shouldShow =
     !activeTracer &&
-    (session?.currentModule === QUEST_MODULE_HERRAMIENTAS && activeTool !== 'rastreo');
+    session?.currentModule === QUEST_MODULE_MAPA;
 
   useEffect(() => {
     let cancelled = false;
