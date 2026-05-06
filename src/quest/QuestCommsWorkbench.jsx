@@ -416,9 +416,9 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase, minimal = fals
     : phase === 'ready'
       ? 'listo para iniciar'
       : 'reposo';
-  const panelSize = minimal ? [1.86, 1.38] : [1.26, 0.78];
-  const imageSize = minimal ? [1.72, 1.38] : [MAP_WIDTH, MAP_HEIGHT];
-  const imagePosition = minimal ? [0.0, 0.0, 0.01] : [-0.18, 0.03, 0.01];
+  const panelSize = minimal ? [2.34, 1.66] : [1.26, 0.78];
+  const imageSize = minimal ? [2.2, 1.66] : [MAP_WIDTH, MAP_HEIGHT];
+  const imagePosition = minimal ? [-0.06, 0.0, 0.01] : [-0.18, 0.03, 0.01];
 
   return (
     <group name="GCPD_Comms_TraceMap">
@@ -598,7 +598,7 @@ const DialPanel = ({
           active: activeCallMode || traceMode,
         }}
       />
-      <group position={[-0.26, 0.03, 0.03]}>
+      <group position={[-0.4, 0.03, 0.03]}>
         <DialPad
           session={session}
           selectedNumber={selectedNumber || displayNumber}
@@ -626,7 +626,7 @@ const TracePanel = ({ session, selectedLine, minimal = false, position = [0.52, 
       <HoloPlate
         name="GCPD_Comms_TracePanel_Aura"
         position={[0, 0, -0.04]}
-        size={minimal ? [1.98, 1.46] : [1.48, 1.28]}
+        size={minimal ? [2.34, 1.66] : [1.48, 1.28]}
         opacity={0.04}
       />
       {minimal ? null : (
@@ -728,10 +728,10 @@ const QuestCommsWorkbench = ({ session }) => {
         setSelectedIndex={setSelectedIndex}
         hideLines={traceMode}
         traceMode={traceMode}
-        position={traceMode ? [1.82, -0.02, 0.08] : [-0.86, -0.02, 0.08]}
-        rotation={traceMode ? [0, 0.05, 0] : [0, -0.12, 0]}
+        position={traceMode ? [2.16, -0.02, 0.08] : [-0.86, -0.02, 0.08]}
+        rotation={traceMode ? [0, 0.02, 0] : [0, -0.12, 0]}
       />
-      <TracePanel session={session} selectedLine={selectedLine} minimal={traceMode} position={traceMode ? [-0.08, 0.0, 0.1] : [0.52, 0.0, 0.1]} />
+      <TracePanel session={session} selectedLine={selectedLine} minimal={traceMode} position={traceMode ? [-0.3, 0.0, 0.1] : [0.52, 0.0, 0.1]} />
       <StatusStrip session={session} />
     </group>
   );
