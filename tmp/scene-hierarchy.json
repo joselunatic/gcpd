@@ -1,0 +1,781 @@
+{
+  "name": "(unnamed)",
+  "uuid": "76eca83d-c56d-4ab5-9b47-ea4265458342",
+  "type": "Scene",
+  "children": [
+    {
+      "name": "GCPD_QuestScene",
+      "uuid": "d9a9c386-2cb7-4ecc-ad75-6bfebd757b50",
+      "type": "Group",
+      "children": [
+        {
+          "name": "(unnamed)",
+          "uuid": "5b8fada3-8778-41a1-becd-7cfea0f64e0c",
+          "type": "Group",
+          "children": [
+            {
+              "name": "(unnamed)",
+              "uuid": "438e02f7-f9a7-4caf-b55a-3d1e975f79aa",
+              "type": "PerspectiveCamera"
+            },
+            {
+              "name": "(unnamed)",
+              "uuid": "7f212ee1-6728-48f7-80f7-8736c737d14a",
+              "type": "Group",
+              "children": [
+                {
+                  "name": "(unnamed)",
+                  "uuid": "de768cec-40a2-43b7-a4ef-4bc99210039a",
+                  "type": "Group",
+                  "children": [
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "b4c40e97-f69e-414a-abae-b3dc328814b8",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "708a9c85-8dd3-4e55-9295-9a823118fc14",
+                      "type": "Group"
+                    }
+                  ]
+                },
+                {
+                  "name": "(unnamed)",
+                  "uuid": "53a7bff1-1274-437b-be54-1368e193dfeb",
+                  "type": "Group",
+                  "children": [
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "32563df2-313e-4765-b8c0-f7bbf6cd7c53",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "2337fafe-5dc7-4a88-9ef5-e3d94556dc71",
+                      "type": "Group"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "550bd5ca-2f29-4816-a380-8fbd5cb697f7",
+          "type": "AmbientLight"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "2f69b491-25a8-438b-b340-8c1fb6b33137",
+          "type": "HemisphereLight"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "889f66d4-0081-4f1c-b1ce-1ec574abc962",
+          "type": "DirectionalLight"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "5628a8f4-7875-4f05-abb9-3f8f5ee03a7a",
+          "type": "PointLight"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "6ac75848-e7fb-4101-acfc-d1429b463b6f",
+          "type": "PointLight"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "17b7d993-30a2-4c72-a5a8-21ca42704c39",
+          "type": "PointLight"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "94467f17-cd92-46c0-8721-9a6b6b2d643d",
+          "type": "PointLight"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "63b9d164-90d2-49cd-90a4-59917e446b87",
+          "type": "PointLight"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "0746782c-3243-4508-8174-a0daeccf1ec5",
+          "type": "PointLight"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "09464124-e69c-44a2-8d4b-ff22648a7eb2",
+          "type": "PointLight"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "86b23eab-0fda-4ece-8908-9b0963a360ad",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "74a0c9af-fbf3-4b15-bda1-49a77ac91acf",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "13fb4987-e5b2-422e-aaf1-71bd06b17212",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "cc55c6c7-b86a-4f6e-b14a-8b301521ea15",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "834873e0-2c8f-4a95-843c-bcd7bb1d8823",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "c2fa5502-c840-41b0-8e89-7b2635c7050d",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "946de12f-8524-403c-a9a0-63c7a60a673e",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "7511be7c-bfaf-4b73-9bd9-b700f811558a",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "64e29eed-be39-4272-baad-6f84d6177a1f",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "3095584f-6622-4504-8baa-67e3476b4872",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "d2aff7fb-0664-46fc-8992-29bbfcb5b6bc",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "96f13098-c31d-49d8-90f7-b10824b8cafe",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "7cce85e8-b89b-4387-b242-273994181fe9",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "243b49e7-e3af-4ff3-b902-02b2cccbe697",
+          "type": "Mesh"
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "aa0d0f7f-80cd-4d5e-99ae-2275907697cd",
+          "type": "Mesh"
+        },
+        {
+          "name": "Scene",
+          "uuid": "4295f3bb-a9e5-4789-81f6-f8390c525d9a",
+          "type": "Group",
+          "children": [
+            {
+              "name": "QuestPhoneRig",
+              "uuid": "cfd9e2f1-7dab-4822-91ee-116aef7480bf",
+              "type": "Object3D",
+              "children": [
+                {
+                  "name": "QuestPhoneHandset",
+                  "uuid": "ce2fbde4-6ea7-4dc1-8832-62d89a939a19",
+                  "type": "Mesh"
+                },
+                {
+                  "name": "QuestPhoneModel",
+                  "uuid": "d0409944-9ac0-426c-9c84-7cf0d94725c2",
+                  "type": "Mesh",
+                  "children": [
+                    {
+                      "name": "QuestPhoneKey_0",
+                      "uuid": "58feb265-caf9-4687-82b5-98ff1ce1ddea",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_1",
+                      "uuid": "de451720-0bdf-4fb2-95da-7fa9c69af9da",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_2",
+                      "uuid": "bedfedda-ad80-4f9b-91d2-65f587ea1716",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_3",
+                      "uuid": "8ec1056f-82e0-4e73-ae59-911cb556a10e",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_4",
+                      "uuid": "6ba4fb02-ceb4-4f62-b2c7-5c5b2a07e01d",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_5",
+                      "uuid": "f91c8d00-e8ad-45b7-9c92-e468782a8ff6",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_6",
+                      "uuid": "f5ead319-ba87-439e-91cf-ce1b990971aa",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_7",
+                      "uuid": "46adbc72-2663-4ca8-850e-a8d2a9b3abdf",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_8",
+                      "uuid": "194a256f-891e-4715-a5b1-4557c5454820",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_9",
+                      "uuid": "90b7b1a1-6460-4688-b3c4-08a1fab0a594",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_Call",
+                      "uuid": "b72e0e81-a531-4e13-9e62-8162db4d6365",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_Clear",
+                      "uuid": "1e4264f9-3b9c-4759-a29c-e6aa52e7cd89",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_Hash",
+                      "uuid": "b9737830-6baa-4a0f-86d8-1b9ba9041a25",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKey_Star",
+                      "uuid": "d882bc9f-87e5-4e13-b241-b3b1c9c8a214",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_0",
+                      "uuid": "2f45dae5-bdc6-43a6-8e6f-1fa52784ddf2",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_1",
+                      "uuid": "5d649eb1-dd21-4af7-b73b-245afe5ad0e2",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_2",
+                      "uuid": "11042609-ca0b-489e-a3d0-daa6dfdbe7f8",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_3",
+                      "uuid": "4fcfc745-ba6c-4079-b102-38aa92d2c37e",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_4",
+                      "uuid": "a97de564-c53a-4918-acf5-d2baa622bcc6",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_5",
+                      "uuid": "d75bc509-136b-4e41-be92-0059e6d004b2",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_6",
+                      "uuid": "64065303-eeb5-439f-b2a7-ae826a10fca7",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_7",
+                      "uuid": "2e7f67d3-3e55-4feb-a733-b3b238951ba4",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_8",
+                      "uuid": "11d55ff0-ba42-403f-a08e-488077c02a05",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_9",
+                      "uuid": "11a7b358-be5b-40f3-b2ef-3cb38066dbff",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_Call",
+                      "uuid": "5500eda4-5619-4d5f-a295-eb5cacea1629",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_Clear",
+                      "uuid": "4412e873-2733-4ed1-a43e-e6888ecf23ff",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_Hash",
+                      "uuid": "01893583-b416-42a7-9621-e5c908c2a31e",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneKeyDebugOutline_Star",
+                      "uuid": "f6219000-0ba5-4745-8a27-cdb8bc8e089a",
+                      "type": "Mesh"
+                    }
+                  ]
+                },
+                {
+                  "name": "QuestPhoneHitArea",
+                  "uuid": "b30754f3-eddb-47e2-b361-d99855be625d",
+                  "type": "Mesh"
+                }
+              ]
+            },
+            {
+              "name": "BasePlatform",
+              "uuid": "9a060bc1-b875-46ad-beec-e56c185c34da",
+              "type": "Mesh"
+            },
+            {
+              "name": "InnerPlatform",
+              "uuid": "1cf057c0-38fa-43fc-9885-d7b608f79436",
+              "type": "Mesh"
+            },
+            {
+              "name": "UserFootMarker",
+              "uuid": "9354e4cd-7e15-4372-8644-41559d993792",
+              "type": "Mesh"
+            },
+            {
+              "name": "RunwayStrip",
+              "uuid": "54e910d7-6056-4926-b87e-967338330a69",
+              "type": "Mesh"
+            },
+            {
+              "name": "RunwayGlow",
+              "uuid": "3a74d1c0-3843-4c3a-aa6e-0cd05f6ed005",
+              "type": "Mesh"
+            },
+            {
+              "name": "MainPedestal",
+              "uuid": "587cca27-ea1b-40ee-87e5-5a037c5ca0d2",
+              "type": "Mesh"
+            },
+            {
+              "name": "PedestalNeck",
+              "uuid": "62413ae3-f8fd-4b8c-bc24-2f87f056a2b1",
+              "type": "Mesh"
+            },
+            {
+              "name": "MainPanelFrame",
+              "uuid": "372b5638-be50-473f-9921-625aa0e3866a",
+              "type": "Mesh"
+            },
+            {
+              "name": "MainPanelScreen",
+              "uuid": "ba5257f5-f142-41e0-8363-cf682b7063a2",
+              "type": "Mesh"
+            },
+            {
+              "name": "ConsoleShelf",
+              "uuid": "3e883362-f5be-4172-9793-f94b91ddb2a0",
+              "type": "Mesh"
+            },
+            {
+              "name": "ConsoleLip",
+              "uuid": "8184f20d-36e7-429d-8592-ad49a2c9437b",
+              "type": "Mesh"
+            },
+            {
+              "name": "LeftDataPylon",
+              "uuid": "3a8aee7f-4aa3-4e1d-989f-34113c696b94",
+              "type": "Mesh"
+            },
+            {
+              "name": "RightDataPylon",
+              "uuid": "9bab00ae-0d22-4fb7-83b6-b1b758c97ab3",
+              "type": "Mesh"
+            },
+            {
+              "name": "LeftDataPylon_GlowStrip",
+              "uuid": "f203d685-1729-4a64-a711-2a5342b14750",
+              "type": "Mesh"
+            },
+            {
+              "name": "RightDataPylon_GlowStrip",
+              "uuid": "162b3125-349d-4120-ba34-2f5c0fdde383",
+              "type": "Mesh"
+            },
+            {
+              "name": "RearHalo",
+              "uuid": "d1cf6908-be03-44cc-ae15-afdbdacd311a",
+              "type": "Mesh"
+            },
+            {
+              "name": "RearSpine",
+              "uuid": "21f1fe38-c1f1-4bb0-90e1-a090fa0ca561",
+              "type": "Mesh"
+            },
+            {
+              "name": "OverheadBridge",
+              "uuid": "79c3b023-ec2c-438c-af82-0211aaaf37cd",
+              "type": "Mesh"
+            },
+            {
+              "name": "BridgeStrut_L",
+              "uuid": "b5a6c1b1-b9db-45c2-8a0c-166ca0c92cfa",
+              "type": "Mesh"
+            },
+            {
+              "name": "BridgeStrut_R",
+              "uuid": "e97e89e5-ac88-4bc9-8e9c-3e0d61e22af8",
+              "type": "Mesh"
+            },
+            {
+              "name": "LeftPlinth",
+              "uuid": "7a8d6453-bae1-4495-9278-f76c84cb859a",
+              "type": "Mesh"
+            },
+            {
+              "name": "RightPlinth",
+              "uuid": "4f0193a3-425c-42c9-b875-8229f77ffc62",
+              "type": "Mesh"
+            },
+            {
+              "name": "LeftPlinth_Beacon",
+              "uuid": "1f6c0e7f-69db-4d51-8104-ecd1e177342f",
+              "type": "Mesh"
+            },
+            {
+              "name": "RightPlinth_Beacon",
+              "uuid": "43752b89-8153-4b5e-80ee-a9b4aa6e0a90",
+              "type": "Mesh"
+            },
+            {
+              "name": "StatusNib_01",
+              "uuid": "2d221b8a-937c-4252-9072-9510d97dafea",
+              "type": "Mesh"
+            },
+            {
+              "name": "StatusNib_02",
+              "uuid": "30299980-0d90-47e0-a8fe-c52b49e5dfad",
+              "type": "Mesh"
+            },
+            {
+              "name": "StatusNib_03",
+              "uuid": "f3e6be9c-39f4-4204-ba45-7ec5fbe7abbd",
+              "type": "Mesh"
+            },
+            {
+              "name": "StatusNib_04",
+              "uuid": "9bcfe365-fd9a-415a-a9b5-91bfe5dd7473",
+              "type": "Mesh"
+            },
+            {
+              "name": "StatusNib_05",
+              "uuid": "0007562d-f111-421e-83d2-c312133cb0ea",
+              "type": "Mesh"
+            },
+            {
+              "name": "StatusNib_06",
+              "uuid": "fc593c5e-e57c-4991-bf07-5133f45da9bc",
+              "type": "Mesh"
+            },
+            {
+              "name": "StatusNib_07",
+              "uuid": "dace2532-ace7-447b-b7e7-4da53b33f10f",
+              "type": "Mesh"
+            },
+            {
+              "name": "StatusNib_08",
+              "uuid": "51f2eb88-1778-4d6b-a08f-d7d3e9812b7b",
+              "type": "Mesh"
+            },
+            {
+              "name": "StatusNib_09",
+              "uuid": "51d3f34e-dfcc-4d92-8bcd-b308a297a786",
+              "type": "Mesh"
+            }
+          ]
+        },
+        {
+          "name": "(unnamed)",
+          "uuid": "65646618-fecb-4322-aef9-9f2fa9fdfad9",
+          "type": "Group",
+          "children": [
+            {
+              "name": "(unnamed)",
+              "uuid": "7776eb42-5a63-4ad5-af22-d06a8d4c744d",
+              "type": "Mesh"
+            },
+            {
+              "name": "(unnamed)",
+              "uuid": "45eb9675-8b4f-406e-adea-5ac1e6f7845f",
+              "type": "Group",
+              "children": [
+                {
+                  "name": "QuestPhoneFocusRig",
+                  "uuid": "9c6875bf-47f7-48be-8aa8-2dd5e65cbbb3",
+                  "type": "Object3D",
+                  "children": [
+                    {
+                      "name": "QuestPhoneHandset",
+                      "uuid": "435c191e-edd4-4c40-8de9-649b6f2b8492",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneModel",
+                      "uuid": "56435917-fd87-4136-8ee3-9609574bdd1e",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "QuestPhoneHitArea",
+                      "uuid": "b6904fb2-4ed8-4058-8da2-e2ce9b3ba44c",
+                      "type": "Mesh"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "QuestMonitorSurface",
+          "uuid": "b6fe672b-651f-44b4-bf8e-bac901423012",
+          "type": "Group",
+          "children": [
+            {
+              "name": "GCPD_Quest_MainDashboard",
+              "uuid": "a1146dbd-6ba9-445f-8d9d-801c9e553c8e",
+              "type": "Group",
+              "children": [
+                {
+                  "name": "GCPD_Quest_MainDashboard_Volume",
+                  "uuid": "e30c4ab3-8996-4447-b6a2-3daa20fb0f33",
+                  "type": "Mesh"
+                },
+                {
+                  "name": "(unnamed)",
+                  "uuid": "0480b876-ba69-43cc-9ccd-61e5f77c459c",
+                  "type": "Mesh"
+                },
+                {
+                  "name": "GCPD_Quest_MainDashboard_Horizon",
+                  "uuid": "e0786432-d2f6-4d8c-8f31-4d92fa536307",
+                  "type": "Mesh"
+                },
+                {
+                  "name": "GCPD_Quest_MainDashboard_FloorTrace",
+                  "uuid": "0c75b89c-aff0-47f5-9826-088cbd790db0",
+                  "type": "Mesh"
+                },
+                {
+                  "name": "(unnamed)",
+                  "uuid": "dc893f43-375d-4de5-9474-c09bba5bbf71",
+                  "type": "Mesh"
+                },
+                {
+                  "name": "GCPD_Quest_ModuleRail",
+                  "uuid": "2e3e07d1-a8a7-473f-9812-c362f784e09e",
+                  "type": "Group",
+                  "children": [
+                    {
+                      "name": "GCPD_Quest_ModuleRail_Aura",
+                      "uuid": "1c08d43e-1a13-4054-8b71-118cb2c10c8e",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "afbcdf72-e053-437f-a59d-0720047e959e",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "GCPD_Quest_ModuleRail_LeftTrace",
+                      "uuid": "9b950cae-1464-44c5-a972-d12a5d8bb217",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "91afd359-8a99-4a6f-9931-ef483614d7ab",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "76539223-ee53-4aab-9bfd-06528cade56b",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "ba0b8d70-6fa1-45a8-9301-be409b8cfcc9",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "eb88ad4a-0b52-4706-bd9b-70fb9b30d4a6",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "5f02ec00-b19a-4b92-9263-ed3a02f07c9a",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "8ab333b2-4145-4c60-b17b-19740c5cff1c",
+                      "type": "Group"
+                    }
+                  ]
+                },
+                {
+                  "name": "GCPD_Quest_CentralPanel",
+                  "uuid": "cf3c1039-8101-4467-b5c8-3ce98c98824d",
+                  "type": "Group",
+                  "children": [
+                    {
+                      "name": "GCPD_Quest_CentralPanel_Aura",
+                      "uuid": "bda0cbdf-c76e-4591-8f05-682918c5d41c",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "986f4ff9-7012-42cf-9678-7de8c0f3b839",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "GCPD_Quest_CentralPanel_TopTrace",
+                      "uuid": "ac012ebd-7153-464d-8f95-d3687448a250",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "GCPD_Quest_InfoCard_operation_header",
+                      "uuid": "fab7e73f-2059-4dc3-8c26-e3dce10d8608",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "08ae3915-3f32-44b1-81d8-039de5a0ff36",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "de06dd17-96db-4755-8a28-da87bf6cc912",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "ec2fa3c5-fa62-4752-aa1f-943e486b55c4",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "83864e87-97af-474b-b27a-07d2274cdd92",
+                      "type": "Group"
+                    }
+                  ]
+                },
+                {
+                  "name": "GCPD_Quest_RightColumn",
+                  "uuid": "3c52b924-28c3-40f1-9909-91a9e1a858a7",
+                  "type": "Group",
+                  "children": [
+                    {
+                      "name": "GCPD_Quest_RightColumn_Aura",
+                      "uuid": "4b1e67f8-6d6e-4c2c-90b5-cf0cd579d10e",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "7b4f1736-ad5c-4df8-95c9-61c7a2b12960",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "GCPD_Quest_RightColumn_RightTrace",
+                      "uuid": "6dd79d4b-f0da-41a7-b2e9-1b9ee8014dfe",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "740486b8-4721-49fb-bef2-b001d0ad8c1e",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "254805a9-b984-4d06-97a9-19895bd24455",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "80bfa422-ed39-488a-8dc0-376f7dae6ba3",
+                      "type": "Group"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "382be674-6968-498c-ae30-0bdf5bdd47e6",
+                      "type": "Group"
+                    }
+                  ]
+                },
+                {
+                  "name": "GCPD_Quest_StatusStrip",
+                  "uuid": "fb51217c-aa51-4f86-9f61-f2ba1c08a123",
+                  "type": "Group",
+                  "children": [
+                    {
+                      "name": "GCPD_Quest_StatusStrip_Aura",
+                      "uuid": "40fe3271-b85a-4e3e-a3e6-971b54fe968a",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "46de009e-3de3-4b2f-ab4f-dadb0be8fead",
+                      "type": "Mesh"
+                    },
+                    {
+                      "name": "(unnamed)",
+                      "uuid": "9770c2b7-c6c3-45f6-8c17-e9667af336af",
+                      "type": "Group"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "(unnamed)",
+      "uuid": "57b0ede7-56d6-4483-99ff-9ba8970cbc78",
+      "type": "Mesh"
+    },
+    {
+      "name": "(unnamed)",
+      "uuid": "3021317a-2fda-4e80-9db7-be372604afc4",
+      "type": "Mesh"
+    }
+  ]
+}

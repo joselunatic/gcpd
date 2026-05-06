@@ -598,7 +598,7 @@ const DialPanel = ({
           active: activeCallMode || traceMode,
         }}
       />
-      <group position={[-0.4, 0.03, 0.03]}>
+      <group position={[-0.28, 0.03, 0.03]}>
         <DialPad
           session={session}
           selectedNumber={selectedNumber || displayNumber}
@@ -728,10 +728,10 @@ const QuestCommsWorkbench = ({ session }) => {
         setSelectedIndex={setSelectedIndex}
         hideLines={traceMode}
         traceMode={traceMode}
-        position={traceMode ? [2.16, -0.02, 0.08] : [-0.86, -0.02, 0.08]}
+        position={traceMode ? [2.28, -0.02, 0.08] : [-0.86, -0.02, 0.08]}
         rotation={traceMode ? [0, 0.02, 0] : [0, -0.12, 0]}
       />
-      <TracePanel session={session} selectedLine={selectedLine} minimal={traceMode} position={traceMode ? [-0.3, 0.0, 0.1] : [0.52, 0.0, 0.1]} />
+      <TracePanel session={session} selectedLine={selectedLine} minimal={traceMode} position={traceMode ? [-0.36, 0.0, 0.1] : [0.52, 0.0, 0.1]} />
       <StatusStrip session={session} />
     </group>
   );

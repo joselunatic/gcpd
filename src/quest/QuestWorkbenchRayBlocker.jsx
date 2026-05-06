@@ -27,7 +27,8 @@ const QuestWorkbenchRayBlocker = ({ session }) => {
   const activeTool = session?.selection?.herramientas?.activeTool;
   const active =
     session?.currentModule === QUEST_MODULE_HERRAMIENTAS &&
-    Boolean(activeTool);
+    Boolean(activeTool) &&
+    activeTool !== 'rastreo';
 
   if (!active) return null;
 
