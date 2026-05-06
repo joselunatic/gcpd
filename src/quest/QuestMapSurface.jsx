@@ -1,6 +1,6 @@
 /* eslint-disable react/no-unknown-property */
 import { useEffect, useMemo, useState } from 'react';
-import { useFrame, useLoader } from '@react-three/fiber';
+import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { PHONE_MODE_TRACER } from './hooks/useQuestSession';
@@ -10,8 +10,6 @@ const MAP_TEXTURE_URL = '/mapa.png';
 const HOTSPOTS_URL = '/data/map/hotspots.json';
 const MAP_WIDTH = 2.48;
 const MAP_HEIGHT = MAP_WIDTH * 0.744;
-const TRACE_STEP_MS = 15_000;
-const TRACE_EXACT_MS = 45_000;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
 const UI_MATERIAL_PROPS = {
@@ -51,13 +49,6 @@ const radiusForStage = (stage, maxRadius) => {
   if (stage === 2) return maxRadius / 3;
   if (stage === 1) return (maxRadius * 2) / 3;
   return maxRadius;
-};
-
-const stageFromElapsed = (elapsedMs) => {
-  if (elapsedMs >= TRACE_EXACT_MS) return 3;
-  if (elapsedMs >= TRACE_STEP_MS * 2) return 2;
-  if (elapsedMs >= TRACE_STEP_MS) return 1;
-  return 0;
 };
 
 const createTextTexture = ({
@@ -187,11 +178,11 @@ const QuestMapPoi = ({ spot, active, related, dimmed, onSelect }) => {
 };
 
 const QuestTracerOverlay = ({ phoneState }) => {
-  const [stage, setStage] = useState(0);
   const [clock, setClock] = useState('T+00.0s');
   const hotspot = phoneState?.hotspot;
   const active = phoneState?.activeMode === PHONE_MODE_TRACER && hotspot;
   const answeredAt = Number(phoneState?.tracerAnsweredAt || 0);
+  const stage = Number(phoneState?.tracerStage || 0);
   const [x, y] = active ? mapPercentToLocal(hotspot.x ?? 50, hotspot.y ?? 50) : [0, 0];
   const maxRadius = Math.max(
     ...[
@@ -203,13 +194,14 @@ const QuestTracerOverlay = ({ phoneState }) => {
   );
   const radius = radiusForStage(stage, maxRadius);
 
-  useFrame(() => {
-    if (!active || !answeredAt) return;
-    const elapsed = Math.max(0, Date.now() - answeredAt);
-    const nextStage = stageFromElapsed(elapsed);
-    setClock(`T+${(elapsed / 1000).toFixed(1)}s`);
-    setStage((current) => (current === nextStage ? current : nextStage));
-  });
+  useEffect(() => {
+    if (!active || !answeredAt) return undefined;
+    const timer = window.setInterval(() => {
+      const elapsed = Math.max(0, Date.now() - answeredAt);
+      setClock(`T+${(elapsed / 1000).toFixed(1)}s`);
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [active, answeredAt]);
 
   if (!active) return null;
 

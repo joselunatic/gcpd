@@ -92,6 +92,7 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
     activeCallId: '',
     tracerPhase: 'idle',
     tracerAnsweredAt: 0,
+    tracerStage: 0,
     hotspot: null,
     hotspotLabel: '',
     activeAudioLabel: '',
@@ -345,6 +346,7 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
             activeCallId: String(payload.callId || current.activeCallId || ''),
             tracerPhase: 'answered',
             tracerAnsweredAt: Number(payload.answeredAt) || Date.now(),
+            tracerStage: Number(payload.stage) || 0,
             lineStatus: phoneBridgeModeRef.current === PHONE_MODE_TRACER ? 'trazando' : 'conectada',
             hotspot: payload.hotspot || null,
             hotspotLabel: String(payload.hotspot?.label || ''),
@@ -352,6 +354,16 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
               phoneBridgeModeRef.current === PHONE_MODE_TRACER
                 ? `Operador respondió.${payload.hotspot?.label ? ` Hotspot ${payload.hotspot.label}.` : ' Traza en curso.'}`
                 : 'DM descolgó la línea.',
+          }));
+          return;
+        }
+
+        if (payload.type === 'tracer:stage') {
+          setPhoneState((current) => ({
+            ...current,
+            tracerStage: Number(payload.stage) || current.tracerStage || 0,
+            tracerAnsweredAt: Number(payload.answeredAt) || current.tracerAnsweredAt || Date.now(),
+            lastAction: String(payload.message || current.lastAction || 'Traza avanzada.'),
           }));
           return;
         }
@@ -365,6 +377,7 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
             activeCallId: '',
             tracerPhase: payload.type === 'tracer:auto_hangup' ? 'timeout' : 'hangup',
             tracerAnsweredAt: 0,
+            tracerStage: 0,
             lineStatus: 'colgada',
             lastAction:
               payload.type === 'tracer:auto_hangup'
@@ -385,6 +398,7 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
             activeMode: null,
             activeCallId: '',
             tracerPhase: 'error',
+            tracerStage: 0,
             lineStatus: 'colgada',
             lastAction: String(payload.message || 'Error operativo de tracer.'),
             activeAudioLabel: '',
@@ -494,6 +508,7 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
         lineStatus: 'solicitando',
         tracerPhase: 'dialing',
         tracerAnsweredAt: 0,
+        tracerStage: 0,
         hotspot: null,
         hotspotLabel: '',
         lastAction:
@@ -591,6 +606,7 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
       activeAudioLabel: line.label || line.number || digits,
       pressedKey: 'Call',
       tracerPhase: 'idle',
+      tracerStage: 0,
       hotspotLabel: '',
     }));
 
@@ -634,6 +650,7 @@ const useQuestPhone = ({ currentModule, goToHerramientas }) => {
       activeCallId: '',
       tracerPhase: 'hangup',
       tracerAnsweredAt: 0,
+      tracerStage: 0,
       lineStatus: 'colgada',
       lastAction:
         phoneState.activeMode === PHONE_MODE_TRACER

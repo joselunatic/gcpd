@@ -11,8 +11,6 @@ const WORKBENCH_SCALE = 0.68;
 const MAP_TEXTURE_URL = '/mapa.png';
 const MAP_WIDTH = 1.0;
 const MAP_HEIGHT = MAP_WIDTH * 0.744;
-const TRACE_STEP_MS = 15_000;
-const TRACE_EXACT_MS = 45_000;
 const XR_RAY_POINTER_EVENTS = { allow: 'ray' };
 
 const UI_MATERIAL_PROPS = {
@@ -49,13 +47,6 @@ const normalizeDigits = (value = '') => String(value).replace(/\D/g, '');
 const clampText = (value, max = 82) => {
   const text = String(value || '').trim();
   return text.length > max ? `${text.slice(0, max - 3)}...` : text;
-};
-
-const stageFromElapsed = (elapsedMs) => {
-  if (elapsedMs >= TRACE_EXACT_MS) return 3;
-  if (elapsedMs >= TRACE_STEP_MS * 2) return 2;
-  if (elapsedMs >= TRACE_STEP_MS) return 1;
-  return 0;
 };
 
 const ringRadiusForStage = (stage) => {
@@ -409,7 +400,7 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase }) => {
       const active = session.phoneState?.activeMode === PHONE_MODE_TRACER && answeredAt;
       const elapsed = active ? Math.max(0, Date.now() - answeredAt) : 0;
       return {
-        stage: active ? stageFromElapsed(elapsed) : current.stage,
+        stage: active ? Number(session.phoneState?.tracerStage || 0) : current.stage,
         clock: active ? `T+${(elapsed / 1000).toFixed(1)}s` : current.clock,
         sweep: (current.sweep + delta * 1.8) % (Math.PI * 2),
       };

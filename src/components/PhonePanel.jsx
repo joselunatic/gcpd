@@ -1,22 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '../css/PhonePanel.styles.css';
 
-const DEFAULT_STEP_MS = 15_000;
-const DEFAULT_EXACT_MS = 45_000;
-
 const clampMs = (value) => {
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0) return 0;
   return n;
-};
-
-const stageFromElapsed = (elapsedMs, timeline = {}) => {
-  const stepMs = clampMs(timeline.stepMs) || DEFAULT_STEP_MS;
-  const exactMs = clampMs(timeline.exactMs) || DEFAULT_EXACT_MS;
-  if (elapsedMs >= exactMs) return 3;
-  if (elapsedMs >= stepMs * 2) return 2;
-  if (elapsedMs >= stepMs) return 1;
-  return 0;
 };
 
 const formatClock = (elapsedMs) => {
@@ -38,10 +26,7 @@ const normalizeCall = (entry = {}) => ({
   answeredAt: entry.answeredAt ? Number(entry.answeredAt) : null,
   createdAt: entry.createdAt ? Number(entry.createdAt) : Date.now(),
   timeoutMs: clampMs(entry.timeoutMs),
-  timeline: {
-    stepMs: clampMs(entry.timeline?.stepMs) || DEFAULT_STEP_MS,
-    exactMs: clampMs(entry.timeline?.exactMs) || DEFAULT_EXACT_MS,
-  },
+  stage: Number(entry.stage) || 0,
 });
 
 const PhonePanel = () => {
@@ -118,7 +103,24 @@ const PhonePanel = () => {
                   answeredAt: payload.answeredAt || Date.now(),
                   line: payload.line || entry.line,
                   hotspot: payload.hotspot || entry.hotspot,
-                  timeline: payload.timeline || entry.timeline,
+                  stage: Number(payload.stage) || 0,
+                })
+              : entry
+          )
+        );
+        return;
+      }
+
+      if (payload.type === 'tracer:stage') {
+        const callId = payload.callId;
+        if (!callId) return;
+        setCalls((prev) =>
+          prev.map((entry) =>
+            entry.callId === callId
+              ? normalizeCall({
+                  ...entry,
+                  stage: Number(payload.stage) || entry.stage || 0,
+                  answeredAt: payload.answeredAt || entry.answeredAt,
                 })
               : entry
           )
@@ -188,7 +190,7 @@ const PhonePanel = () => {
 
     if (prioritizedCall.state === 'answered' && prioritizedCall.answeredAt) {
       const elapsedMs = Math.max(0, clockNow - Number(prioritizedCall.answeredAt || 0));
-      const stage = stageFromElapsed(elapsedMs, prioritizedCall.timeline);
+      const stage = Number(prioritizedCall.stage) || 0;
       return {
         clock: formatClock(elapsedMs),
         stage,
@@ -288,6 +290,13 @@ const PhonePanel = () => {
                 </div>
               ) : (
                 <div className="phone-panel__actions">
+                  <button
+                    type="button"
+                    className="phone-panel__btn phone-panel__btn--advance"
+                    onClick={() => sendAction('tracer:advance_stage', prioritizedCall.callId)}
+                  >
+                    Avanzar fase
+                  </button>
                   <button
                     type="button"
                     className="phone-panel__btn phone-panel__btn--hang"

@@ -277,6 +277,23 @@ function ensureStyles() {
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
+    #${OVERLAY_ID} .tracer-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    #${OVERLAY_ID} .tracer-actions button {
+      border: 1px solid rgba(130, 255, 201, 0.58);
+      background: rgba(10, 34, 28, 0.94);
+      color: #d7ffe8;
+      font-family: inherit;
+      font-size: 0.66rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
     #${OVERLAY_ID} .tracer-log {
       margin-top: 10px;
       border: 1px solid rgba(95, 220, 176, 0.36);
@@ -367,13 +384,6 @@ function radiusForStage(stage, maxRadius) {
   if (stage === 2) return maxRadius / 3;
   if (stage === 1) return (maxRadius * 2) / 3;
   return maxRadius;
-}
-
-function stageFromElapsed(elapsedMs) {
-  if (elapsedMs >= EXACT_MS) return 3;
-  if (elapsedMs >= STEP_MS * 2) return 2;
-  if (elapsedMs >= STEP_MS) return 1;
-  return 0;
 }
 
 function playSound(audio, { restart = true } = {}) {
@@ -570,7 +580,7 @@ async function startTracer({ number = "" } = {}) {
     geometry = computeGeometry(mapEl, hotspot);
     if (!tracing && !frozen) return;
     const elapsed = Math.max(0, Date.now() - answeredAt);
-    const stage = tracing ? stageFromElapsed(elapsed) : lastStage;
+    const stage = lastStage;
     applyStage(stage);
   };
 
@@ -649,30 +659,28 @@ async function startTracer({ number = "" } = {}) {
         if (traceTick) clearInterval(traceTick);
         traceTick = setInterval(() => {
           const elapsed = Math.max(0, Date.now() - answeredAt);
-          const stage = stageFromElapsed(elapsed);
-          if (stage !== lastStage) {
-            lastStage = stage;
-            runSweep();
-            if (stage === 1) {
-              appendFlavor("etapa 1 completada // radio tactico reducido.");
-            } else if (stage === 2) {
-              appendFlavor("etapa 2 completada // triangulacion avanzada.");
-            } else if (stage >= 3) {
-              appendFlavor("etapa final completada // posicion exacta fijada.");
-            }
-          }
-
-          applyStage(stage);
           clockEl.textContent = `T+${(elapsed / 1000).toFixed(1)}s`;
-
-          if (stage >= 3) {
-            popupEl.textContent = `TRAZA RESUELTA // HOTSPOT EXACTO: ${hotspotRevealLabel()}`;
-          } else if (stage === 2) {
-            popupEl.textContent = "TRAZA AVANZADA // CIRCULO TACTICO REDUCIDO.";
-          } else if (stage === 1) {
-            popupEl.textContent = "TRAZA MEDIA // REFINANDO RADIO OBJETIVO.";
-          }
         }, 120);
+        applyStage(0);
+        return;
+      }
+
+      if (payload.type === "tracer:stage") {
+        lastStage = Number(payload.stage) || 0;
+        applyStage(lastStage);
+        if (lastStage === 1) {
+          runSweep();
+          appendFlavor("etapa 1 completada // radio tactico reducido.");
+          popupEl.textContent = "TRAZA MEDIA // REFINANDO RADIO OBJETIVO.";
+        } else if (lastStage === 2) {
+          runSweep();
+          appendFlavor("etapa 2 completada // triangulacion avanzada.");
+          popupEl.textContent = "TRAZA AVANZADA // CIRCULO TACTICO REDUCIDO.";
+        } else if (lastStage >= 3) {
+          runSweep();
+          appendFlavor("etapa final completada // posicion exacta fijada.");
+          popupEl.textContent = `TRAZA RESUELTA // HOTSPOT EXACTO: ${hotspotRevealLabel()}`;
+        }
         return;
       }
 
@@ -696,7 +704,7 @@ async function startTracer({ number = "" } = {}) {
         const stage =
           Number.isFinite(Number(payload.stage)) && payload.stage !== null
             ? Number(payload.stage)
-            : stageFromElapsed(elapsedMs);
+            : lastStage;
         lastStage = stage;
 
         if (traceTick) {

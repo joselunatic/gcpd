@@ -626,7 +626,7 @@ function finalizeTracerCall(callId, reason, extra = {}) {
     call.ringTimer = null;
   }
   const elapsedMs = call.answeredAt ? Math.max(0, Date.now() - call.answeredAt) : 0;
-  const stage = call.answeredAt ? getTraceStage(elapsedMs) : null;
+  const stage = Number.isFinite(Number(call.stage)) ? Number(call.stage) : null;
 
   wsSend(call.agentSocket, {
     type: reason === 'auto_hangup' ? 'tracer:auto_hangup' : 'tracer:hangup',
@@ -696,6 +696,7 @@ function handleTracerStart(agentSocket, payload = {}) {
     agentSocket,
     createdAt: Date.now(),
     answeredAt: 0,
+    stage: 0,
     ringTimer: null,
   };
   call.ringTimer = setTimeout(() => {
@@ -740,6 +741,7 @@ function handleDmAnswer(payload = {}) {
   }
   call.state = 'answered';
   call.answeredAt = Date.now();
+  call.stage = 0;
   wsSend(call.agentSocket, {
     type: 'tracer:answered',
     callId,
@@ -784,6 +786,39 @@ function handleDmAnswer(payload = {}) {
       stepMs: TRACER_STEP_MS,
       exactMs: TRACER_EXACT_MS,
     },
+  });
+}
+
+function handleDmAdvanceStage(payload = {}) {
+  const callId = String(payload.callId || '').trim();
+  const call = tracerCalls.get(callId);
+  if (!call || call.state !== 'answered') return;
+  call.stage = Math.min(3, Number(call.stage || 0) + 1);
+  const elapsedMs = Math.max(0, Date.now() - Number(call.answeredAt || Date.now()));
+  const stage = call.stage;
+  const message =
+    stage >= 3
+      ? 'TRAZA RESUELTA // POSICION EXACTA.'
+      : stage === 2
+        ? 'TRAZA AVANZADA // CIRCULO TACTICO REDUCIDO.'
+        : stage === 1
+          ? 'TRAZA MEDIA // REFINANDO RADIO OBJETIVO.'
+          : 'TRAZA INICIADA // CIRCULO COMPLETO.';
+  wsSend(call.agentSocket, {
+    type: 'tracer:stage',
+    callId,
+    stage,
+    answeredAt: call.answeredAt,
+    elapsedMs,
+    message,
+  });
+  wsSend(tracerDmSocket, {
+    type: 'tracer:stage',
+    callId,
+    stage,
+    answeredAt: call.answeredAt,
+    elapsedMs,
+    message,
   });
 }
 
@@ -2802,6 +2837,8 @@ tracerWss.on('connection', (ws, request, url) => {
     if (isOperatorRole) {
       if (payload.type === 'tracer:answer') {
         handleDmAnswer(payload);
+      } else if (payload.type === 'tracer:advance_stage') {
+        handleDmAdvanceStage(payload);
       } else if (payload.type === 'tracer:hangup') {
         handleDmHangup(payload);
       }

@@ -21,7 +21,6 @@ const QuestPhoneOverlay = ({ session }) => {
 
   const activeDigits = phoneState.dialedDigits || phoneState.lastDialedNumber || 'sin marcación';
   const modeLocked = Boolean(phoneState.activeMode);
-
   return (
     <div className="quest-phone-overlay">
       <div className="quest-phone-overlay__card">
