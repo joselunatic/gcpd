@@ -1710,36 +1710,7 @@ function seedCases() {
     ).run();
     return;
   }
-  const manifest = safeReadJSON('data/cases/cases.json');
-  if (!manifest?.cases) return;
-  manifest.cases.forEach((entry) => {
-    let data = entry;
-    if (entry.file) {
-      const relPath = entry.file.replace(/^\//, '');
-      const fileData = safeReadJSON(relPath);
-      if (fileData) {
-        data = fileData;
-      }
-    }
-    if (!data.id) return;
-    const accessConfig = normalizeUnlockConditions(data.unlockConditions || entry.unlockConditions);
-    const commands = normalizeCommands(data.commands || {}, { category: 'cases' });
-    const dmNotes = normalizeDmNotes(data.dm || {});
-    db.prepare(
-      `INSERT OR REPLACE INTO cases_data (id, title, status, summary, tags, updated_at, unlock_conditions, commands, dm)
-       VALUES (@id, @title, @status, @summary, @tags, @updated_at, @unlock_conditions, @commands, @dm)`
-    ).run({
-      id: data.id,
-      title: data.title || entry.title || '',
-      status: data.status || entry.status || '',
-      summary: data.summary || entry.summary || '',
-      tags: stringify(data.tags || entry.tags || []),
-      updated_at: Date.now(),
-      unlock_conditions: stringify(accessConfig),
-      commands: stringify(commands),
-      dm: stringify(dmNotes),
-    });
-  });
+  return;
 }
 
 function seedPois() {

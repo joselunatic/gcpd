@@ -1,5 +1,5 @@
 const MANIFEST_URL = "/api/cases-data";
-const FALLBACK_MANIFEST_URL = "/data/cases/cases.json";
+const FALLBACK_MANIFEST_URL = "/api/cases-data";
 
 let apiCache;
 let lastSource = "api";

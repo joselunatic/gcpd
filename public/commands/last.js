@@ -8,7 +8,7 @@ const CAMPAIGN_URL = "/api/campaign-state";
 const CASES_URL = "/api/cases-data";
 const POIS_URL = "/api/pois-data";
 const VILLAINS_URL = "/api/villains-data";
-const FALLBACK_CASES = "/data/cases/cases.json";
+const FALLBACK_CASES = "/api/cases-data";
 const FALLBACK_POIS = "/data/map/pois.json";
 const FALLBACK_VILLAINS = "/data/villains/gallery.json";
 

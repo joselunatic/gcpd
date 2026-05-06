@@ -4,7 +4,7 @@ import { loadCampaignState } from "/utils/campaignState.js";
 
 const CAMPAIGN_URL = "/api/campaign-state";
 const CASES_URL = "/api/cases-data";
-const FALLBACK_CASES = "/data/cases/cases.json";
+const FALLBACK_CASES = "/api/cases-data";
 
 async function fetchJson(url) {
   const response = await fetch(url, { cache: "no-store" });

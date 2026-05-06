@@ -64,7 +64,7 @@ const useQuestData = () => {
     const load = async () => {
       try {
         const [casesPayload, poisPayload, villainsPayload] = await Promise.all([
-          fetchJson('/api/cases-data', '/data/cases/cases.json'),
+          fetchJson('/api/cases-data', '/api/cases-data'),
           fetchJson('/api/pois-data', '/data/map/pois.json'),
           fetchJson('/api/villains-data', '/data/villains/gallery.json'),
         ]);
