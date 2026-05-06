@@ -61,6 +61,26 @@ const mapPercentToLocal = (x = 50, y = 50) => [
   (0.5 - Number(y) / 100) * MAP_HEIGHT,
 ];
 
+const clampMapPercent = (value) => Math.max(8, Math.min(92, Number(value) || 50));
+
+const buildGhostHotspots = (hotspot, seedText = '') => {
+  const seed = seedText.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const baseX = clampMapPercent(hotspot?.x ?? 50);
+  const baseY = clampMapPercent(hotspot?.y ?? 50);
+  const offsets = [
+    { x: -18, y: -9, phase: 0.2 + (seed % 3) * 0.08 },
+    { x: 13, y: -14, phase: 0.55 + (seed % 5) * 0.05 },
+    { x: -11, y: 16, phase: 0.92 + (seed % 7) * 0.03 },
+  ];
+
+  return offsets.map((offset, index) => ({
+    id: `ghost-${index}`,
+    x: clampMapPercent(baseX + offset.x),
+    y: clampMapPercent(baseY + offset.y),
+    phase: offset.phase,
+  }));
+};
+
 const getCommsLines = (session, activeTool) => {
   const toolData = session?.toolData || {};
   const phoneLines = toolData.phoneLines || [];
@@ -386,6 +406,8 @@ const TraceMap = ({ session, selectedNumber, phase, minimal = false }) => {
     stage: 0,
     clock: 'T+00.0s',
     sweep: 0,
+    pulse: 0,
+    lock: 0,
   });
 
   useEffect(() => {
@@ -401,15 +423,26 @@ const TraceMap = ({ session, selectedNumber, phase, minimal = false }) => {
         stage: active ? Number(session.phoneState?.tracerStage || 0) : current.stage,
         clock: active ? `T+${(elapsed / 1000).toFixed(1)}s` : current.clock,
         sweep: (current.sweep + delta * 1.8) % (Math.PI * 2),
+        pulse: (current.pulse + delta * (active ? 2.6 : 1.2)) % (Math.PI * 2),
+        lock:
+          active && Number(session.phoneState?.tracerStage || 0) >= 3
+            ? Math.min(1, current.lock + delta * 1.8)
+            : Math.max(0, current.lock - delta * 2.4),
       };
     });
   });
 
   const hotspot = session.phoneState?.hotspot || { x: 50, y: 50 };
+  const ghostHotspots = useMemo(
+    () => buildGhostHotspots(hotspot, selectedNumber || session.phoneState?.lastDialedNumber || ''),
+    [hotspot, selectedNumber, session.phoneState?.lastDialedNumber]
+  );
   const [hotspotX, hotspotY] = mapPercentToLocal(hotspot.x ?? 50, hotspot.y ?? 50);
   const activeTrace = session.phoneState?.activeMode === PHONE_MODE_TRACER;
   const radius = ringRadiusForStage(traceState.stage);
   const exact = activeTrace && traceState.stage >= 3;
+  const ghostCount = traceState.stage >= 2 ? 3 : traceState.stage >= 1 ? 2 : 0;
+  const lockFlash = 0.3 + traceState.lock * 0.7;
   const status = activeTrace
     ? session.phoneState?.lineStatus || 'trazando'
     : phase === 'ready'
@@ -439,6 +472,33 @@ const TraceMap = ({ session, selectedNumber, phase, minimal = false }) => {
         <planeGeometry args={imageSize} />
         <meshBasicMaterial color={COMMS_COLORS.green} opacity={0.05} wireframe {...UI_MATERIAL_PROPS} />
       </mesh>
+      {activeTrace ? (
+        <mesh position={[imagePosition[0], imagePosition[1], 0.035]} rotation={[0, 0, traceState.sweep - 0.24]} renderOrder={24}>
+          <ringGeometry args={[0.08, Math.max(radius * 1.75, 0.36), 48, 1, 0, 0.48]} />
+          <meshBasicMaterial color={exact ? COMMS_COLORS.red : COMMS_COLORS.cyanBright} opacity={exact ? 0.18 + traceState.lock * 0.2 : 0.12} {...UI_MATERIAL_PROPS} />
+        </mesh>
+      ) : null}
+
+      {ghostHotspots.slice(0, ghostCount).map((ghost, index) => {
+        const [ghostX, ghostY] = mapPercentToLocal(ghost.x, ghost.y);
+        const ghostPulse = 0.25 + 0.2 * Math.sin(traceState.pulse + ghost.phase + index * 0.5);
+        return (
+          <group key={ghost.id} position={[imagePosition[0] + ghostX, imagePosition[1] + ghostY, 0.04]}>
+            <mesh renderOrder={25}>
+              <ringGeometry args={[0.045, 0.06, 48]} />
+              <meshBasicMaterial color={COMMS_COLORS.amber} opacity={ghostPulse} {...UI_MATERIAL_PROPS} />
+            </mesh>
+            <mesh renderOrder={25}>
+              <planeGeometry args={[0.1, 0.004]} />
+              <meshBasicMaterial color={COMMS_COLORS.amber} opacity={ghostPulse * 0.95} {...UI_MATERIAL_PROPS} />
+            </mesh>
+            <mesh rotation={[0, 0, Math.PI / 2]} renderOrder={25}>
+              <planeGeometry args={[0.1, 0.004]} />
+              <meshBasicMaterial color={COMMS_COLORS.amber} opacity={ghostPulse * 0.95} {...UI_MATERIAL_PROPS} />
+            </mesh>
+          </group>
+        );
+      })}
 
       <group position={[imagePosition[0] + hotspotX, imagePosition[1] + hotspotY, 0.05]}>
         <mesh renderOrder={28}>
@@ -457,6 +517,43 @@ const TraceMap = ({ session, selectedNumber, phase, minimal = false }) => {
           <circleGeometry args={[exact ? 0.02 : 0.012, 24]} />
           <meshBasicMaterial color={exact ? COMMS_COLORS.red : COMMS_COLORS.cyanBright} opacity={1} {...UI_MATERIAL_PROPS} />
         </mesh>
+        {exact ? (
+          <>
+            <mesh renderOrder={31}>
+              <ringGeometry args={[radius + 0.03, radius + 0.045, 96]} />
+              <meshBasicMaterial color={COMMS_COLORS.red} opacity={0.32 * lockFlash} {...UI_MATERIAL_PROPS} />
+            </mesh>
+            <mesh renderOrder={31}>
+              <ringGeometry args={[radius + 0.08, radius + 0.095, 96]} />
+              <meshBasicMaterial color={COMMS_COLORS.cyanBright} opacity={0.18 * lockFlash} {...UI_MATERIAL_PROPS} />
+            </mesh>
+            <mesh renderOrder={33}>
+              <planeGeometry args={[0.42, 0.008]} />
+              <meshBasicMaterial color={COMMS_COLORS.red} opacity={0.8 * lockFlash} {...UI_MATERIAL_PROPS} />
+            </mesh>
+            <mesh rotation={[0, 0, Math.PI / 2]} renderOrder={33}>
+              <planeGeometry args={[0.42, 0.008]} />
+              <meshBasicMaterial color={COMMS_COLORS.red} opacity={0.8 * lockFlash} {...UI_MATERIAL_PROPS} />
+            </mesh>
+          </>
+        ) : null}
+        {exact ? (
+          <TextCard
+            name="GCPD_Comms_TraceHotspotLabel"
+            position={[0.02, radius + 0.11, 0.08]}
+            size={[0.38, 0.12]}
+            textureOptions={{
+              eyebrow: 'HOTSPOT',
+              title: hotspot.label || session.phoneState?.hotspotLabel || 'EXACTO',
+              meta: `${Math.round(Number(hotspot.x ?? 50))} / ${Math.round(Number(hotspot.y ?? 50))}`,
+              width: 420,
+              height: 150,
+              compact: true,
+              active: true,
+              danger: true,
+            }}
+          />
+        ) : null}
       </group>
 
       {minimal ? null : (
