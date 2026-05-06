@@ -913,8 +913,9 @@ const buildHerramientasModel = ({ session }) => {
       if (id === 'tool:perfiles') session.actions.goToPerfiles({ profileId: session.selectedProfile?.id });
     },
     workspaceLines: inventory.lines || [],
-    onBack: session.actions.returnToOperationalContext,
-    onHome: session.actions.goToOperacion,
+    hideActionColumn: activeTool === 'rastreo',
+    onBack: null,
+    onHome: null,
   };
 };
 

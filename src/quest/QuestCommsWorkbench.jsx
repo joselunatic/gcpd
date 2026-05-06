@@ -416,9 +416,9 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase, minimal = fals
     : phase === 'ready'
       ? 'listo para iniciar'
       : 'reposo';
-  const panelSize = minimal ? [2.08, 1.42] : [1.26, 0.78];
-  const imageSize = minimal ? [1.94, 1.44] : [MAP_WIDTH, MAP_HEIGHT];
-  const imagePosition = minimal ? [-0.04, 0.02, 0.01] : [-0.18, 0.03, 0.01];
+  const panelSize = minimal ? [1.86, 1.38] : [1.26, 0.78];
+  const imageSize = minimal ? [1.72, 1.38] : [MAP_WIDTH, MAP_HEIGHT];
+  const imagePosition = minimal ? [0.0, 0.0, 0.01] : [-0.18, 0.03, 0.01];
 
   return (
     <group name="GCPD_Comms_TraceMap">
@@ -626,14 +626,14 @@ const TracePanel = ({ session, selectedLine, minimal = false, position = [0.52, 
       <HoloPlate
         name="GCPD_Comms_TracePanel_Aura"
         position={[0, 0, -0.04]}
-        size={minimal ? [2.0, 1.46] : [1.48, 1.28]}
+        size={minimal ? [1.98, 1.46] : [1.48, 1.28]}
         opacity={0.04}
       />
       {minimal ? null : (
         <TextCard
           name="GCPD_Comms_TraceHeader"
-          position={[0, 0.56, 0.03]}
-          size={[1.34, 0.18]}
+          position={[0, 0.58, 0.03]}
+          size={[1.28, 0.18]}
           textureOptions={{
             eyebrow: 'TRAZA',
             title: 'ANALISIS DE SEÑAL',
@@ -646,7 +646,7 @@ const TracePanel = ({ session, selectedLine, minimal = false, position = [0.52, 
           }}
         />
       )}
-      <group position={[0, minimal ? 0.02 : -0.03, 0.04]}>
+      <group position={[0, minimal ? -0.02 : -0.03, 0.04]}>
         <TraceMap
           session={session}
           selectedNumber={selectedNumber}
@@ -728,10 +728,10 @@ const QuestCommsWorkbench = ({ session }) => {
         setSelectedIndex={setSelectedIndex}
         hideLines={traceMode}
         traceMode={traceMode}
-        position={traceMode ? [1.18, -0.02, 0.08] : [-0.86, -0.02, 0.08]}
+        position={traceMode ? [1.82, -0.02, 0.08] : [-0.86, -0.02, 0.08]}
         rotation={traceMode ? [0, 0.05, 0] : [0, -0.12, 0]}
       />
-      <TracePanel session={session} selectedLine={selectedLine} minimal={traceMode} position={traceMode ? [-0.12, 0.0, 0.1] : [0.52, 0.0, 0.1]} />
+      <TracePanel session={session} selectedLine={selectedLine} minimal={traceMode} position={traceMode ? [-0.08, 0.0, 0.1] : [0.52, 0.0, 0.1]} />
       <StatusStrip session={session} />
     </group>
   );

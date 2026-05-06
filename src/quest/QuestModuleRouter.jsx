@@ -29,6 +29,7 @@ const QuestModuleRouter = ({ data, session }) => {
       onAction={model.onAction}
       onBack={model.onBack}
       onHome={model.onHome}
+      hideActionColumn={model.hideActionColumn}
       position={[0, 0, 0]}
       scale={1}
     />

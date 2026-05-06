@@ -1442,6 +1442,7 @@ const QuestSectionDashboard = ({
   onAction,
   onBack,
   onHome,
+  hideActionColumn = false,
   position = [0, 0, 0],
   scale = 1,
 }) => {
@@ -1502,13 +1503,15 @@ const QuestSectionDashboard = ({
           actions={actions}
         />
       ) : null}
-      <ActionColumn
-        actions={actions}
-        onAction={onAction}
-        onBack={onBack}
-        onHome={onHome}
-        mapMode={mapMode}
-      />
+      {hideActionColumn ? null : (
+        <ActionColumn
+          actions={actions}
+          onAction={onAction}
+          onBack={onBack}
+          onHome={onHome}
+          mapMode={mapMode}
+        />
+      )}
       <StatusTelemetry title={title} hint={hint} instrument={instrument} />
     </group>
   );

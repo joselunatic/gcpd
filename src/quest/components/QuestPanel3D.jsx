@@ -266,6 +266,7 @@ const QuestPanel3D = ({
   onAction,
   onBack,
   onHome,
+  hideActionColumn = false,
   position = [0, 1.6, -1.4],
   scale = 1,
 }) => {
@@ -342,6 +343,7 @@ const QuestPanel3D = ({
         onAction={onAction}
         onBack={onBack}
         onHome={onHome}
+        hideActionColumn={hideActionColumn}
         position={position}
         scale={sectionScale}
       />
