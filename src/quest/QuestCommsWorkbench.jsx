@@ -416,9 +416,9 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase, minimal = fals
     : phase === 'ready'
       ? 'listo para iniciar'
       : 'reposo';
-  const panelSize = minimal ? [1.74, 1.16] : [1.26, 0.78];
-  const imageSize = minimal ? [1.6, 1.19] : [MAP_WIDTH, MAP_HEIGHT];
-  const imagePosition = minimal ? [0, 0.01, 0.01] : [-0.18, 0.03, 0.01];
+  const panelSize = minimal ? [2.08, 1.42] : [1.26, 0.78];
+  const imageSize = minimal ? [1.94, 1.44] : [MAP_WIDTH, MAP_HEIGHT];
+  const imagePosition = minimal ? [-0.04, 0.02, 0.01] : [-0.18, 0.03, 0.01];
 
   return (
     <group name="GCPD_Comms_TraceMap">
@@ -512,8 +512,8 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase, minimal = fals
 
           <TextCard
             name="GCPD_Comms_TraceStatus"
-            position={[0.44, 0.22, 0.08]}
-            size={[0.42, 0.18]}
+            position={[0.58, 0.28, 0.08]}
+            size={[0.5, 0.2]}
             textureOptions={{
               eyebrow: 'TRAZA',
               title: status,
@@ -527,8 +527,8 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase, minimal = fals
           />
           <TextCard
             name="GCPD_Comms_TraceAction"
-            position={[0.44, -0.03, 0.08]}
-            size={[0.42, 0.16]}
+            position={[0.58, -0.04, 0.08]}
+            size={[0.5, 0.18]}
             onClick={() => session.actions.pressPhoneKey?.('Call')}
             textureOptions={{
               title: activeTrace ? 'COLGAR' : 'INICIAR TRAZA',
@@ -541,8 +541,8 @@ const TraceMap = ({ session, selectedNumber, selectedLine, phase, minimal = fals
           />
           <TextCard
             name="GCPD_Comms_TraceLog"
-            position={[0.44, -0.27, 0.08]}
-            size={[0.42, 0.2]}
+            position={[0.58, -0.31, 0.08]}
+            size={[0.5, 0.22]}
             textureOptions={{
               eyebrow: 'LOG',
               title: session.phoneState?.tracerWsState || 'offline',
@@ -582,11 +582,11 @@ const DialPanel = ({
 
   return (
     <group name="GCPD_Comms_DialPanel" position={position} rotation={rotation}>
-      <HoloPlate name="GCPD_Comms_DialPanel_Aura" position={[0, 0, -0.04]} size={[0.86, 1.28]} opacity={0.045} />
+      <HoloPlate name="GCPD_Comms_DialPanel_Aura" position={[0, 0, -0.04]} size={[0.9, 1.32]} opacity={0.045} />
       <TextCard
         name="GCPD_Comms_DialHeader"
-        position={[0, 0.54, 0.02]}
-        size={[0.76, 0.18]}
+        position={[0, 0.56, 0.02]}
+        size={[0.82, 0.18]}
         textureOptions={{
           eyebrow: traceMode ? 'DIAL / TRAZA' : 'DIAL',
           title: displayNumber || 'SIN MARCAR',
@@ -598,7 +598,7 @@ const DialPanel = ({
           active: activeCallMode || traceMode,
         }}
       />
-      <group position={[-0.24, 0.01, 0.03]}>
+      <group position={[-0.26, 0.03, 0.03]}>
         <DialPad
           session={session}
           selectedNumber={selectedNumber || displayNumber}
@@ -607,7 +607,7 @@ const DialPanel = ({
         />
       </group>
       {hideLines ? null : (
-        <group position={[0.28, 0.0, 0.02]}>
+        <group position={[0.31, 0.0, 0.02]}>
           <LineRail lines={lines} selectedIndex={selectedIndex} setSelectedIndex={setSelectedIndex} />
         </group>
       )}
@@ -626,14 +626,14 @@ const TracePanel = ({ session, selectedLine, minimal = false, position = [0.52, 
       <HoloPlate
         name="GCPD_Comms_TracePanel_Aura"
         position={[0, 0, -0.04]}
-        size={minimal ? [1.74, 1.34] : [1.48, 1.28]}
+        size={minimal ? [2.0, 1.46] : [1.48, 1.28]}
         opacity={0.04}
       />
       {minimal ? null : (
         <TextCard
           name="GCPD_Comms_TraceHeader"
-          position={[0, 0.54, 0.03]}
-          size={[1.22, 0.18]}
+          position={[0, 0.56, 0.03]}
+          size={[1.34, 0.18]}
           textureOptions={{
             eyebrow: 'TRAZA',
             title: 'ANALISIS DE SEÑAL',
@@ -646,7 +646,7 @@ const TracePanel = ({ session, selectedLine, minimal = false, position = [0.52, 
           }}
         />
       )}
-      <group position={[0, minimal ? 0 : -0.03, 0.04]}>
+      <group position={[0, minimal ? 0.02 : -0.03, 0.04]}>
         <TraceMap
           session={session}
           selectedNumber={selectedNumber}
@@ -728,10 +728,10 @@ const QuestCommsWorkbench = ({ session }) => {
         setSelectedIndex={setSelectedIndex}
         hideLines={traceMode}
         traceMode={traceMode}
-        position={traceMode ? [0.96, -0.04, 0.08] : [-0.86, -0.02, 0.08]}
-        rotation={traceMode ? [0, 0.1, 0] : [0, -0.12, 0]}
+        position={traceMode ? [1.18, -0.02, 0.08] : [-0.86, -0.02, 0.08]}
+        rotation={traceMode ? [0, 0.05, 0] : [0, -0.12, 0]}
       />
-      <TracePanel session={session} selectedLine={selectedLine} minimal={traceMode} position={traceMode ? [0, 0.0, 0.1] : [0.52, 0.0, 0.1]} />
+      <TracePanel session={session} selectedLine={selectedLine} minimal={traceMode} position={traceMode ? [-0.12, 0.0, 0.1] : [0.52, 0.0, 0.1]} />
       <StatusStrip session={session} />
     </group>
   );

@@ -131,6 +131,8 @@ const QuestBackControls = ({ onBack }) => {
 
 const QuestScene = ({ data, session, recenterKey }) => {
   const [environmentAnchors, setEnvironmentAnchors] = useState(null);
+  const activeTool = session?.selection?.herramientas?.activeTool;
+  const showMonitorSurface = activeTool !== 'rastreo';
   useQuestSceneMcpRuntime();
   useQuestControllerNavigation({ data, session });
 
@@ -230,11 +232,13 @@ const QuestScene = ({ data, session, recenterKey }) => {
         phoneState={session.phoneState}
       />
 
-      <QuestMonitorSurface
-        data={data}
-        session={session}
-        panelAnchor={environmentAnchors?.panel}
-      />
+      {showMonitorSurface ? (
+        <QuestMonitorSurface
+          data={data}
+          session={session}
+          panelAnchor={environmentAnchors?.panel}
+        />
+      ) : null}
       <QuestMapSurface
         data={data}
         session={session}
