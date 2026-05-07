@@ -185,8 +185,9 @@ function injectStyles() {
 
 export async function startTactical() {
   injectStyles();
-  const crt = document.querySelector("#crt");
-  if (!crt) return;
+  const screenHost =
+    document.getElementById("screen-container") || document.querySelector(".terminal");
+  if (!screenHost) return;
 
   const overlay = document.createElement("div");
   overlay.className = "tactical-overlay";
@@ -203,7 +204,7 @@ export async function startTactical() {
   `;
 
   document.body.classList.add("terminal-tactical-active");
-  crt.appendChild(overlay);
+  screenHost.appendChild(overlay);
 
   let socket = null;
   let closed = false;
