@@ -3,9 +3,8 @@ import { type } from "/utils/io.js";
 const OVERLAY_ID = "terminal-tracer-overlay";
 const STYLE_ID = "terminal-tracer-style";
 const MAP_IMAGE = "/mapa.png";
-const STEP_MS = 15_000;
-const EXACT_MS = 45_000;
 const FLAVOR_INTERVAL_MS = 1_900;
+const ARMING_DELAY_MS = 280;
 
 const FLAVOR_SYSTEMS = [
   "torres GSM",
@@ -64,6 +63,47 @@ function flavorStamp() {
   return `${hh}:${mm}:${ss}`;
 }
 
+function wait(ms = 0) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getStageTelemetry(stage = 0) {
+  if (stage >= 3) {
+    return {
+      level: 3,
+      lock: "EXACTO",
+      area: "POSICION FIJADA",
+      message: "POSICION EXACTA FIJADA",
+    };
+  }
+  if (stage === 2) {
+    return {
+      level: 2,
+      lock: "AVANZADO",
+      area: "RADIO TACTICO",
+      message: "TRIANGULACION AVANZADA",
+    };
+  }
+  if (stage === 1) {
+    return {
+      level: 1,
+      lock: "PARCIAL",
+      area: "SECTOR URBANO",
+      message: "LOCK PARCIAL",
+    };
+  }
+  return {
+    level: 0,
+    lock: "SIN FIJACION",
+    area: "NO RESUELTA",
+    message: "SIN FIJACION",
+  };
+}
+
+function formatElapsedLine(elapsedMs = 0) {
+  return `${(Math.max(0, Number(elapsedMs) || 0) / 1000).toFixed(1)}s`;
+}
+
 function ensureStyles() {
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement("style");
@@ -95,6 +135,62 @@ function ensureStyles() {
       text-transform: uppercase;
       letter-spacing: 0.08em;
       font-size: 0.75rem;
+    }
+    #${OVERLAY_ID} .tracer-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    #${OVERLAY_ID} .tracer-metric {
+      border: 1px solid rgba(95, 220, 176, 0.32);
+      background: rgba(2, 13, 17, 0.76);
+      padding: 6px 8px;
+      min-height: 50px;
+    }
+    #${OVERLAY_ID} .tracer-metric-label {
+      font-size: 0.58rem;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: rgba(170, 236, 212, 0.76);
+    }
+    #${OVERLAY_ID} .tracer-metric-value {
+      margin-top: 4px;
+      font-size: 0.85rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #d8ffe9;
+    }
+    #${OVERLAY_ID} .tracer-resolution {
+      margin-top: 10px;
+      display: grid;
+      gap: 6px;
+    }
+    #${OVERLAY_ID} .tracer-resolution-bar {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+    #${OVERLAY_ID} .tracer-resolution-segment {
+      height: 7px;
+      border: 1px solid rgba(95, 220, 176, 0.28);
+      background: rgba(4, 19, 24, 0.9);
+      box-shadow: 0 0 0 1px rgba(17, 59, 48, 0.4) inset;
+      transition: background 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+    }
+    #${OVERLAY_ID} .tracer-resolution-segment.is-active {
+      border-color: rgba(132, 255, 206, 0.82);
+      background: linear-gradient(90deg, rgba(44, 130, 108, 0.88), rgba(128, 255, 202, 0.92));
+      box-shadow: 0 0 12px rgba(128, 255, 202, 0.42);
+    }
+    #${OVERLAY_ID} .tracer-resolution-caption {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.6rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(174, 250, 211, 0.84);
     }
     #${OVERLAY_ID} .tracer-map {
       position: relative;
@@ -268,7 +364,9 @@ function ensureStyles() {
       text-transform: uppercase;
       letter-spacing: 0.06em;
       font-size: 0.72rem;
-      min-height: 34px;
+      min-height: 54px;
+      display: grid;
+      gap: 4px;
     }
     #${OVERLAY_ID} .tracer-hint {
       margin-top: 8px;
@@ -339,8 +437,22 @@ function ensureOverlay() {
   root.innerHTML = `
     <div class="tracer-shell">
       <div class="tracer-head">
-        <div class="tracer-status">TRACER // DIALING...</div>
+        <div class="tracer-status">TRACER // BOOTSTRAP</div>
         <div class="tracer-clock">T+00.0s</div>
+      </div>
+      <div class="tracer-meta">
+        <div class="tracer-metric">
+          <div class="tracer-metric-label">Lock</div>
+          <div class="tracer-metric-value" data-tracer-lock>SIN FIJACION</div>
+        </div>
+        <div class="tracer-metric">
+          <div class="tracer-metric-label">Area</div>
+          <div class="tracer-metric-value" data-tracer-area>NO RESUELTA</div>
+        </div>
+        <div class="tracer-metric">
+          <div class="tracer-metric-label">Canal</div>
+          <div class="tracer-metric-value" data-tracer-channel>SIN PORTADORA</div>
+        </div>
       </div>
       <div class="tracer-map">
         <div class="tracer-stage">
@@ -352,7 +464,19 @@ function ensureOverlay() {
           <div class="tracer-hotspot-label"></div>
         </div>
       </div>
-      <div class="tracer-popup">INICIANDO TRAZADOR DE LLAMADAS...</div>
+      <div class="tracer-resolution">
+        <div class="tracer-resolution-bar">
+          <div class="tracer-resolution-segment" data-stage-segment="0"></div>
+          <div class="tracer-resolution-segment" data-stage-segment="1"></div>
+          <div class="tracer-resolution-segment" data-stage-segment="2"></div>
+          <div class="tracer-resolution-segment" data-stage-segment="3"></div>
+        </div>
+        <div class="tracer-resolution-caption">
+          <span data-tracer-resolution>LOCK: SIN FIJACION</span>
+          <span data-tracer-area-caption>AREA: NO RESUELTA</span>
+        </div>
+      </div>
+      <div class="tracer-popup">INICIANDO MODULO DE TRAZA...</div>
       <div class="tracer-hint">ESC para abortar la llamada</div>
       <div class="tracer-log" aria-live="polite"></div>
     </div>
@@ -427,6 +551,14 @@ async function startTracer({ number = "" } = {}) {
   const sweepEl = overlay.querySelector(".tracer-sweep");
   const logEl = overlay.querySelector(".tracer-log");
   const hotspotLabelEl = overlay.querySelector(".tracer-hotspot-label");
+  const lockEl = overlay.querySelector("[data-tracer-lock]");
+  const areaEl = overlay.querySelector("[data-tracer-area]");
+  const channelEl = overlay.querySelector("[data-tracer-channel]");
+  const resolutionEl = overlay.querySelector("[data-tracer-resolution]");
+  const areaCaptionEl = overlay.querySelector("[data-tracer-area-caption]");
+  const stageSegments = Array.from(
+    overlay.querySelectorAll("[data-stage-segment]")
+  );
 
   let socket = null;
   let callId = "";
@@ -468,7 +600,7 @@ async function startTracer({ number = "" } = {}) {
 
   const startFlavorFeed = () => {
     if (flavorTimer) return;
-    appendFlavor("traza activada // interceptando handovers.");
+    appendFlavor("canal de voz establecido.");
     flavorTimer = setInterval(() => {
       appendFlavor(nextFlavor());
     }, FLAVOR_INTERVAL_MS);
@@ -487,6 +619,11 @@ async function startTracer({ number = "" } = {}) {
     sweepEl.classList.remove("is-active");
     void sweepEl.offsetWidth;
     sweepEl.classList.add("is-active");
+  };
+
+  const runDoubleSweep = () => {
+    runSweep();
+    setTimeout(() => runSweep(), 220);
   };
 
   const cleanup = () => {
@@ -551,6 +688,28 @@ async function startTracer({ number = "" } = {}) {
     mapEl.style.setProperty("--label-top", `${labelTop}px`);
   };
 
+  const setPopupLines = (...lines) => {
+    popupEl.innerHTML = lines
+      .filter(Boolean)
+      .map((line) => `<div>${String(line).toUpperCase()}</div>`)
+      .join("");
+  };
+
+  const updateResolutionTelemetry = (stage) => {
+    const telemetry = getStageTelemetry(stage);
+    if (lockEl) lockEl.textContent = telemetry.lock;
+    if (areaEl) areaEl.textContent = telemetry.area;
+    if (resolutionEl) resolutionEl.textContent = `LOCK: ${telemetry.lock}`;
+    if (areaCaptionEl) areaCaptionEl.textContent = `AREA: ${telemetry.area}`;
+    stageSegments.forEach((segment, index) => {
+      const level = Number(segment.dataset.stageSegment || 0);
+      segment.classList.toggle("is-active", level <= telemetry.level);
+      if (telemetry.level === 0 && level > 0) {
+        segment.classList.remove("is-active");
+      }
+    });
+  };
+
   const applyStage = (stage) => {
     if (!geometry) return;
     const radius = radiusForStage(stage, geometry.maxRadius);
@@ -573,6 +732,7 @@ async function startTracer({ number = "" } = {}) {
     } else {
       pinEl.classList.remove("is-visible");
     }
+    updateResolutionTelemetry(stage);
   };
 
   const onResize = () => {
@@ -596,8 +756,30 @@ async function startTracer({ number = "" } = {}) {
 
   window.addEventListener("keydown", onKeyDown, true);
   window.addEventListener("resize", onResize);
-  appendFlavor("sistema a la espera de iniciar traza.");
-  popupEl.textContent = `INICIANDO TRAZA AL #${normalized}...`;
+  updateResolutionTelemetry(0);
+  if (channelEl) channelEl.textContent = "ARMANDO ENLACE";
+  setPopupLines(
+    "BATCOM RELAY: ONLINE",
+    "SS7 GHOST ROUTE: OPEN",
+    "VOICE CHANNEL: ARMING",
+    "CALL TRACE: READY"
+  );
+  appendFlavor("batcom relay online.");
+  appendFlavor("ss7 ghost route open.");
+  await wait(ARMING_DELAY_MS);
+  appendFlavor("voice channel arming.");
+  await wait(ARMING_DELAY_MS);
+  appendFlavor("call trace ready.");
+  await wait(ARMING_DELAY_MS);
+  runSweep();
+  statusEl.textContent = "TRACER // ESPERANDO RESPUESTA";
+  if (channelEl) channelEl.textContent = "CANAL PENDIENTE";
+  setPopupLines(
+    "TRACER // ESPERANDO RESPUESTA",
+    "CANAL DE VOZ PENDIENTE",
+    "SIN PORTADORA ACTIVA"
+  );
+  hintEl.textContent = "ESC para cancelar intento";
 
   await type([
     "",
@@ -631,9 +813,15 @@ async function startTracer({ number = "" } = {}) {
 
       if (payload.type === "tracer:ringing") {
         callId = payload.callId || "";
-        statusEl.textContent = "TRACER // ESPERANDO OPERADOR";
-        popupEl.textContent = "Llamada entrante enviada al DM...";
-        hintEl.textContent = "Sistema a la espera de iniciar traza";
+        statusEl.textContent = "TRACER // ESPERANDO RESPUESTA";
+        if (channelEl) channelEl.textContent = "CANAL PENDIENTE";
+        setPopupLines(
+          "TRACER // ESPERANDO RESPUESTA",
+          "CANAL DE VOZ PENDIENTE",
+          "SIN PORTADORA ACTIVA"
+        );
+        hintEl.textContent = "ESC para cancelar intento";
+        appendFlavor("esperando respuesta del objetivo.");
         return;
       }
 
@@ -646,15 +834,22 @@ async function startTracer({ number = "" } = {}) {
         frozen = false;
         lastStage = 1;
 
-        statusEl.textContent = "TRACER // MODO TRAZAR LLAMADA";
-        popupEl.textContent = "Hackeo iniciado // iniciando triangulacion.";
-        hintEl.textContent = "ESC para abortar llamada";
+        statusEl.textContent = "TRACER // LLAMADA ACTIVA";
+        if (channelEl) channelEl.textContent = "PORTADORA ABIERTA";
+        setPopupLines(
+          "TRACER // LLAMADA ACTIVA",
+          "PORTADORA ABIERTA",
+          "CANAL DE TRAZA ACTIVO",
+          "MANTENER CONVERSACION"
+        );
+        hintEl.textContent = "ESC para cancelar intento";
         stopSound(callTone);
         playSound(pickupTone, { restart: true });
 
         runSweep();
         applyStage(1);
         startFlavorFeed();
+        appendFlavor("lock parcial alcanzado.");
 
         if (traceTick) clearInterval(traceTick);
         traceTick = setInterval(() => {
@@ -670,16 +865,28 @@ async function startTracer({ number = "" } = {}) {
         applyStage(lastStage);
         if (lastStage === 1) {
           runSweep();
-          appendFlavor("etapa 1 completada // radio tactico reducido.");
-          popupEl.textContent = "TRAZA MEDIA // REFINANDO RADIO OBJETIVO.";
+          appendFlavor("lock parcial alcanzado.");
+          setPopupLines(
+            "LOCK PARCIAL",
+            "SECTOR URBANO RESUELTO",
+            "RADIO DE BUSQUEDA REDUCIDO"
+          );
         } else if (lastStage === 2) {
-          runSweep();
-          appendFlavor("etapa 2 completada // triangulacion avanzada.");
-          popupEl.textContent = "TRAZA AVANZADA // CIRCULO TACTICO REDUCIDO.";
+          runDoubleSweep();
+          appendFlavor("triangulacion avanzada.");
+          setPopupLines(
+            "TRIANGULACION AVANZADA",
+            "LOCK AVANZADO",
+            "RADIO TACTICO REDUCIDO"
+          );
         } else if (lastStage >= 3) {
-          runSweep();
-          appendFlavor("etapa final completada // posicion exacta fijada.");
-          popupEl.textContent = `TRAZA RESUELTA // HOTSPOT EXACTO: ${hotspotRevealLabel()}`;
+          runDoubleSweep();
+          appendFlavor("posicion exacta fijada.");
+          setPopupLines(
+            "POSICION EXACTA FIJADA",
+            `HOTSPOT: ${hotspotRevealLabel()}`,
+            "CACHE LOCAL ACTUALIZADA"
+          );
         }
         return;
       }
@@ -687,10 +894,16 @@ async function startTracer({ number = "" } = {}) {
       if (payload.type === "tracer:auto_hangup") {
         const message = String(payload.message || "linea no atendida").toUpperCase();
         stopSound(callTone);
-        statusEl.textContent = "TRACER // AUTO-HANGUP";
-        popupEl.textContent = message;
+        statusEl.textContent = "TRACER // LINEA NO ESTABLECIDA";
+        if (channelEl) channelEl.textContent = "CANAL CERRADO";
+        setPopupLines(
+          "LINEA NO ESTABLECIDA",
+          "EL OBJETIVO NO RESPONDE",
+          "CANAL DE VOZ CERRADO",
+          "TRAZA NO INICIADA"
+        );
         hintEl.textContent = "Volviendo a REMOTE>";
-        stopFlavorFeed(`traza finalizada // ${message}.`);
+        stopFlavorFeed(`canal de voz cerrado // ${message}.`);
         setTimeout(async () => {
           await settle();
         }, 3000);
@@ -718,22 +931,43 @@ async function startTracer({ number = "" } = {}) {
         frozen = true;
         tracing = false;
         statusEl.textContent = "TRACER // LLAMADA FINALIZADA";
+        if (channelEl) channelEl.textContent = "CANAL CERRADO";
+        const elapsedText = formatElapsedLine(elapsedMs);
         if (stage >= 3) {
-          popupEl.textContent = `DM COLGO // TRAZA EXACTA: ${hotspotRevealLabel()}`;
+          setPopupLines(
+            "TRACE RESULT",
+            "NIVEL: 3 / POSICION EXACTA",
+            `HOTSPOT: ${hotspotRevealLabel()}`,
+            `TIEMPO DE LINEA: ${elapsedText}`,
+            "ESTADO: FIJADO EN CACHE LOCAL"
+          );
+          appendFlavor("canal de voz cerrado.");
         } else {
-          popupEl.textContent = "DM COLGO // TRAZA CONGELADA";
+          setPopupLines(
+            "TRACE RESULT",
+            `NIVEL: ${Math.max(0, stage)} / TRAZA INCOMPLETA`,
+            "HOTSPOT EXACTO: NO RESUELTO",
+            `TIEMPO DE LINEA: ${elapsedText}`,
+            "ESTADO: ULTIMA AREA PRESERVADA"
+          );
+          appendFlavor("traza congelada.");
         }
         hintEl.textContent = "ENTER o ESC para volver a REMOTE>";
-        stopFlavorFeed(`traza finalizada // nivel ${stage}.`);
+        stopFlavorFeed("canal de voz cerrado.");
         return;
       }
 
       if (payload.type === "tracer:error") {
         stopSound(callTone);
         statusEl.textContent = "TRACER // ERROR";
-        popupEl.textContent = String(payload.message || "error tracer");
+        if (channelEl) channelEl.textContent = "ENLACE FALLIDO";
+        setPopupLines(
+          "LINEA NO ESTABLECIDA",
+          "CANAL DE VOZ CERRADO",
+          "ANOMALIA DE ENLACE DETECTADA"
+        );
         hintEl.textContent = "Volviendo a REMOTE>";
-        stopFlavorFeed(`error operativo // ${String(payload.message || "error tracer")}.`);
+        stopFlavorFeed("anomalia de enlace detectada.");
         setTimeout(async () => {
           await settle();
         }, 1600);
@@ -750,8 +984,13 @@ async function startTracer({ number = "" } = {}) {
     socket.addEventListener("error", async () => {
       stopSound(callTone);
       statusEl.textContent = "TRACER // OFFLINE";
-      popupEl.textContent = "No se pudo establecer WebSocket.";
-      stopFlavorFeed("websocket fuera de servicio.");
+      if (channelEl) channelEl.textContent = "ENLACE FALLIDO";
+      setPopupLines(
+        "LINEA NO ESTABLECIDA",
+        "CANAL DE VOZ CERRADO",
+        "NO SE PUDO ESTABLECER ENLACE"
+      );
+      stopFlavorFeed("enlace de senal fuera de servicio.");
       setTimeout(async () => {
         await settle();
       }, 1200);

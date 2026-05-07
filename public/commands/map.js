@@ -1384,7 +1384,7 @@ async function attemptUnlock(node, evaluation) {
     chainSuccessLines: ["CADENA COMPLETA. ACCESO HABILITADO.", " "],
     flagsIntroLines: ["SE NECESITAN FLAGS ACTIVAS:"],
     conditionalSuccessLines: ["CONDICIONES SATISFECHAS. ACCESO HABILITADO.", " "],
-    puzzleLines: [" ", "PUZZLE REQUERIDO: EJECUTA EL MODULO DESDE EL PANEL DM.", "El modo puzzle aun no esta operativo en la TUI.", " "],
+    puzzleLines: [" ", "PROTOCOLO BLOQUEADO: REQUIERE ACTIVACION EXTERNA.", "El modo puzzle aun no esta operativo en la TUI.", " "],
   });
 }
 
@@ -1457,7 +1457,7 @@ async function browsePois(pois) {
       headerLines.push(
         mergeLine(
           { parts: [{ text: "SYNC: DATA LOCAL", className: "tui-warn" }] },
-          { parts: [{ text: "API OFFLINE", className: "tui-warn" }] }
+          { parts: [{ text: "ENLACE REMOTO CAIDO", className: "tui-warn" }] }
         )
       );
     }
@@ -1639,7 +1639,7 @@ export default async (args = "") => {
   const hasCaseScopedMap = mapArgs.forceEmptyState || mapArgs.poiIds.length > 0;
   const data = await fetchPois();
   if (dataSource !== "api") {
-    await print(["FALLBACK DATA IN USE."], {
+    await print(["ARCHIVO DE RESPALDO LOCAL EN USO."], {
       semantic: "system",
       stopBlinking: true,
       ...fastRender,
@@ -1664,7 +1664,7 @@ export default async (args = "") => {
           summary: "Este caso no tiene POIs asignados.",
           details: "SIN INFORMACION.",
           contacts: "SIN INFORMACION.",
-          notes: "ASIGNA UN POI AL CASO DESDE DM PARA ACTIVAR EL MAPA.",
+          notes: "NO HAY VINCULO OPERATIVO ENTRE CASO Y SECTOR.",
         },
       },
     });

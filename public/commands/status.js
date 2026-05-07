@@ -24,7 +24,7 @@ export default async () => {
   await renderStatusHeader({ wait: false, initialWait: false, finalWait: false });
   const { state, unsynced } = await fetchCampaignState();
   if (unsynced) {
-    await print(["API UNAVAILABLE - DATA UNSYNCED"], {
+    await print(["ENLACE REMOTO NO DISPONIBLE - CACHE LOCAL EN USO"], {
       semantic: "system",
       stopBlinking: true,
     });

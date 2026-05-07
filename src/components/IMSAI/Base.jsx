@@ -425,7 +425,7 @@ const Base = ({on, setOn, setReset }) => {
         <div id="myModal" className="modal">
             <div className="modal-content">
                 <span className="close">&times;</span>
-                <p>The terminal login status has been reset. You can begin completely from scratch. Good luck!</p>
+                <p>MEMORIA DE SESION PURGADA. EL NODO REQUIERE NUEVA INICIALIZACION.</p>
             </div>
         </div>
       </div>

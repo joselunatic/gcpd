@@ -45,7 +45,7 @@ export default async () => {
   ]);
 
   if (campaign.unsynced || casesPayload.unsynced) {
-    await print(["API UNAVAILABLE - DATA UNSYNCED"], {
+    await print(["ENLACE REMOTO NO DISPONIBLE - CACHE LOCAL EN USO"], {
       semantic: "system",
       stopBlinking: true,
     });
@@ -62,7 +62,7 @@ export default async () => {
 
   const lines = [
     " ",
-    "OPERATION SUMMARY",
+    "RESUMEN OPERATIVO",
     "=================",
     " ",
     `ALERT LEVEL: ${(state.alertLevel || "low").toUpperCase()}`,

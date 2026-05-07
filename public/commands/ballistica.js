@@ -217,7 +217,7 @@ function ensureOverlay() {
     <div class="ballistica-crt">
       <div class="ballistica-header">
         <div class="ballistica-title">BALISTICA // MATCHER</div>
-        <div class="ballistica-hint">TAB selecciona panel · ingresa el codigo y ENTER · MATCH compara · ESC salir</div>
+        <div class="ballistica-hint">TAB cambia de visor · ingresa el codigo y ENTER · MATCH compara · ESC salir</div>
       </div>
       <div class="ballistica-panels">
         <div class="ballistica-panel" data-side="left">

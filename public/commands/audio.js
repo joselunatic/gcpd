@@ -162,7 +162,7 @@ async function startAudio({ id = "", src = "" } = {}) {
   const unlockBtn = overlay.querySelector(".audio-unlock__btn");
   const unlockStatus = overlay.querySelector(".audio-unlock__status");
   if (!canvas) {
-    await type("ERROR: no se pudo iniciar el player de audio.");
+    await type("ERROR: no se pudo inicializar el canal de reproduccion.");
     return;
   }
 
@@ -325,10 +325,10 @@ async function startAudio({ id = "", src = "" } = {}) {
     const attemptUnlock = async () => {
       const password = String(unlockInput.value || "").trim();
       if (!password) {
-        unlockStatus.textContent = "PASSWORD REQUERIDO.";
+        unlockStatus.textContent = "CLAVE REQUERIDA.";
         return;
       }
-      unlockStatus.textContent = "VERIFICANDO...";
+      unlockStatus.textContent = "VALIDANDO CLAVE...";
       try {
         const response = await unlockAudio(entry.id, password);
         unlockStatus.textContent = "DESBLOQUEADO.";
@@ -351,7 +351,7 @@ async function startAudio({ id = "", src = "" } = {}) {
         audio.currentTime = current;
         await audio.play();
       } catch (error) {
-        unlockStatus.textContent = "PASSWORD INCORRECTO.";
+        unlockStatus.textContent = "CLAVE INCORRECTA.";
       }
     };
 

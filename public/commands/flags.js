@@ -21,7 +21,7 @@ export default async () => {
   await renderStatusHeader();
   const { state, unsynced } = await fetchCampaignState();
   if (unsynced) {
-    await print(["API UNAVAILABLE - DATA UNSYNCED"], {
+    await print(["ENLACE REMOTO NO DISPONIBLE - CACHE LOCAL EN USO"], {
       semantic: "system",
       stopBlinking: true,
     });
@@ -29,7 +29,7 @@ export default async () => {
   const flags = state.flags || [];
   const lines = [
     " ",
-    "ACTIVE FLAGS",
+    "BANDERAS ACTIVAS",
     "============",
     " ",
     ...(flags.length ? flags.map((flag) => `> ${flag}`) : ["NONE"]),

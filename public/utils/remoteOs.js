@@ -228,7 +228,7 @@ async function handleHelp() {
     "BALISTICA - Comparador balistico grafico",
     "AUDIO - Audioregistros",
     "DIAL - Linea telefonica externa",
-    "TRACER #TELEFONO - Trazado remoto con operador DM",
+    "TRACER #TELEFONO - Trazado remoto de portadora activa",
     "HELP - Lista comandos disponibles",
     "EXIT - Cierra la sesion",
     "LOGOUT - Cierra sesion principal",

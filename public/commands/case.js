@@ -33,7 +33,7 @@ const formatConditions = (config = {}) => {
     `> Modo: ${(config.unlockMode || "none").toUpperCase()}`,
   ];
   if (config.unlockMode === "password" && config.password) {
-    lines.push("> Requiere contrasena DM.");
+    lines.push("> Requiere clave de autorizacion.");
   }
   if (config.prerequisites?.length) {
     lines.push("> Prerrequisitos:", ...config.prerequisites.map((id) => `   - ${id}`));
@@ -48,11 +48,11 @@ const formatPuzzle = (puzzle) => {
   if (!puzzle) return [];
   const lines = [
     " ",
-    `PUZZLE INTERFACE: ${puzzle.type || "custom"}`.toUpperCase(),
+    `PROTOCOLO DE ACCESO: ${puzzle.type || "custom"}`.toUpperCase(),
   ];
   if (puzzle.config && Object.keys(puzzle.config).length) {
     lines.push(
-      `CONFIG: ${JSON.stringify(puzzle.config)}`
+      "PARAMETROS DE PROTOCOLO DISPONIBLES."
     );
   }
   return lines;
@@ -60,8 +60,8 @@ const formatPuzzle = (puzzle) => {
 
 const lockedNotice = [
   " ",
-  "CASE LOCKED.",
-  "DM MUST AUTHORIZE ACCESS. CHECK UNLOCK CONDITIONS.",
+  "EXPEDIENTE BLOQUEADO.",
+  "REVISA LAS CONDICIONES DE AUTORIZACION.",
 ];
 
 export default async (args = "") => {
@@ -83,7 +83,7 @@ export default async (args = "") => {
 
   const module = await getCaseById(args.trim().toLowerCase());
   if (getCasesSource() !== "api") {
-    await print(["FALLBACK DATA IN USE."], {
+    await print(["ARCHIVO DE RESPALDO LOCAL EN USO."], {
       semantic: "system",
       stopBlinking: true,
     });
@@ -133,7 +133,7 @@ export default async (args = "") => {
   }
 
   if (status === "resolved") {
-    await print(["STATUS NOTE: ARCHIVED SCENARIO."], {
+    await print(["NOTA DE ESTADO: EXPEDIENTE ARCHIVADO."], {
       semantic: "system",
       stopBlinking: true,
     });

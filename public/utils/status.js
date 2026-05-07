@@ -79,7 +79,7 @@ export async function renderStatusHeader(options = {}) {
 
   if (unsynced) {
     await print([
-      "SYNC WARNING: API INACCESIBLE - DATA LOCAL",
+      "ADVERTENCIA DE SINCRONIZACION: ENLACE REMOTO INACCESIBLE - CACHE LOCAL ACTIVA",
     ], { semantic: "system", stopBlinking: true, ...options });
   }
 

@@ -429,7 +429,7 @@ async function attemptUnlock(villain, evaluation) {
     chainSuccessLines: ["CADENA COMPLETA. PERFIL ABIERTO.", " "],
     flagsIntroLines: ["ACTIVA ESTOS FLAGS PARA DESBLOQUEAR:"],
     conditionalSuccessLines: ["CONDICIONES SATISFECHAS. PERFIL ABIERTO.", " "],
-    puzzleLines: [" ", "RESUELVE EL PUZZLE DESDE EL PANEL DM.", "Modo puzzle aun no disponible aqui.", " "],
+    puzzleLines: [" ", "RESUELVE EL PROTOCOLO DE ACCESO DESDE EL SISTEMA DE CONTROL.", "Modo puzzle aun no disponible aqui.", " "],
   });
 }
 
@@ -500,7 +500,7 @@ async function browseVillains(villains) {
       headerLines.push(
         mergeLine(
           { parts: [{ text: "SYNC: DATA LOCAL", className: "tui-warn" }] },
-          { parts: [{ text: "API OFFLINE", className: "tui-warn" }] }
+          { parts: [{ text: "ENLACE REMOTO CAIDO", className: "tui-warn" }] }
         )
       );
     }
@@ -684,7 +684,7 @@ export default async () => {
   await refreshCampaignState();
   const data = await fetchGallery();
   if (dataSource !== "api") {
-    await print(["FALLBACK DATA IN USE."], {
+    await print(["ARCHIVO DE RESPALDO LOCAL EN USO."], {
       semantic: "system",
       stopBlinking: true,
       ...fastRender,

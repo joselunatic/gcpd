@@ -72,7 +72,7 @@ export default async () => {
     poisPayload.unsynced ||
     villainsPayload.unsynced
   ) {
-    await print(["API UNAVAILABLE - DATA UNSYNCED"], {
+    await print(["ENLACE REMOTO NO DISPONIBLE - CACHE LOCAL EN USO"], {
       semantic: "system",
       stopBlinking: true,
     });

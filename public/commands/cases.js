@@ -503,7 +503,7 @@ async function attemptUnlock(item, evaluation) {
     chainSuccessLines: ["SECUENCIA COMPUESTA. CASO ABIERTO.", " "],
     flagsIntroLines: ["FALTAN BANDERAS DE OPERACION:"],
     conditionalSuccessLines: ["FLAGS ACTIVADAS. CASO ABIERTO.", " "],
-    puzzleLines: [" ", "ACTIVA EL PUZZLE DESDE EL PANEL DM.", "Modo puzzle no disponible aun en la TUI.", " "],
+    puzzleLines: [" ", "ACTIVA EL PROTOCOLO DE DESBLOQUEO DESDE EL SISTEMA DE CONTROL.", "Modo puzzle no disponible aun en la TUI.", " "],
   });
 }
 
@@ -566,7 +566,7 @@ async function browseCases(cases) {
       headerLines.push(
         mergePartsLine(
           { parts: [{ text: "SYNC: DATA LOCAL", className: "tui-warn" }] },
-          { parts: [{ text: "API OFFLINE", className: "tui-warn" }] },
+          { parts: [{ text: "ENLACE REMOTO CAIDO", className: "tui-warn" }] },
           { leftWidth: COLUMN.left, rightWidth: COLUMN.right, divider: COLUMN.divider, dividerClass: "tui-sep", rightClass: "tui-panel-right" }
         )
       );
@@ -583,7 +583,7 @@ async function browseCases(cases) {
           { text: " salir", className: "tui-muted" },
         ],
       },
-      { parts: [{ text: "CASESPACE", className: "tui-muted tui-panel-right" }] }
+      { parts: [{ text: "ARCHIVO DE CASOS", className: "tui-muted tui-panel-right" }] }
     );
 
     const paginationProbeFooter = [
@@ -614,7 +614,7 @@ async function browseCases(cases) {
               { text: "N/P", className: "tui-accent tui-panel-right" },
               { text: " pagina", className: "tui-muted tui-panel-right" },
             ]
-          : [{ text: "CASESPACE", className: "tui-muted tui-panel-right" }],
+          : [{ text: "ARCHIVO DE CASOS", className: "tui-muted tui-panel-right" }],
       }
     );
     const footerLines = [
@@ -698,7 +698,7 @@ export default async () => {
   await refreshCampaignState();
   const cases = await listCases();
   if (getCasesSource() !== "api") {
-    await print(["FALLBACK DATA IN USE."], { semantic: "system", stopBlinking: true, ...fastRender });
+    await print(["ARCHIVO DE RESPALDO LOCAL EN USO."], { semantic: "system", stopBlinking: true, ...fastRender });
   }
   if (!cases.length) {
     await print(["SIN CASOS DESPLEGADOS.", " "], { semantic: "system", stopBlinking: true, ...fastRender });
