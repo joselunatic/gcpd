@@ -1,4 +1,5 @@
 const API_URL = "/api/live-map";
+const FALLBACK_MAP_PATH = "/assets/livemap/gcpd_live_map_fallback_unavailable.png";
 
 const clampPercent = (value) => {
   const numeric = Number(value);
@@ -12,12 +13,23 @@ const normalizeToken = (token = {}) => ({
   x: clampPercent(token.x),
   y: clampPercent(token.y),
   visible: token.visible !== false,
-  kind: String(token.kind || ""),
+  kind: normalizeTokenKind(token.kind),
   updatedAt: Number(token.updatedAt) || 0,
 });
 
+function normalizeTokenKind(kind = "") {
+  const normalized = String(kind || "").trim().toLowerCase();
+  if (["enemy", "enemigo", "hostile", "target", "objetivo"].includes(normalized)) {
+    return "enemy";
+  }
+  return "ally";
+}
+
 const normalizeState = (state = {}) => ({
-  backgroundImagePath: String(state.backgroundImagePath || ""),
+  backgroundImagePath:
+    state.backgroundLoaded === true ? String(state.backgroundImagePath || "") : "",
+  backgroundLoaded: state.backgroundLoaded === true,
+  fallbackImagePath: String(state.fallbackImagePath || FALLBACK_MAP_PATH),
   tokens: Array.isArray(state.tokens)
     ? state.tokens.map(normalizeToken).filter((token) => token.id && token.label)
     : [],
@@ -39,9 +51,12 @@ function renderState({ overlay, state }) {
   const map = overlay.querySelector(".tactical-map");
   const sync = overlay.querySelector(".tactical-sync");
   if (!map || !sync) return;
-  map.style.backgroundImage = state.backgroundImagePath
-    ? `url(${state.backgroundImagePath})`
-    : "";
+  const backgroundImagePath =
+    state.backgroundLoaded && state.backgroundImagePath
+      ? state.backgroundImagePath
+      : state.fallbackImagePath || FALLBACK_MAP_PATH;
+  map.style.backgroundImage = `url(${backgroundImagePath})`;
+  map.dataset.fallback = state.backgroundLoaded ? "false" : "true";
   sync.textContent = "SYNC: LIVE";
 
   const existing = new Map(
@@ -141,21 +156,47 @@ function injectStyles() {
       mix-blend-mode: screen;
       opacity: 0.45;
     }
+    .tactical-map[data-fallback="true"] {
+      filter: saturate(0.9) brightness(0.92);
+    }
+    .tactical-map[data-fallback="true"]::before {
+      content: "NO TACTICAL BLUEPRINT LOADED";
+      position: absolute;
+      left: 14px;
+      bottom: 14px;
+      z-index: 1;
+      padding: 4px 7px;
+      border: 1px solid rgba(124,255,178,0.24);
+      background: rgba(2,18,14,0.74);
+      color: rgba(196,255,226,0.78);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+    }
     .tactical-token {
       position: absolute;
       transform: translate(-50%, -50%);
-      min-width: 72px;
-      max-width: 156px;
-      padding: 4px 7px;
-      border: 1px solid rgba(124,255,178,0.8);
-      background: rgba(2,18,14,0.86);
-      color: #c4ffe2;
-      font-size: 12px;
+      min-width: 0;
+      max-width: 124px;
+      padding: 3px 6px;
+      border: 1px solid rgba(92,181,255,0.86);
+      background: rgba(5,19,35,0.88);
+      color: #c8e8ff;
+      font-size: 10px;
+      line-height: 1.1;
       text-transform: uppercase;
       text-align: center;
-      box-shadow: 0 0 12px rgba(124,255,178,0.24);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      box-shadow: 0 0 12px rgba(92,181,255,0.24);
       transition: left 160ms linear, top 160ms linear, box-shadow 160ms ease;
       z-index: 2;
+    }
+    .tactical-token[data-kind="enemy"] {
+      border-color: rgba(255,90,90,0.88);
+      background: rgba(42,9,12,0.88);
+      color: #ffcaca;
+      box-shadow: 0 0 12px rgba(255,90,90,0.25);
     }
     .tactical-token::before {
       content: "";

@@ -440,15 +440,26 @@ const MAP_IMAGE = '/mapa.png';
 const MAP_ASPECT_RATIO = 0.744;
 const MAP_GRID_STEP = 1;
 const POI_IMAGE_ASPECT = 16 / 9;
+const LIVE_MAP_FALLBACK_PATH = '/assets/livemap/gcpd_live_map_fallback_unavailable.png';
 const LIVE_MAP_DEFAULT_STATE = {
   backgroundImagePath: '',
+  backgroundLoaded: false,
+  fallbackImagePath: LIVE_MAP_FALLBACK_PATH,
   tokens: [],
   updatedAt: 0,
 };
 const LIVE_MAP_DEFAULT_TOKEN = {
   label: '',
-  kind: '',
+  kind: 'ally',
   visible: true,
+};
+
+const normalizeLiveMapTokenKind = (kind = '') => {
+  const normalized = String(kind || '').trim().toLowerCase();
+  if (['enemy', 'enemigo', 'hostile', 'target', 'objetivo'].includes(normalized)) {
+    return 'enemy';
+  }
+  return 'ally';
 };
 
 const clampNumber = (value) => {
@@ -3134,7 +3145,9 @@ const DmPanel = () => {
   );
 
   const normalizeLiveMapState = useCallback((state = {}) => ({
-    backgroundImagePath: String(state.backgroundImagePath || ''),
+    backgroundImagePath: state.backgroundLoaded === true ? String(state.backgroundImagePath || '') : '',
+    backgroundLoaded: state.backgroundLoaded === true,
+    fallbackImagePath: String(state.fallbackImagePath || LIVE_MAP_FALLBACK_PATH),
     tokens: Array.isArray(state.tokens)
       ? state.tokens
           .map((token) => ({
@@ -3143,7 +3156,7 @@ const DmPanel = () => {
             x: Math.max(0, Math.min(100, Number(token.x) || 0)),
             y: Math.max(0, Math.min(100, Number(token.y) || 0)),
             visible: token.visible !== false,
-            kind: String(token.kind || ''),
+            kind: normalizeLiveMapTokenKind(token.kind),
             updatedAt: Number(token.updatedAt) || Date.now(),
           }))
           .filter((token) => token.id && token.label)
@@ -3256,14 +3269,12 @@ const DmPanel = () => {
       const data = await res.json();
       const backgrounds = Array.isArray(data?.backgrounds) ? data.backgrounds : [];
       setLiveMapBackgrounds(backgrounds);
-      if (data?.background?.path) {
-        await saveLiveMapState({
-          ...liveMapState,
-          backgroundImagePath: data.background.path,
-        });
-      }
       setLiveMapBackgroundFile(null);
-      setLiveMapMessage('Plano subido y activado.');
+      setLiveMapMessage(
+        data?.background?.path
+          ? 'Plano subido. Seleccionalo en el listado para cargarlo.'
+          : 'Plano subido.'
+      );
     } catch (error) {
       setLiveMapMessage(error.message || 'No se pudo subir el plano.');
     } finally {
@@ -3828,7 +3839,11 @@ const DmPanel = () => {
   const handleLiveMapBackgroundChange = useCallback(
     async (event) => {
       const backgroundImagePath = event.target.value;
-      await saveLiveMapState({ ...liveMapState, backgroundImagePath });
+      await saveLiveMapState({
+        ...liveMapState,
+        backgroundImagePath,
+        backgroundLoaded: Boolean(backgroundImagePath),
+      });
     },
     [liveMapState, saveLiveMapState]
   );
@@ -3846,7 +3861,7 @@ const DmPanel = () => {
           window.crypto?.randomUUID ? window.crypto.randomUUID() : Date.now()
         }`,
         label,
-        kind: liveMapTokenForm.kind.trim(),
+        kind: normalizeLiveMapTokenKind(liveMapTokenForm.kind),
         visible: liveMapTokenForm.visible !== false,
         x: 50,
         y: 50,
@@ -3882,6 +3897,18 @@ const DmPanel = () => {
     async (id, visible) => {
       const nextTokens = liveMapState.tokens.map((token) =>
         token.id === id ? { ...token, visible, updatedAt: Date.now() } : token
+      );
+      await saveLiveMapState({ ...liveMapState, tokens: nextTokens });
+    },
+    [liveMapState, saveLiveMapState]
+  );
+
+  const handleLiveMapTokenKind = useCallback(
+    async (id, kind) => {
+      const nextTokens = liveMapState.tokens.map((token) =>
+        token.id === id
+          ? { ...token, kind: normalizeLiveMapTokenKind(kind), updatedAt: Date.now() }
+          : token
       );
       await saveLiveMapState({ ...liveMapState, tokens: nextTokens });
     },
@@ -6440,6 +6467,10 @@ const DmPanel = () => {
       liveMapState.tokens.find((token) => token.id === liveMapSelectedTokenId) ||
       liveMapState.tokens[0] ||
       null;
+    const activeLiveMapBackground =
+      liveMapState.backgroundLoaded && liveMapState.backgroundImagePath
+        ? liveMapState.backgroundImagePath
+        : liveMapState.fallbackImagePath || LIVE_MAP_FALLBACK_PATH;
 
     return (
       <section className="dm-panel__section">
@@ -6463,6 +6494,7 @@ const DmPanel = () => {
                   setLiveMapState((prev) => ({
                     ...prev,
                     backgroundImagePath: event.target.value,
+                    backgroundLoaded: Boolean(event.target.value),
                   }))
                 }
                 onBlur={handleLiveMapBackgroundChange}
@@ -6501,12 +6533,30 @@ const DmPanel = () => {
                       saveLiveMapState({
                         ...liveMapState,
                         backgroundImagePath: background.path,
+                        backgroundLoaded: true,
                       })
                     }
                   >
                     <span>{background.label || background.originalName || background.path}</span>
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className={
+                    liveMapState.backgroundLoaded
+                      ? 'dm-panel__button'
+                      : 'dm-panel__button is-active'
+                  }
+                  onClick={() =>
+                    saveLiveMapState({
+                      ...liveMapState,
+                      backgroundImagePath: '',
+                      backgroundLoaded: false,
+                    })
+                  }
+                >
+                  <span>Fallback / sin plano cargado</span>
+                </button>
                 {!liveMapBackgrounds.length && (
                   <p className="dm-panel__hint">Sin planos subidos.</p>
                 )}
@@ -6514,17 +6564,13 @@ const DmPanel = () => {
             </div>
             <div
               className="live-map-control__surface"
-              style={
-                liveMapState.backgroundImagePath
-                  ? { backgroundImage: `url(${liveMapState.backgroundImagePath})` }
-                  : undefined
-              }
+              style={{ backgroundImage: `url(${activeLiveMapBackground})` }}
               onPointerMove={handleLiveMapTokenPointerMove}
               onPointerUp={handleLiveMapTokenPointerUp}
               onPointerCancel={handleLiveMapTokenPointerUp}
             >
-              {!liveMapState.backgroundImagePath && (
-                <div className="live-map-control__empty">TACTICAL GRID</div>
+              {!liveMapState.backgroundLoaded && (
+                <div className="live-map-control__empty">FALLBACK MAP</div>
               )}
               {liveMapState.tokens.map((token) => (
                 <button
@@ -6533,6 +6579,7 @@ const DmPanel = () => {
                   className={`live-map-token${
                     liveMapSelectedTokenId === token.id ? ' is-selected' : ''
                   }${token.visible ? '' : ' is-hidden'}`}
+                  data-kind={token.kind}
                   style={{ left: `${token.x}%`, top: `${token.y}%` }}
                   onPointerDown={(event) => handleLiveMapTokenPointerDown(event, token.id)}
                   onClick={() => setLiveMapSelectedTokenId(token.id)}
@@ -6560,14 +6607,15 @@ const DmPanel = () => {
               </label>
               <label>
                 Tipo
-                <input
-                  type="text"
+                <select
                   value={liveMapTokenForm.kind}
                   onChange={(event) =>
                     setLiveMapTokenForm((prev) => ({ ...prev, kind: event.target.value }))
                   }
-                  placeholder="agent / target / vehicle"
-                />
+                >
+                  <option value="ally">Aliado</option>
+                  <option value="enemy">Enemigo</option>
+                </select>
               </label>
               <label className="dm-panel__checkbox">
                 <input
@@ -6584,7 +6632,7 @@ const DmPanel = () => {
               </button>
             </form>
 
-            <div className="dm-panel__list dm-panel__list--compact">
+            <div className="dm-panel__list dm-panel__list--compact live-map-token-list">
               {liveMapState.tokens.map((token) => (
                 <button
                   key={token.id}
@@ -6594,7 +6642,7 @@ const DmPanel = () => {
                 >
                   <strong>{token.label}</strong>
                   <span>
-                    {token.visible ? 'ON' : 'HIDDEN'} · X {token.x.toFixed(1)} / Y {token.y.toFixed(1)}
+                    {token.kind === 'enemy' ? 'ENEMIGO' : 'ALIADO'} · {token.visible ? 'ON' : 'HIDDEN'} · X {token.x.toFixed(1)} / Y {token.y.toFixed(1)}
                   </span>
                 </button>
               ))}
@@ -6604,6 +6652,18 @@ const DmPanel = () => {
               <div className="dm-panel__form dm-panel__form--compact live-map-token-editor">
                 <div className="dm-panel__panel-title">Token seleccionado</div>
                 <p className="dm-panel__hint">{selectedToken.label}</p>
+                <label>
+                  Tipo
+                  <select
+                    value={selectedToken.kind}
+                    onChange={(event) =>
+                      handleLiveMapTokenKind(selectedToken.id, event.target.value)
+                    }
+                  >
+                    <option value="ally">Aliado</option>
+                    <option value="enemy">Enemigo</option>
+                  </select>
+                </label>
                 <label className="dm-panel__checkbox">
                   <input
                     type="checkbox"

@@ -23,6 +23,7 @@ const TRACER_CONFIG_KEY = 'tracer_config';
 const HIDDEN_IMAGES_KEY = 'hidden_poi_images';
 const LIVE_MAP_STATE_KEY = 'live_map_state';
 const LIVE_MAP_BACKGROUNDS_KEY = 'live_map_backgrounds';
+const LIVE_MAP_FALLBACK_PATH = '/assets/livemap/gcpd_live_map_fallback_unavailable.png';
 const TRACER_RING_TIMEOUT_MS = 60_000;
 const TRACER_STEP_MS = 15_000;
 const TRACER_EXACT_MS = 45_000;
@@ -639,6 +640,14 @@ function clampPercent(value, fallback = 50) {
   return Math.max(0, Math.min(100, numeric));
 }
 
+function normalizeLiveMapTokenKind(kind = '') {
+  const normalized = String(kind || '').trim().toLowerCase();
+  if (['enemy', 'enemigo', 'hostile', 'target', 'objetivo'].includes(normalized)) {
+    return 'enemy';
+  }
+  return 'ally';
+}
+
 function normalizeLiveMapToken(entry = {}) {
   if (!entry || typeof entry !== 'object') return null;
   const label = String(entry.label || '').trim();
@@ -650,13 +659,14 @@ function normalizeLiveMapToken(entry = {}) {
     x: clampPercent(entry.x),
     y: clampPercent(entry.y),
     visible: entry.visible !== false,
-    kind: String(entry.kind || '').trim(),
+    kind: normalizeLiveMapTokenKind(entry.kind),
     updatedAt: Number(entry.updatedAt) || Date.now(),
   };
 }
 
 function normalizeLiveMapState(input = {}) {
   const state = input && typeof input === 'object' ? input : {};
+  const backgroundLoaded = state.backgroundLoaded === true;
   const tokens = Array.isArray(state.tokens)
     ? state.tokens
         .map((entry) => normalizeLiveMapToken(entry))
@@ -664,7 +674,9 @@ function normalizeLiveMapState(input = {}) {
         .filter((entry, index, list) => list.findIndex((item) => item.id === entry.id) === index)
     : [];
   return {
-    backgroundImagePath: String(state.backgroundImagePath || '').trim(),
+    backgroundImagePath: backgroundLoaded ? String(state.backgroundImagePath || '').trim() : '',
+    backgroundLoaded,
+    fallbackImagePath: LIVE_MAP_FALLBACK_PATH,
     tokens,
     updatedAt: Number(state.updatedAt) || Date.now(),
   };
