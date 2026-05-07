@@ -531,6 +531,14 @@ function normalizeHiddenImageCommand(value = '') {
     .replace(/\s+/g, ' ');
 }
 
+function normalizePoiStatus(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['hidden', 'oculto', 'invisible', 'off', 'disabled'].includes(normalized)) {
+    return 'hidden';
+  }
+  return 'active';
+}
+
 function normalizeHiddenImage(entry = {}) {
   if (!entry || typeof entry !== 'object') return null;
   const poiId = String(entry.poiId || '').trim();
@@ -576,13 +584,22 @@ function setHiddenImages(images = []) {
 function findHiddenImageByCode(code = '') {
   const normalizedCode = normalizeHiddenImageCommand(code);
   if (!normalizedCode) return null;
-  return (
+  const image = (
     getHiddenImages().find(
       (entry) =>
         entry.enabled !== false &&
         normalizeHiddenImageCommand(entry.command) === normalizedCode
     ) || null
   );
+  if (!image) return null;
+  const poi = db.prepare('SELECT id, name, status FROM pois_data WHERE id = ?').get(image.poiId);
+  if (!poi || normalizePoiStatus(poi.status) === 'hidden') {
+    return null;
+  }
+  return {
+    ...image,
+    poiLabel: poi.name || poi.id || '',
+  };
 }
 
 function getPoiLocatorById(poiId = '') {
@@ -2550,7 +2567,7 @@ const mapPoiRow = (row, options = {}) => {
     id: row.id,
     name: row.name,
     district: row.district,
-    status: row.status,
+    status: normalizePoiStatus(row.status),
     summary: row.summary,
     updatedAt: Number(row.updated_at) || 0,
     resources: visibleResources,
@@ -2591,10 +2608,14 @@ const savePoiResources = (poiId, resources) => {
 
 app.get('/api/pois-data', (req, res) => {
   const includeHiddenResources = req.query.includeHidden === '1' && Boolean(getRequestSession(req));
+  const canSeeHiddenPois = Boolean(getRequestSession(req));
   let rows = db.prepare('SELECT * FROM pois_data').all();
   if (!rows.length) {
     seedPois();
     rows = db.prepare('SELECT * FROM pois_data').all();
+  }
+  if (!canSeeHiddenPois) {
+    rows = rows.filter((row) => normalizePoiStatus(row.status) !== 'hidden');
   }
   res.json({ pois: rows.map((row) => mapPoiRow(row, { includeHiddenResources })) });
 });
@@ -2787,7 +2808,7 @@ app.post('/api/pois-data', authMiddleware, (req, res) => {
     id: payload.id,
     name: payload.name || '',
     district: payload.district || '',
-    status: payload.status || '',
+    status: normalizePoiStatus(payload.status),
     summary: payload.summary || '',
     access_code: unlockConfig.password || null,
     details: stringify(poiV2.content.details),

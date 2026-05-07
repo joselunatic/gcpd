@@ -105,12 +105,14 @@ const PoiEditor = ({
               />
             </label>
             <label className="dm-panel__field dm-panel__field--compact">
-              {labelRow('Estado', 'Estado operativo.')}
-              <input
-                type="text"
+              {labelRow('Estado', 'Controla si el POI es visible y referenciable en la TUI.')}
+              <select
                 value={poiForm.status}
                 onChange={(e) => setPoiForm({ ...poiForm, status: e.target.value })}
-              />
+              >
+                <option value="active">Activo</option>
+                <option value="hidden">Hidden</option>
+              </select>
             </label>
           </div>
         </div>

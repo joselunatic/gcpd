@@ -1,5 +1,5 @@
 import clear from "/commands/clear.js";
-import { type } from "/utils/io.js";
+import { type, focusInput } from "/utils/io.js";
 import { createMetricsScope } from "/utils/metrics.js";
 import { loadThreeModules } from "/utils/three/AssetManager.js";
 import { createAsciiViewer } from "/utils/three/asciiViewer.js";
@@ -48,6 +48,22 @@ const DEFAULT_ROT_DEG = { x: 0, y: -6, z: -78 };
 const DEFAULT_LIGHT = { x: 85.2, y: -213.7, z: 341.5 };
 const EVIDENCE_CACHE_TTL = 60 * 1000;
 const HIDDEN_IMAGE_CACHE_TTL = 60 * 1000;
+const IMAGE_MAGNIFIER_SIZE = 180;
+const IMAGE_MAGNIFIER_ZOOM = 3;
+const IMAGE_FILTERS = {
+  original: {
+    label: "ORIGINAL",
+    css: "none",
+  },
+  contrast: {
+    label: "CONTRASTE",
+    css: "contrast(1.55) brightness(1.04) saturate(0.92)",
+  },
+  forensic: {
+    label: "NOCTURNO",
+    css: "grayscale(1) contrast(1.7) brightness(0.9) sepia(0.9) hue-rotate(52deg) saturate(1.8)",
+  },
+};
 let evidenceCache = { at: 0, models: [] };
 const hiddenImageCache = new Map();
 
@@ -97,6 +113,50 @@ async function getHiddenImageByCode(code = '') {
   }
 }
 
+function formatArchiveTimestamp(value) {
+  const timestamp = Number(value);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return 'UNSTAMPED';
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return 'UNSTAMPED';
+  const parts = [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ];
+  const clock = [
+    String(date.getHours()).padStart(2, '0'),
+    String(date.getMinutes()).padStart(2, '0'),
+    String(date.getSeconds()).padStart(2, '0'),
+  ];
+  return `${parts.join('-')} ${clock.join(':')}`;
+}
+
+function preloadImage(imagePath = '') {
+  return new Promise((resolve, reject) => {
+    const loader = new Image();
+    loader.onload = () => resolve(loader);
+    loader.onerror = () => reject(new Error('image unavailable'));
+    loader.src = imagePath;
+  });
+}
+
+async function playArchiveFrameBootSequence() {
+  const lines = [
+    'LOCALIZANDO ARCHIVO...',
+    'DECODIFICANDO FRAME...',
+    'VISUAL CHANNEL LOCKED',
+  ];
+  clear();
+  for (const line of lines) {
+    await type([line], {
+      wait: 6,
+      initialWait: false,
+      finalWait: 90,
+      speak: false,
+    });
+  }
+}
+
 function waitForEnter() {
   return new Promise((resolve) => {
     const dispose = pushKeymap(
@@ -126,87 +186,371 @@ function waitForEnter() {
 
 async function showTerminalImage({
   returnToMain = true,
+  code = '',
   label = 'IMAGEN',
   imagePath = '',
+  poiLabel = '',
+  source = '',
+  timestamp = 0,
 } = {}) {
   const terminal = document.querySelector('.terminal');
   if (!terminal || !imagePath) return;
-  const screenHost = document.querySelector('#screen-container') || terminal;
+  await playArchiveFrameBootSequence();
+  const screenHost = terminal;
+  const body = document.body;
+  const normalizedCode = String(code || label || 'FRAME').toUpperCase();
+  const archivePoi = String(poiLabel || '').trim() || 'UNSPECIFIED';
+  const archiveSource = String(source || '').trim() || 'LOCAL CACHE';
+  const archiveTime = formatArchiveTimestamp(timestamp);
+  let filterMode = 'original';
   terminal.classList.add('terminal-viewer-active');
+  terminal.classList.add('terminal-image-viewer-active');
+  if (body) {
+    body.classList.add('terminal-viewer-active');
+    body.classList.add('terminal-image-viewer-active');
+  }
 
   const overlay = document.createElement('div');
   overlay.className = 'terminal-hidden-image-viewer';
   Object.assign(overlay.style, {
     position: 'absolute',
     inset: '0',
-    zIndex: '30',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    gap: '0.75rem',
-    padding: '1rem',
-    background: 'rgba(1, 8, 8, 0.96)',
+    zIndex: '40',
+    background: 'linear-gradient(180deg, rgba(0, 10, 12, 0.99) 0%, rgba(0, 0, 0, 0.985) 100%)',
     color: 'var(--fg-primary, #9fd3ff)',
-    textTransform: 'uppercase',
     overflow: 'hidden',
+    fontFamily: 'inherit',
   });
-
-  const title = document.createElement('div');
-  title.textContent = `${String(label || 'IMAGEN').toUpperCase()} // SHOW IMAGE`;
-  Object.assign(title.style, {
-    fontSize: '0.95rem',
-    letterSpacing: '0.12em',
-    textAlign: 'center',
-  });
-  overlay.appendChild(title);
 
   const frame = document.createElement('div');
   Object.assign(frame.style, {
-    flex: '1',
-    minHeight: '0',
+    position: 'absolute',
+    inset: '2.6rem 0.45rem 2rem 0.45rem',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    border: '1px solid rgba(159, 211, 255, 0.35)',
-    background: 'rgba(0, 0, 0, 0.65)',
-    padding: '0.75rem',
+    padding: '0.35rem',
     overflow: 'hidden',
+    background: 'radial-gradient(circle at center, rgba(14, 28, 28, 0.4) 0%, rgba(0, 0, 0, 0.94) 72%)',
+    border: '1px solid rgba(159, 211, 255, 0.18)',
   });
 
   const image = document.createElement('img');
   image.src = imagePath;
   image.alt = label || 'Imagen oculta';
   Object.assign(image.style, {
-    maxWidth: '100%',
-    maxHeight: '100%',
-    width: 'auto',
-    height: 'auto',
+    width: '100%',
+    height: '100%',
     objectFit: 'contain',
+    objectPosition: 'center',
     display: 'block',
+    userSelect: 'none',
+    WebkitUserDrag: 'none',
+    filter: IMAGE_FILTERS[filterMode].css,
   });
   frame.appendChild(image);
-  overlay.appendChild(frame);
 
-  const hint = document.createElement('div');
-  hint.textContent = 'ENTER PARA CERRAR';
-  Object.assign(hint.style, {
-    fontSize: '0.8rem',
-    letterSpacing: '0.08em',
-    textAlign: 'center',
-    opacity: '0.9',
+  const scanlines = document.createElement('div');
+  Object.assign(scanlines.style, {
+    position: 'absolute',
+    inset: '2.6rem 0.45rem 2rem 0.45rem',
+    pointerEvents: 'none',
+    zIndex: '1',
+    opacity: '0.18',
+    backgroundImage: 'repeating-linear-gradient(180deg, rgba(159, 211, 255, 0.08) 0px, rgba(159, 211, 255, 0.08) 1px, transparent 2px, transparent 4px)',
+    mixBlendMode: 'screen',
   });
-  overlay.appendChild(hint);
+
+  const header = document.createElement('div');
+  Object.assign(header.style, {
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    right: '0',
+    zIndex: '3',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.2rem',
+    padding: '0.5rem 0.75rem 0.35rem 0.75rem',
+    background: 'linear-gradient(180deg, rgba(3, 18, 20, 0.96) 0%, rgba(3, 18, 20, 0.35) 100%)',
+    borderBottom: '1px solid rgba(159, 211, 255, 0.18)',
+    textTransform: 'uppercase',
+  });
+  const headerTitle = document.createElement('div');
+  headerTitle.textContent = `GCPD / WAYNE AUX NODE — ARCHIVE FRAME ${normalizedCode}`;
+  Object.assign(headerTitle.style, {
+    fontSize: '0.82rem',
+    letterSpacing: '0.11em',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  });
+  const headerMeta = document.createElement('div');
+  headerMeta.textContent = `POI: ${archivePoi} — SOURCE: ${archiveSource} — TIME: ${archiveTime}`;
+  Object.assign(headerMeta.style, {
+    fontSize: '0.68rem',
+    letterSpacing: '0.08em',
+    opacity: '0.82',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  });
+  header.appendChild(headerTitle);
+  header.appendChild(headerMeta);
+
+  const footer = document.createElement('div');
+  Object.assign(footer.style, {
+    position: 'absolute',
+    left: '0',
+    right: '0',
+    bottom: '0',
+    zIndex: '3',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '0.75rem',
+    padding: '0.35rem 0.75rem 0.5rem 0.75rem',
+    background: 'linear-gradient(0deg, rgba(3, 18, 20, 0.96) 0%, rgba(3, 18, 20, 0.28) 100%)',
+    borderTop: '1px solid rgba(159, 211, 255, 0.18)',
+    textTransform: 'uppercase',
+    fontSize: '0.68rem',
+    letterSpacing: '0.07em',
+  });
+  const footerHelp = document.createElement('div');
+  footerHelp.textContent = 'MOUSE: LUPA FORENSE · 1 ORIGINAL · 2 CONTRASTE · 3 NOCTURNO · ESC: VOLVER';
+  Object.assign(footerHelp.style, {
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    opacity: '0.84',
+  });
+  const footerMode = document.createElement('div');
+  Object.assign(footerMode.style, {
+    flex: '0 0 auto',
+    minWidth: '6.5rem',
+    textAlign: 'right',
+    opacity: '0.96',
+  });
+  footer.appendChild(footerHelp);
+  footer.appendChild(footerMode);
+
+  const magnifier = document.createElement('div');
+  Object.assign(magnifier.style, {
+    position: 'absolute',
+    width: `${IMAGE_MAGNIFIER_SIZE}px`,
+    height: `${IMAGE_MAGNIFIER_SIZE}px`,
+    borderRadius: '14px',
+    border: '1px solid rgba(159, 211, 255, 0.72)',
+    boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.9), 0 0 24px rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    backgroundRepeat: 'no-repeat',
+    pointerEvents: 'none',
+    zIndex: '4',
+    display: 'none',
+    overflow: 'hidden',
+  });
+
+  const magnifierCrosshairX = document.createElement('div');
+  Object.assign(magnifierCrosshairX.style, {
+    position: 'absolute',
+    left: '50%',
+    top: '10%',
+    bottom: '10%',
+    width: '1px',
+    background: 'rgba(159, 211, 255, 0.6)',
+    transform: 'translateX(-50%)',
+  });
+  const magnifierCrosshairY = document.createElement('div');
+  Object.assign(magnifierCrosshairY.style, {
+    position: 'absolute',
+    top: '50%',
+    left: '10%',
+    right: '10%',
+    height: '1px',
+    background: 'rgba(159, 211, 255, 0.6)',
+    transform: 'translateY(-50%)',
+  });
+  const magnifierReadout = document.createElement('div');
+  Object.assign(magnifierReadout.style, {
+    position: 'absolute',
+    left: '0.45rem',
+    right: '0.45rem',
+    bottom: '0.35rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.1rem',
+    fontSize: '0.58rem',
+    lineHeight: '1.2',
+    letterSpacing: '0.07em',
+    textTransform: 'uppercase',
+    color: 'rgba(210, 240, 255, 0.95)',
+    textShadow: '0 1px 0 rgba(0, 0, 0, 0.85)',
+  });
+  const magnifierZoom = document.createElement('div');
+  magnifierZoom.textContent = `ZOOM x${IMAGE_MAGNIFIER_ZOOM}`;
+  const magnifierCoords = document.createElement('div');
+  magnifierCoords.textContent = 'X:0000 Y:0000';
+  magnifierReadout.appendChild(magnifierZoom);
+  magnifierReadout.appendChild(magnifierCoords);
+  magnifier.appendChild(magnifierCrosshairX);
+  magnifier.appendChild(magnifierCrosshairY);
+  magnifier.appendChild(magnifierReadout);
+
+  overlay.appendChild(frame);
+  overlay.appendChild(scanlines);
+  overlay.appendChild(header);
+  overlay.appendChild(footer);
+  overlay.appendChild(magnifier);
 
   screenHost.appendChild(overlay);
-  await waitForEnter();
+
+  const applyFilterMode = () => {
+    const filter = IMAGE_FILTERS[filterMode] || IMAGE_FILTERS.original;
+    image.style.filter = filter.css;
+    footerMode.textContent = `MODE: ${filter.label}`;
+    magnifier.style.filter = filter.css;
+  };
+  applyFilterMode();
+
+  const hideMagnifier = () => {
+    magnifier.style.display = 'none';
+  };
+
+  const getRenderedImageRect = () => {
+    const box = image.getBoundingClientRect();
+    const naturalWidth = image.naturalWidth || 0;
+    const naturalHeight = image.naturalHeight || 0;
+    if (!box.width || !box.height || !naturalWidth || !naturalHeight) {
+      return null;
+    }
+    const scale = Math.min(box.width / naturalWidth, box.height / naturalHeight);
+    const renderedWidth = naturalWidth * scale;
+    const renderedHeight = naturalHeight * scale;
+    return {
+      left: box.left + (box.width - renderedWidth) / 2,
+      top: box.top + (box.height - renderedHeight) / 2,
+      width: renderedWidth,
+      height: renderedHeight,
+    };
+  };
+
+  const updateMagnifier = (event) => {
+    if (!event || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+      hideMagnifier();
+      return;
+    }
+    const renderedRect = getRenderedImageRect();
+    if (!renderedRect) {
+      hideMagnifier();
+      return;
+    }
+    const pointerX = event.clientX;
+    const pointerY = event.clientY;
+    const insideX = pointerX >= renderedRect.left && pointerX <= renderedRect.left + renderedRect.width;
+    const insideY = pointerY >= renderedRect.top && pointerY <= renderedRect.top + renderedRect.height;
+    if (!insideX || !insideY) {
+      hideMagnifier();
+      return;
+    }
+
+    const relativeX = (pointerX - renderedRect.left) / renderedRect.width;
+    const relativeY = (pointerY - renderedRect.top) / renderedRect.height;
+    const overlayRect = overlay.getBoundingClientRect();
+    const lensHalf = IMAGE_MAGNIFIER_SIZE / 2;
+    const lensX = Math.min(
+      Math.max(pointerX - overlayRect.left, lensHalf),
+      overlayRect.width - lensHalf
+    );
+    const lensY = Math.min(
+      Math.max(pointerY - overlayRect.top, lensHalf),
+      overlayRect.height - lensHalf
+    );
+
+    magnifier.style.display = 'block';
+    magnifier.style.left = `${lensX - lensHalf}px`;
+    magnifier.style.top = `${lensY - lensHalf}px`;
+    magnifier.style.backgroundImage = `url("${imagePath}")`;
+    magnifier.style.backgroundSize = `${renderedRect.width * IMAGE_MAGNIFIER_ZOOM}px ${renderedRect.height * IMAGE_MAGNIFIER_ZOOM}px`;
+    magnifierCoords.textContent = `X:${String(Math.round(relativeX * image.naturalWidth)).padStart(4, '0')} Y:${String(Math.round(relativeY * image.naturalHeight)).padStart(4, '0')}`;
+    magnifier.style.backgroundPosition = `${
+      -(relativeX * renderedRect.width * IMAGE_MAGNIFIER_ZOOM - lensHalf)
+    }px ${
+      -(relativeY * renderedRect.height * IMAGE_MAGNIFIER_ZOOM - lensHalf)
+    }px`;
+  };
+
+  frame.addEventListener('mousemove', updateMagnifier);
+  frame.addEventListener('mouseleave', hideMagnifier);
+  frame.addEventListener('pointerleave', hideMagnifier);
+
+  await new Promise((resolve) => {
+    let closed = false;
+    const closeViewer = () => {
+      if (closed) return true;
+      closed = true;
+      frame.removeEventListener('mousemove', updateMagnifier);
+      frame.removeEventListener('mouseleave', hideMagnifier);
+      frame.removeEventListener('pointerleave', hideMagnifier);
+      disposeKeymap();
+      hideMagnifier();
+      resolve();
+      return true;
+    };
+    const disposeKeymap = pushKeymap(
+      {
+        Escape: closeViewer,
+        Esc: closeViewer,
+        "1": () => {
+          filterMode = 'original';
+          applyFilterMode();
+          return true;
+        },
+        Digit1: () => {
+          filterMode = 'original';
+          applyFilterMode();
+          return true;
+        },
+        "2": () => {
+          filterMode = 'contrast';
+          applyFilterMode();
+          return true;
+        },
+        Digit2: () => {
+          filterMode = 'contrast';
+          applyFilterMode();
+          return true;
+        },
+        "3": () => {
+          filterMode = 'forensic';
+          applyFilterMode();
+          return true;
+        },
+        Digit3: () => {
+          filterMode = 'forensic';
+          applyFilterMode();
+          return true;
+        },
+      },
+      {
+        shouldHandle: () => true,
+      }
+    );
+  });
 
   if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
   terminal.classList.remove('terminal-viewer-active');
+  terminal.classList.remove('terminal-image-viewer-active');
+  if (body) {
+    body.classList.remove('terminal-viewer-active');
+    body.classList.remove('terminal-image-viewer-active');
+  }
   if (returnToMain) {
     const screens = await import('/utils/screens.js');
     if (screens?.main) {
       screens.main();
     }
+  } else {
+    setTimeout(() => focusInput(), 0);
   }
 }
 
@@ -807,7 +1151,28 @@ export default async function show(args = "", options = {}) {
     }
     const image = await getHiddenImageByCode(code);
     if (!image?.imagePath) {
-      await type([" ", "IMAGEN NO DISPONIBLE EN ARCHIVO.", " "], {
+      await type([
+        " ",
+        "ARCHIVO NO DISPONIBLE EN CACHE LOCAL.",
+        "REFERENCIA NO AUTORIZADA O NO SINCRONIZADA.",
+        " ",
+      ], {
+        wait: false,
+        initialWait: false,
+        finalWait: false,
+        speak: false,
+      });
+      return;
+    }
+    try {
+      await preloadImage(image.imagePath);
+    } catch (error) {
+      await type([
+        " ",
+        "ARCHIVO NO DISPONIBLE EN CACHE LOCAL.",
+        "REFERENCIA NO AUTORIZADA O NO SINCRONIZADA.",
+        " ",
+      ], {
         wait: false,
         initialWait: false,
         finalWait: false,
@@ -817,8 +1182,12 @@ export default async function show(args = "", options = {}) {
     }
     await showTerminalImage({
       returnToMain,
+      code,
       label: image.label || code,
       imagePath: image.imagePath,
+      poiLabel: image.poiLabel || image.poiName || "",
+      source: image.source || "",
+      timestamp: image.updatedAt || 0,
     });
     return;
   }

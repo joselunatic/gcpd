@@ -9,6 +9,10 @@ const FALLBACK_VILLAINS = "/data/villains/gallery.json";
 let poisCache;
 let villainsCache;
 
+function isVisiblePoiStatus(value = "") {
+  return String(value || "").trim().toLowerCase() !== "hidden";
+}
+
 async function fetchJson(url) {
   const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) {
@@ -24,11 +28,11 @@ async function listPois({ force = false } = {}) {
   if (!poisCache) {
     try {
       const data = await fetchJson(POIS_URL);
-      poisCache = normalizePoisClient(data.pois);
+      poisCache = normalizePoisClient(data.pois).filter((poi) => isVisiblePoiStatus(poi.status));
     } catch (error) {
       console.error("Error loading POIs", error);
       const fallback = await fetchJson(FALLBACK_POIS).catch(() => ({ pois: [] }));
-      poisCache = normalizePoisClient(fallback.pois);
+      poisCache = normalizePoisClient(fallback.pois).filter((poi) => isVisiblePoiStatus(poi.status));
     }
   }
   return poisCache;

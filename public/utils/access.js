@@ -99,7 +99,7 @@ function evaluateAccess(entity, campaignState = loadCampaignState()) {
     hasFlag(flag, campaignState)
   );
   const status = (entity.status || "").toLowerCase();
-  const visibleStatus = status !== "archived";
+  const visibleStatus = status !== "archived" && status !== "hidden";
   const visible =
     visibleStatus &&
     (config.visibility !== "hidden" || unlocked || config.unlockMode === "none");

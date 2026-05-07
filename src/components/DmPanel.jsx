@@ -249,7 +249,7 @@ const initialPoiForm = {
   id: '',
   name: '',
   district: '',
-  status: 'activo',
+  status: 'active',
   summary: '',
   details: '',
   nodeType: 'mixed',
@@ -655,6 +655,14 @@ const formResourcesToPoiResources = (resources = []) =>
       };
     });
 
+const normalizePoiStatus = (value = '') => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['hidden', 'oculto', 'invisible', 'off', 'disabled'].includes(normalized)) {
+    return 'hidden';
+  }
+  return 'active';
+};
+
 const poiToFormFields = (data) => {
   const hierarchy = getPoiHierarchy(data);
   const geo = getPoiGeo(data) || {};
@@ -663,7 +671,7 @@ const poiToFormFields = (data) => {
     id: data?.id || '',
     name: data?.name || '',
     district: data?.district || '',
-    status: data?.status || 'activo',
+    status: normalizePoiStatus(data?.status),
     summary: data?.summary || '',
     details: (content.details || []).join('\n'),
     nodeType: hierarchy.nodeType || 'mixed',
@@ -2057,7 +2065,7 @@ const DmPanel = () => {
       id: poiForm.id.trim() || `poi_${Date.now().toString(36)}`,
       name: poiForm.name,
       district: poiForm.district,
-      status: poiForm.status,
+      status: normalizePoiStatus(poiForm.status),
       summary: poiForm.summary,
       poiV2,
     };
