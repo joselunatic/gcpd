@@ -224,8 +224,7 @@ async function handleHelp() {
     "CASES - Expedientes",
     "CASE <ID> - Detalle de expediente",
     "VILLAINS - Rogue gallery",
-    "STATUS / FLAGS / SUMMARY / LAST / MATRIX / CLEAR",
-    "SHOW - Batescaner 3D",
+    "SHOW - Batescaner 3D / SHOW IMAGE <CODIGO>",
     "BALISTICA - Comparador balistico grafico",
     "AUDIO - Audioregistros",
     "DIAL - Linea telefonica externa",
@@ -254,18 +253,19 @@ async function handleOsCommand(rawInput) {
     return { exit: false };
   }
   if (SHOW_COMMANDS.includes(command)) {
-    const target = String(tokens[1] || "").toLowerCase();
+    const showArgs = input.slice(command.length).trim();
+    const normalizedShowArgs = showArgs.toLowerCase();
     const module = await import("/commands/show.js");
-    if (target === "joker" && module?.showJoker) {
+    if (normalizedShowArgs === "joker" && module?.showJoker) {
       await module.showJoker({ returnToMain: false, label: "JOKER", stlPath: "/joker.stl" });
       return { exit: false };
     }
-    if (target === "bala" && module?.showBala) {
+    if (normalizedShowArgs === "bala" && module?.showBala) {
       await module.showBala({ returnToMain: false });
       return { exit: false };
     }
     if (module?.default) {
-      await module.default(target);
+      await module.default(showArgs, { returnToMain: false });
       return { exit: false };
     }
   }

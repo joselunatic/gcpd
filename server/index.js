@@ -20,6 +20,7 @@ const BACKDOOR_PASSWORD = process.env.DM_BACKDOOR_PASSWORD || '1234';
 const SESSION_DURATION_MS = Number(process.env.DM_SESSION_DURATION_MS || 1000 * 60 * 60 * 6);
 const GLOBAL_COMMANDS_KEY = 'global_commands';
 const TRACER_CONFIG_KEY = 'tracer_config';
+const HIDDEN_IMAGES_KEY = 'hidden_poi_images';
 const TRACER_RING_TIMEOUT_MS = 60_000;
 const TRACER_STEP_MS = 15_000;
 const TRACER_EXACT_MS = 45_000;
@@ -218,6 +219,32 @@ const poiResourceUpload = multer({
     const ext = path.extname(file.originalname || '').toLowerCase();
     if (!poiResourceExtTypes.has(ext)) {
       cb(new Error('Solo se permiten PNG/JPG/WEBP/GIF/AVIF, MP4/WEBM/MOV/M4V, MP3/WAV/OGG/M4A o PDF.'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+const hiddenImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, poiResourceDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const safeExt = ['.png', '.jpg', '.jpeg', '.webp'].includes(ext) ? ext : '.png';
+    const stamp = Date.now();
+    const random = crypto.randomBytes(4).toString('hex');
+    cb(null, `hidden-image-${stamp}-${random}${safeExt}`);
+  },
+});
+
+const hiddenImageUpload = multer({
+  storage: hiddenImageStorage,
+  limits: { fileSize: 12 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (!['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
+      cb(new Error('Solo se permiten PNG/JPG/WEBP.'));
       return;
     }
     cb(null, true);
@@ -495,6 +522,67 @@ function setPhoneLines(lines = []) {
     : [];
   setSetting('phone_lines', stringify(cleaned));
   return cleaned;
+}
+
+function normalizeHiddenImageCommand(value = '') {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function normalizeHiddenImage(entry = {}) {
+  if (!entry || typeof entry !== 'object') return null;
+  const poiId = String(entry.poiId || '').trim();
+  const command = String(entry.command || entry.token || '').trim();
+  const imagePath = String(entry.imagePath || entry.src || entry.url || '').trim();
+  if (!poiId || !command || !imagePath) return null;
+  return {
+    id: String(entry.id || `hidden-image-${crypto.randomUUID()}`).trim(),
+    poiId,
+    label: String(entry.label || command).trim() || command,
+    command,
+    imagePath,
+    enabled: entry.enabled !== false,
+    notes: String(entry.notes || '').trim(),
+    updatedAt: Number(entry.updatedAt) || Date.now(),
+  };
+}
+
+function getHiddenImages() {
+  const raw = getSetting(HIDDEN_IMAGES_KEY);
+  const parsed = parseJSON(raw, []);
+  const images = Array.isArray(parsed) ? parsed : [];
+  const normalized = images
+    .map((entry) => normalizeHiddenImage(entry))
+    .filter(Boolean);
+  if (JSON.stringify(images) !== JSON.stringify(normalized)) {
+    setSetting(HIDDEN_IMAGES_KEY, stringify(normalized));
+  }
+  return normalized.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+function setHiddenImages(images = []) {
+  const normalized = Array.isArray(images)
+    ? images
+        .map((entry) => normalizeHiddenImage(entry))
+        .filter(Boolean)
+        .filter((entry, index, list) => list.findIndex((item) => item.id === entry.id) === index)
+    : [];
+  setSetting(HIDDEN_IMAGES_KEY, stringify(normalized));
+  return getHiddenImages();
+}
+
+function findHiddenImageByCode(code = '') {
+  const normalizedCode = normalizeHiddenImageCommand(code);
+  if (!normalizedCode) return null;
+  return (
+    getHiddenImages().find(
+      (entry) =>
+        entry.enabled !== false &&
+        normalizeHiddenImageCommand(entry.command) === normalizedCode
+    ) || null
+  );
 }
 
 function getPoiLocatorById(poiId = '') {
@@ -1879,6 +1967,110 @@ app.post('/api/global-commands', authMiddleware, (req, res) => {
   res.json({ commands: saved });
 });
 
+app.get('/api/hidden-images', (req, res) => {
+  const session = getRequestSession(req);
+  const poiId = String(req.query.poiId || '').trim();
+  const code = String(req.query.code || '').trim();
+
+  if (session) {
+    const images = getHiddenImages().filter((entry) => !poiId || entry.poiId === poiId);
+    res.json({ images });
+    return;
+  }
+
+  if (!code) {
+    return res.status(401).json({ message: 'Autenticacion requerida.' });
+  }
+
+  const image = findHiddenImageByCode(code);
+  if (!image) {
+    return res.status(404).json({ message: 'Imagen no disponible.' });
+  }
+
+  res.json({
+    image: {
+      id: image.id,
+      poiId: image.poiId,
+      label: image.label,
+      imagePath: image.imagePath,
+      updatedAt: image.updatedAt,
+    },
+  });
+});
+
+app.post('/api/hidden-images', authMiddleware, (req, res) => {
+  const payload = req.body?.image || req.body || {};
+  const image = normalizeHiddenImage(payload);
+  if (!image) {
+    return res.status(400).json({
+      message: 'poiId, command e imagePath son obligatorios.',
+    });
+  }
+  const poiExists = db.prepare('SELECT id FROM pois_data WHERE id = ?').get(image.poiId);
+  if (!poiExists) {
+    return res.status(404).json({ message: 'POI no encontrado.' });
+  }
+
+  const current = getHiddenImages();
+  const duplicate = current.find(
+    (entry) =>
+      entry.id !== image.id &&
+      normalizeHiddenImageCommand(entry.command) === normalizeHiddenImageCommand(image.command)
+  );
+  if (duplicate) {
+    return res.status(409).json({ message: 'Ese codigo ya esta asignado a otra imagen.' });
+  }
+
+  const savedImage = { ...image, updatedAt: Date.now() };
+  const saved = setHiddenImages([
+    savedImage,
+    ...current.filter((entry) => entry.id !== savedImage.id),
+  ]);
+  const persisted = saved.find((entry) => entry.id === savedImage.id) || savedImage;
+  res.json({ image: persisted });
+});
+
+app.delete('/api/hidden-images/:id', authMiddleware, (req, res) => {
+  const id = String(req.params.id || '').trim();
+  if (!id) {
+    return res.status(400).json({ message: 'ID obligatorio.' });
+  }
+  const current = getHiddenImages();
+  const exists = current.some((entry) => entry.id === id);
+  if (!exists) {
+    return res.status(404).json({ message: 'Imagen oculta no encontrada.' });
+  }
+  setHiddenImages(current.filter((entry) => entry.id !== id));
+  res.json({ success: true, deletedId: id });
+});
+
+app.post('/api/hidden-image-upload', authMiddleware, (req, res) => {
+  hiddenImageUpload.single('file')(req, res, (err) => {
+    if (err) {
+      console.warn('[HIDDEN_IMAGE_UPLOAD] failed', { ip: req.ip, error: err.message });
+      return res.status(400).json({ message: err.message || 'Error al subir imagen.' });
+    }
+    if (!req.file) {
+      console.warn('[HIDDEN_IMAGE_UPLOAD] missing file', { ip: req.ip });
+      return res.status(400).json({ message: 'Archivo de imagen requerido.' });
+    }
+    const url = `/api/uploads/poi-resources/${req.file.filename}`;
+    console.info('[HIDDEN_IMAGE_UPLOAD] ok', {
+      ip: req.ip,
+      filename: req.file.filename,
+      original: req.file.originalname,
+      size: req.file.size,
+      url,
+    });
+    res.json({
+      url,
+      imagePath: url,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+    });
+  });
+});
+
 app.get('/api/evidence', (req, res) => {
   res.json({ models: getEvidenceModels() });
 });
@@ -2619,6 +2811,8 @@ app.delete('/api/pois-data/:id', authMiddleware, (req, res) => {
     return res.status(400).json({ message: 'ID obligatorio.' });
   }
   db.prepare('DELETE FROM pois_data WHERE id = ?').run(id);
+  const nextHiddenImages = getHiddenImages().filter((entry) => entry.poiId !== id);
+  setHiddenImages(nextHiddenImages);
   res.json({ success: true });
 });
 

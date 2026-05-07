@@ -2,6 +2,7 @@ import { useState } from 'react';
 import PoiMapPicker from './PoiMapPicker';
 import PoiImageCard from './PoiImageCard';
 import PoiResourceEditor from './PoiResourceEditor';
+import PoiHiddenImageEditor from './PoiHiddenImageEditor';
 
 const PoiEditor = ({
   poiForm,
@@ -28,6 +29,7 @@ const PoiEditor = ({
   onToggleMapFine,
   imageCardProps,
   resourceEditorProps,
+  hiddenImageEditorProps,
   mapGridStep,
   onClamp,
   nodeTypeOptions = [],
@@ -191,6 +193,18 @@ const PoiEditor = ({
       children: (
         <div className="dm-panel__form-group dm-panel__form-group--compact">
           <PoiResourceEditor {...resourceEditorProps} />
+        </div>
+      ),
+    })}
+
+    {renderSection({
+      id: 'poi-hidden-images',
+      title: 'SHOW IMAGE / ocultas',
+      open: sections.hiddenImages,
+      onToggle: () => toggleSection('pois', 'hiddenImages'),
+      children: (
+        <div className="dm-panel__form-group dm-panel__form-group--compact">
+          <PoiHiddenImageEditor {...hiddenImageEditorProps} labelRow={labelRow} />
         </div>
       ),
     })}

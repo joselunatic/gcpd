@@ -47,7 +47,9 @@ const DEFAULT_SCALE = 1.65;
 const DEFAULT_ROT_DEG = { x: 0, y: -6, z: -78 };
 const DEFAULT_LIGHT = { x: 85.2, y: -213.7, z: 341.5 };
 const EVIDENCE_CACHE_TTL = 60 * 1000;
+const HIDDEN_IMAGE_CACHE_TTL = 60 * 1000;
 let evidenceCache = { at: 0, models: [] };
+const hiddenImageCache = new Map();
 
 const normalizeToken = (value = '') =>
   String(value || '')
@@ -69,6 +71,29 @@ async function getEvidenceModels() {
     return models;
   } catch (err) {
     return [];
+  }
+}
+
+async function getHiddenImageByCode(code = '') {
+  const token = normalizeToken(code);
+  if (!token) return null;
+  const now = Date.now();
+  const cached = hiddenImageCache.get(token);
+  if (cached && now - cached.at < HIDDEN_IMAGE_CACHE_TTL) {
+    return cached.image;
+  }
+  try {
+    const res = await fetch(`/api/hidden-images?code=${encodeURIComponent(code)}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('hidden image not found');
+    const data = await res.json();
+    const image = data?.image && typeof data.image === 'object' ? data.image : null;
+    hiddenImageCache.set(token, { at: now, image });
+    return image;
+  } catch (error) {
+    hiddenImageCache.set(token, { at: now, image: null });
+    return null;
   }
 }
 
@@ -97,6 +122,92 @@ function waitForEnter() {
       }
     );
   });
+}
+
+async function showTerminalImage({
+  returnToMain = true,
+  label = 'IMAGEN',
+  imagePath = '',
+} = {}) {
+  const terminal = document.querySelector('.terminal');
+  if (!terminal || !imagePath) return;
+  const screenHost = document.querySelector('#screen-container') || terminal;
+  terminal.classList.add('terminal-viewer-active');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'terminal-hidden-image-viewer';
+  Object.assign(overlay.style, {
+    position: 'absolute',
+    inset: '0',
+    zIndex: '30',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: '0.75rem',
+    padding: '1rem',
+    background: 'rgba(1, 8, 8, 0.96)',
+    color: 'var(--fg-primary, #9fd3ff)',
+    textTransform: 'uppercase',
+    overflow: 'hidden',
+  });
+
+  const title = document.createElement('div');
+  title.textContent = `${String(label || 'IMAGEN').toUpperCase()} // SHOW IMAGE`;
+  Object.assign(title.style, {
+    fontSize: '0.95rem',
+    letterSpacing: '0.12em',
+    textAlign: 'center',
+  });
+  overlay.appendChild(title);
+
+  const frame = document.createElement('div');
+  Object.assign(frame.style, {
+    flex: '1',
+    minHeight: '0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '1px solid rgba(159, 211, 255, 0.35)',
+    background: 'rgba(0, 0, 0, 0.65)',
+    padding: '0.75rem',
+    overflow: 'hidden',
+  });
+
+  const image = document.createElement('img');
+  image.src = imagePath;
+  image.alt = label || 'Imagen oculta';
+  Object.assign(image.style, {
+    maxWidth: '100%',
+    maxHeight: '100%',
+    width: 'auto',
+    height: 'auto',
+    objectFit: 'contain',
+    display: 'block',
+  });
+  frame.appendChild(image);
+  overlay.appendChild(frame);
+
+  const hint = document.createElement('div');
+  hint.textContent = 'ENTER PARA CERRAR';
+  Object.assign(hint.style, {
+    fontSize: '0.8rem',
+    letterSpacing: '0.08em',
+    textAlign: 'center',
+    opacity: '0.9',
+  });
+  overlay.appendChild(hint);
+
+  screenHost.appendChild(overlay);
+  await waitForEnter();
+
+  if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+  terminal.classList.remove('terminal-viewer-active');
+  if (returnToMain) {
+    const screens = await import('/utils/screens.js');
+    if (screens?.main) {
+      screens.main();
+    }
+  }
 }
 
 async function showJoker({ returnToMain = true, label = "JOKER", stlPath = "/joker.stl" } = {}) {
@@ -679,18 +790,48 @@ async function showJoker({ returnToMain = true, label = "JOKER", stlPath = "/jok
   }
 }
 
-export default async function show(args = "") {
-  const normalized = String(args || "").trim().toLowerCase();
+export default async function show(args = "", options = {}) {
+  const returnToMain = options?.returnToMain !== false;
+  const rawArgs = String(args || '').trim();
+  const normalized = rawArgs.toLowerCase();
+  if (normalized.startsWith('image ')) {
+    const code = rawArgs.slice(6).trim();
+    if (!code) {
+      await type([" ", "USO: SHOW IMAGE <CODIGO>", " "], {
+        wait: false,
+        initialWait: false,
+        finalWait: false,
+        speak: false,
+      });
+      return;
+    }
+    const image = await getHiddenImageByCode(code);
+    if (!image?.imagePath) {
+      await type([" ", "IMAGEN NO DISPONIBLE EN ARCHIVO.", " "], {
+        wait: false,
+        initialWait: false,
+        finalWait: false,
+        speak: false,
+      });
+      return;
+    }
+    await showTerminalImage({
+      returnToMain,
+      label: image.label || code,
+      imagePath: image.imagePath,
+    });
+    return;
+  }
   if (normalized === "w") {
-    await showJoker({ returnToMain: true, label: "W", stlPath: "/w.stl" });
+    await showJoker({ returnToMain, label: "W", stlPath: "/w.stl" });
     return;
   }
   if (normalized === "joker") {
-    await showJoker({ returnToMain: true, label: "JOKER", stlPath: "/joker.stl" });
+    await showJoker({ returnToMain, label: "JOKER", stlPath: "/joker.stl" });
     return;
   }
   if (normalized === "bala") {
-    await showJoker({ returnToMain: true, label: "BALA", stlPath: "/bala.stl" });
+    await showJoker({ returnToMain, label: "BALA", stlPath: "/bala.stl" });
     return;
   }
   const evidence = await getEvidenceModels();
@@ -707,14 +848,14 @@ export default async function show(args = "") {
         ? `/api${found.stlPath}`
         : found.stlPath;
       await showJoker({
-        returnToMain: true,
+        returnToMain,
         label: found.label || found.id,
         stlPath: resolvedPath,
       });
       return;
     }
   }
-  await type([" ", "USO: SHOW JOKER | SHOW BALA | SHOW W | SHOW <EVIDENCIA>", " "], {
+  await type([" ", "USO: SHOW JOKER | SHOW BALA | SHOW W | SHOW IMAGE <CODIGO> | SHOW <EVIDENCIA>", " "], {
     wait: false,
     initialWait: false,
     finalWait: false,

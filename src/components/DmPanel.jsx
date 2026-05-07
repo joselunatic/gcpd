@@ -25,6 +25,8 @@ const PHONE_LINES_ENDPOINT = '/api/phone-lines';
 const PHONE_LINES_UPLOAD_ENDPOINT = '/api/phone-lines-upload';
 const POI_IMAGE_UPLOAD_ENDPOINT = '/api/poi-image-upload';
 const POI_RESOURCE_UPLOAD_ENDPOINT = '/api/poi-resource-upload';
+const HIDDEN_IMAGES_ENDPOINT = '/api/hidden-images';
+const HIDDEN_IMAGE_UPLOAD_ENDPOINT = '/api/hidden-image-upload';
 const TRACER_CONFIG_ENDPOINT = '/api/tracer-config';
 
 const initialCaseForm = {
@@ -259,6 +261,17 @@ const initialPoiForm = {
   mapLabel: '',
   mapImage: '',
   resources: [],
+};
+
+const initialHiddenImageForm = {
+  id: '',
+  poiId: '',
+  label: '',
+  command: '',
+  imagePath: '',
+  enabled: true,
+  notes: '',
+  updatedAt: 0,
 };
 
 const initialEvidenceForm = {
@@ -665,6 +678,17 @@ const poiToFormFields = (data) => {
   };
 };
 
+const hiddenImageToForm = (entry = {}, poiId = '') => ({
+  id: entry.id || '',
+  poiId: entry.poiId || poiId || '',
+  label: entry.label || '',
+  command: entry.command || '',
+  imagePath: entry.imagePath || entry.src || '',
+  enabled: entry.enabled !== false,
+  notes: entry.notes || '',
+  updatedAt: Number(entry.updatedAt) || 0,
+});
+
 const formFieldsToPoiV2 = (form, existing = null) => {
   const previous = existing && typeof existing === 'object' ? existing : {};
   const previousContent =
@@ -869,6 +893,11 @@ const DmPanel = () => {
   const [poiImageError, setPoiImageError] = useState('');
   const [poiResourceUploadingId, setPoiResourceUploadingId] = useState('');
   const [poiResourceUploadError, setPoiResourceUploadError] = useState('');
+  const [hiddenImages, setHiddenImages] = useState([]);
+  const [hiddenImageForm, setHiddenImageForm] = useState(initialHiddenImageForm);
+  const [hiddenImageLoading, setHiddenImageLoading] = useState(false);
+  const [hiddenImageUploading, setHiddenImageUploading] = useState(false);
+  const [hiddenImageMessage, setHiddenImageMessage] = useState('');
   const [poiCropZoom, setPoiCropZoom] = useState(1.2);
   const [poiCropOffset, setPoiCropOffset] = useState({ x: 0, y: 0 });
   const [poiCropDragging, setPoiCropDragging] = useState(false);
@@ -1036,6 +1065,13 @@ const DmPanel = () => {
     [pois]
   );
   const poiIndex = useMemo(() => new Map(pois.map((item) => [item.id, item])), [pois]);
+  const selectedPoiHiddenImages = useMemo(
+    () =>
+      hiddenImages
+        .filter((entry) => entry.poiId === (selectedPoi?.id || ''))
+        .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)),
+    [hiddenImages, selectedPoi?.id]
+  );
 
   const buildPoiIdFromName = useCallback((name = '') => {
     const base = String(name || '')
@@ -1196,6 +1232,33 @@ const DmPanel = () => {
       });
   }, [authorized, sessionToken]);
 
+  const loadHiddenImages = useCallback(async () => {
+    if (!authorized || !sessionToken) return;
+    setHiddenImageLoading(true);
+    setHiddenImageMessage('');
+    try {
+      const res = await fetch(HIDDEN_IMAGES_ENDPOINT, {
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudieron cargar las imagenes ocultas.');
+      }
+      const images = Array.isArray(data?.images) ? data.images : [];
+      setHiddenImages(images);
+    } catch (error) {
+      setHiddenImageMessage(error.message || 'No se pudieron cargar las imagenes ocultas.');
+    } finally {
+      setHiddenImageLoading(false);
+    }
+  }, [authorized, sessionToken]);
+
+  useEffect(() => {
+    if (!authorized || !sessionToken) return;
+    loadHiddenImages();
+  }, [authorized, sessionToken, loadHiddenImages]);
+
   useEffect(() => {
     if (!pois.length) return;
     const storedId = selectionState.pois;
@@ -1208,6 +1271,11 @@ const DmPanel = () => {
       addPoiRecent(match);
     }
   }, [pois, selectionState.pois, selectedPoi?.id]);
+
+  useEffect(() => {
+    setHiddenImageForm(hiddenImageToForm({}, selectedPoi?.id || ''));
+    setHiddenImageMessage('');
+  }, [selectedPoi?.id]);
 
   useEffect(() => {
     if (!authorized || !sessionToken) return;
@@ -2319,6 +2387,126 @@ const DmPanel = () => {
     }
   }, [poiForm.id, selectedPoi?.id, sessionToken, updatePoiResource]);
 
+  const updateHiddenImageForm = useCallback((patch = {}) => {
+    setHiddenImageForm((prev) => ({
+      ...prev,
+      poiId: selectedPoi?.id || prev.poiId || '',
+      ...patch,
+    }));
+  }, [selectedPoi?.id]);
+
+  const resetHiddenImageForm = useCallback((entry = null) => {
+    setHiddenImageForm(hiddenImageToForm(entry || {}, selectedPoi?.id || ''));
+    setHiddenImageMessage('');
+  }, [selectedPoi?.id]);
+
+  const saveHiddenImage = useCallback(async () => {
+    const poiId = selectedPoi?.id || hiddenImageForm.poiId || '';
+    if (!poiId) {
+      setHiddenImageMessage('Guarda o selecciona un POI antes de asociar imagenes ocultas.');
+      return;
+    }
+    if (!authorized || !sessionToken) {
+      setHiddenImageMessage('Necesitas sesion activa para guardar.');
+      return;
+    }
+    const payload = hiddenImageToForm(hiddenImageForm, poiId);
+    if (!payload.command.trim()) {
+      setHiddenImageMessage('El codigo exacto es obligatorio.');
+      return;
+    }
+    if (!payload.imagePath.trim()) {
+      setHiddenImageMessage('La ruta de imagen es obligatoria.');
+      return;
+    }
+    setHiddenImageLoading(true);
+    setHiddenImageMessage('');
+    try {
+      const res = await fetch(HIDDEN_IMAGES_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ image: payload }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudo guardar la imagen oculta.');
+      }
+      const saved = hiddenImageToForm(data?.image || payload, poiId);
+      setHiddenImages((prev) => [saved, ...prev.filter((entry) => entry.id !== saved.id)]);
+      setHiddenImageForm(saved);
+      setHiddenImageMessage('Imagen oculta guardada.');
+    } catch (error) {
+      setHiddenImageMessage(error.message || 'No se pudo guardar la imagen oculta.');
+    } finally {
+      setHiddenImageLoading(false);
+    }
+  }, [authorized, hiddenImageForm, selectedPoi?.id, sessionToken]);
+
+  const deleteHiddenImage = useCallback(async (id) => {
+    const targetId = String(id || hiddenImageForm.id || '').trim();
+    if (!targetId) return;
+    if (!authorized || !sessionToken) {
+      setHiddenImageMessage('Necesitas sesion activa para borrar.');
+      return;
+    }
+    setHiddenImageLoading(true);
+    setHiddenImageMessage('');
+    try {
+      const res = await fetch(`${HIDDEN_IMAGES_ENDPOINT}/${targetId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudo borrar la imagen oculta.');
+      }
+      setHiddenImages((prev) => prev.filter((entry) => entry.id !== targetId));
+      setHiddenImageForm(hiddenImageToForm({}, selectedPoi?.id || ''));
+      setHiddenImageMessage('Imagen oculta eliminada.');
+    } catch (error) {
+      setHiddenImageMessage(error.message || 'No se pudo borrar la imagen oculta.');
+    } finally {
+      setHiddenImageLoading(false);
+    }
+  }, [authorized, hiddenImageForm.id, selectedPoi?.id, sessionToken]);
+
+  const handleHiddenImageUpload = useCallback(async (file) => {
+    if (!file) return;
+    if (!authorized || !sessionToken) {
+      setHiddenImageMessage('Necesitas sesion activa para subir imagenes.');
+      return;
+    }
+    setHiddenImageUploading(true);
+    setHiddenImageMessage('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(HIDDEN_IMAGE_UPLOAD_ENDPOINT, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudo subir la imagen.');
+      }
+      setHiddenImageForm((prev) => ({
+        ...prev,
+        poiId: selectedPoi?.id || prev.poiId || '',
+        imagePath: data.imagePath || data.url || '',
+        label: prev.label || data.originalName || file.name,
+      }));
+      setHiddenImageMessage('Imagen subida.');
+    } catch (error) {
+      setHiddenImageMessage(error.message || 'No se pudo subir la imagen.');
+    } finally {
+      setHiddenImageUploading(false);
+    }
+  }, [authorized, selectedPoi?.id, sessionToken]);
+
   const buildPoiCroppedBlob = useCallback(async () => {
     if (!poiImagePreview || !cropFrameRef.current || !cropImageRef.current) return null;
     const img = cropImageRef.current;
@@ -2613,6 +2801,7 @@ const DmPanel = () => {
         summary: true,
         map: false,
         resources: false,
+        hiddenImages: false,
         quick: true,
         content: false,
         dm: false,
@@ -2625,6 +2814,7 @@ const DmPanel = () => {
       summary: true,
       map: false,
       resources: false,
+      hiddenImages: false,
       quick: true,
       content: false,
       dm: false,
@@ -4512,6 +4702,20 @@ const DmPanel = () => {
                     onUpload: handlePoiResourceUpload,
                     uploadingId: poiResourceUploadingId,
                     uploadError: poiResourceUploadError,
+                  }}
+                  hiddenImageEditorProps={{
+                    poiId: selectedPoi?.id || '',
+                    images: selectedPoiHiddenImages,
+                    form: hiddenImageForm,
+                    onSelect: resetHiddenImageForm,
+                    onReset: () => resetHiddenImageForm(null),
+                    onChange: updateHiddenImageForm,
+                    onUpload: handleHiddenImageUpload,
+                    onSave: saveHiddenImage,
+                    onDelete: deleteHiddenImage,
+                    loading: hiddenImageLoading,
+                    uploading: hiddenImageUploading,
+                    message: hiddenImageMessage,
                   }}
                   mapGridStep={MAP_GRID_STEP}
                   onClamp={clampNumber}
