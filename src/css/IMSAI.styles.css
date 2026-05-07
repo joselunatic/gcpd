@@ -8,6 +8,13 @@
   align-items: center;
 }
 
+@media (min-width: 1024px) and (max-height: 980px) {
+  .imsai {
+    transform: scale(0.95);
+    transform-origin: top center;
+  }
+}
+
 .imsai > p {
   margin-top: 10px;
   font-size: 14px;
