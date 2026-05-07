@@ -2856,25 +2856,29 @@
 }
 
 .live-map-token-list {
-  gap: 0.35rem;
+  gap: 0.45rem;
 }
 
 .live-map-token-list button {
+  align-items: flex-start;
   min-height: 0;
-  padding: 0.38rem 0.55rem;
-  line-height: 1.15;
+  padding: 0.48rem 0.65rem;
+  line-height: 1.22;
+  text-align: left;
 }
 
 .live-map-token-list button strong {
-  font-size: 0.82rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  width: 100%;
+  font-size: 0.9rem;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .live-map-token-list button span {
   font-size: 0.68rem;
   opacity: 0.78;
+  white-space: nowrap;
 }
 
 .live-map-token-editor {

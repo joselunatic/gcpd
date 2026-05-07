@@ -6639,10 +6639,11 @@ const DmPanel = () => {
                   type="button"
                   className={liveMapSelectedTokenId === token.id ? 'active' : ''}
                   onClick={() => setLiveMapSelectedTokenId(token.id)}
+                  title={`${token.label} · X ${token.x.toFixed(1)} / Y ${token.y.toFixed(1)}`}
                 >
                   <strong>{token.label}</strong>
                   <span>
-                    {token.kind === 'enemy' ? 'ENEMIGO' : 'ALIADO'} · {token.visible ? 'ON' : 'HIDDEN'} · X {token.x.toFixed(1)} / Y {token.y.toFixed(1)}
+                    {token.kind === 'enemy' ? 'ENEMIGO' : 'ALIADO'} · {token.visible ? 'VISIBLE' : 'OCULTO'}
                   </span>
                 </button>
               ))}
