@@ -274,8 +274,8 @@ const dialerLines = [
   },
   {
     number: "(311) 437-8739",
-    label: "NODO AUX BROTHER-MK0",
-    action: "activate",
+    label: "TERMINAL OS",
+    action: "remote-os",
   },
   {
     number: "(311) 437-1083",

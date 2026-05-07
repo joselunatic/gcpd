@@ -55,24 +55,39 @@ La logica principal vive en [public/utils/screens.js](C:/Repos/gcpd/public/utils
 - Si no se desactiva por modo rapido, muestra `BootAscii`.
 - Tras el boot, cae al terminal.
 
+### 0. Arranque Rapido Del Terminal
+
+Metodo de arranque operativo para validaciones manuales:
+
+1. Abrir `/`
+2. Pulsar el switch `PWR ON/OFF` del panel frontal para encender el monitor
+3. Esperar al boot hasta que aparezca el dialer
+
+Atajos utiles:
+
+- `RUN/STOP`
+  - hace reset a estado de boot y vuelve a cargar la TUI desde dialer/login
+- `RESET / EXT. CLR`
+  - limpia estado de login persistido y fuerza reinicio del terminal
+
+Referencia tecnica:
+
+- encendido por switch `POWER` en [src/components/IMSAI/Base.jsx](C:/Repos/gcpd/src/components/IMSAI/Base.jsx)
+- recarga de la TUI en [src/js/terminal.js](C:/Repos/gcpd/src/js/terminal.js)
+
 ### 2. Dialer Inicial
 
 Estado interno: `dialer`
 
-El dialer muestra 10 lineas WayneTech verificadas:
+El dialer muestra 5 lineas WayneTech verificadas:
 
 1. `GARAJE DE LA BATCUEVA`
 2. `FAILSAFE ZUR-EN-ARRH`
-3. `NODO AUX BROTHER-MK0`
-4. `TERMINAL REMOTO // OS LIMITADO`
-5. `CLOCKTOWER BACKUP`
-6. `ALA SEGURA DE ARKHAM`
-7. `TRONCAL WAYNE GALA`
-8. `HIBERNACULO BATMOVIL`
-9. `BELFRY (RETIRADO)`
-10. `RELE ORBITAL WAYNE`
+3. `TERMINAL OS`
+4. `CLOCKTOWER BACKUP`
+5. `ALA SEGURA DE ARKHAM`
 
-Nota: en pantalla se presentan 10 entradas del array `dialerLines`; el listado visible corresponde a esas lineas diegeticas y funcionales. Las lineas no activas muestran texto narrativo y vuelven al dialer con `RETURN`.
+Nota: en pantalla se presentan 5 entradas del array `dialerLines`; las lineas no activas muestran texto narrativo y vuelven al dialer con `RETURN`.
 
 ### 3. Tipos De Linea En El Dialer
 
@@ -81,16 +96,22 @@ Nota: en pantalla se presentan 10 entradas del array `dialerLines`; el listado v
   - no entra al sistema jugable
 
 - `activate`
-  - actualmente: `NODO AUX BROTHER-MK0`
+  - actualmente: legacy / no visible en el dialer inicial reducido
   - dispara animacion de modem y va a `login()`
 
 - `remote-os`
-  - actualmente: `TERMINAL REMOTO // OS LIMITADO`
+  - actualmente: `TERMINAL OS`
   - dispara animacion de modem y entra en una shell limitada `REMOTE>`
 
 ### 4. Login De BROTHER-MK0
 
 Estado interno: `login`
+
+Nota operativa:
+
+- el login clasico sigue existiendo en codigo
+- ya no es la ruta principal del dialer visible reducido
+- la entrada jugable principal desde el dialer pasa por `TERMINAL OS` hacia `REMOTE>`
 
 Claves aceptadas hoy:
 
@@ -123,7 +144,7 @@ En desktop permite seguir escribiendo comandos libres tras mostrar el home.
 
 ### 6. Remote OS
 
-Entrada desde la linea `TERMINAL REMOTO // OS LIMITADO`.
+Entrada principal desde la linea `TERMINAL OS`.
 
 Componente logico: [public/utils/remoteOs.js](C:/Repos/gcpd/public/utils/remoteOs.js)
 
@@ -144,7 +165,7 @@ Es una shell secundaria con:
 - comandos globales configurados por DM
 - salida con `EXIT`, `BYE`, `HANGUP`
 
-No sustituye al terminal principal; es una consola remota limitada de contingencia.
+En la practica actual del producto, esta es la shell principal accesible para jugador desde el dialer.
 
 ## Comandos Actuales Del Jugador
 
@@ -455,9 +476,10 @@ La implementacion actual ya encaja con este framing:
 
 ## Lo Mas Importante Para Recordar
 
-- El dialer ya no solo lleva al menu clasico; ahora tiene dos lineas funcionales:
-  - `NODO AUX BROTHER-MK0`
-  - `TERMINAL REMOTO // OS LIMITADO`
+- El dialer inicial visible tiene una unica linea funcional de acceso a la shell jugable principal:
+  - `TERMINAL OS`
+
+- El login clasico de `BROTHER-MK0` sigue existiendo como flujo legacy en codigo, pero ya no es la ruta principal visible desde el dialer reducido.
 
 - `TRACER` existe de verdad en el repo actual.
 
