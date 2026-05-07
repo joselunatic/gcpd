@@ -1,13 +1,11 @@
 .pc-container {
   width: 100%;
-  height: calc(100vh - 50px);
+  height: 100vh;
   margin-top: 50px;
-  overflow: hidden;
 }
 
 @media (display-mode: standalone) and (min-width: 1024px) {
   .pc-container {
-    height: calc(100vh - 20px);
     margin-top: 20px;
   }
 }
@@ -21,14 +19,6 @@
 
 @media (min-width: 640px) and (max-width: 1023px) {
   .pc-container {
-    height: calc(100vh - 20px);
     margin-top: 20px;
-  }
-}
-
-@media (min-width: 1024px) and (max-height: 980px) {
-  .pc-container {
-    height: calc(100vh - 12px);
-    margin-top: 12px;
   }
 }
