@@ -121,7 +121,8 @@ function injectStyles() {
         linear-gradient(rgba(90,180,223,0.12) 1px, transparent 1px),
         linear-gradient(90deg, rgba(90,180,223,0.12) 1px, transparent 1px);
       background-position: center;
-      background-size: cover, 32px 32px, 32px 32px;
+      background-repeat: no-repeat, repeat, repeat;
+      background-size: contain, 32px 32px, 32px 32px;
       overflow: hidden;
       box-shadow: inset 0 0 36px rgba(0,0,0,0.95);
     }
