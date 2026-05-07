@@ -7,6 +7,7 @@ import {
   QUEST_SCREEN_VILLAIN_DETAIL,
   QUEST_SCREEN_VILLAINS,
 } from '../state/questScreens';
+import { filterVisiblePois } from './poiVisibility';
 
 const summarize = (value, fallback) => {
   const text = String(value || fallback || '').trim();
@@ -123,12 +124,13 @@ const buildQuestScreen = ({ data, navigation }) => {
         onHome: navigation.goHome,
       });
     }
-    case QUEST_SCREEN_POIS:
+    case QUEST_SCREEN_POIS: {
+      const visiblePois = filterVisiblePois(data.pois);
       return buildListScreen({
         title: 'MAP / POIS',
-        subtitle: `${data.pois.length} locations indexed.`,
+        subtitle: `${visiblePois.length} locations indexed.`,
         emptyMessage: 'No POIs found.',
-        items: data.pois.slice(0, 6).map((entry) => ({
+        items: visiblePois.slice(0, 6).map((entry) => ({
           id: entry.id,
           label: entry.name || entry.id || 'UNKNOWN POI',
           description: summarize(
@@ -140,8 +142,9 @@ const buildQuestScreen = ({ data, navigation }) => {
         onBack: navigation.goBack,
         onHome: navigation.goHome,
       });
+    }
     case QUEST_SCREEN_POI_DETAIL: {
-      const selected = data.pois.find(
+      const selected = filterVisiblePois(data.pois).find(
         (entry) => String(entry.id) === navigation.selectedId
       );
       return buildDetailScreen({

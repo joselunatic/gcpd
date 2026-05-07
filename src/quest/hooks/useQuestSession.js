@@ -8,6 +8,7 @@ import {
   QUEST_MODULE_PERFILES,
 } from '../state/questModules';
 import { buildQuestContext, rankRelated } from '../domain/buildQuestContext';
+import { filterVisiblePois } from '../domain/poiVisibility';
 import { PHONE_MODE_CALL, PHONE_MODE_TRACER, useQuestPhone } from './useQuestPhone';
 
 const STATUS_TO_ALERT = {
@@ -69,6 +70,7 @@ const useQuestSession = (data, toolData = null) => {
     },
   });
   const [toolContext, setToolContext] = useState(null);
+  const visiblePois = useMemo(() => filterVisiblePois(data.pois), [data.pois]);
 
   useEffect(() => {
     if (data.loading || activeCaseId || !data.cases.length) return;
@@ -124,13 +126,11 @@ const useQuestSession = (data, toolData = null) => {
       data.cases.find((entry) => entry.id === currentSelectedCaseId) ||
       data.cases.find((entry) => entry.id === activeCaseId) ||
       null;
-    const relatedPoi = rankRelated(currentSelectedCase, data.pois)[0];
+    const relatedPoi = rankRelated(currentSelectedCase, visiblePois)[0];
     const nextPoiId =
-      options.poiId ||
-      selection.mapa.selectedPoiId ||
-      relatedPoi?.id ||
-      data.pois[0]?.id ||
-      null;
+      [options.poiId, selection.mapa.selectedPoiId, relatedPoi?.id, visiblePois[0]?.id].find(
+        (candidate) => candidate && visiblePois.some((entry) => entry.id === candidate)
+      ) || null;
 
     if (nextPoiId) {
       setSelection((current) => ({
@@ -148,7 +148,7 @@ const useQuestSession = (data, toolData = null) => {
   }, [
     activeCaseId,
     data.cases,
-    data.pois,
+    visiblePois,
     selection.casos.selectedCaseId,
     selection.mapa.selectedPoiId,
   ]);
@@ -197,6 +197,7 @@ const useQuestSession = (data, toolData = null) => {
 
   const selectPoi = useCallback((poiId) => {
     if (!poiId) return;
+    if (!visiblePois.some((entry) => entry.id === poiId)) return;
     setSelection((current) => ({
       ...current,
         mapa: {
@@ -207,7 +208,7 @@ const useQuestSession = (data, toolData = null) => {
       }));
     setLastPrimaryModule(QUEST_MODULE_MAPA);
     setCurrentModule(QUEST_MODULE_MAPA);
-  }, []);
+  }, [visiblePois]);
 
   const selectMapResource = useCallback((resourceId) => {
     setSelection((current) => ({
@@ -303,8 +304,8 @@ const useQuestSession = (data, toolData = null) => {
   }, [activeCase, activeCaseId, data.cases, selection.casos.selectedCaseId]);
 
   const relatedPoisForCase = useMemo(
-    () => rankRelated(selectedCase || activeCase, data.pois),
-    [activeCase, data.pois, selectedCase]
+    () => rankRelated(selectedCase || activeCase, visiblePois),
+    [activeCase, selectedCase, visiblePois]
   );
 
   const relatedProfilesForCase = useMemo(
@@ -314,11 +315,11 @@ const useQuestSession = (data, toolData = null) => {
 
   const selectedPoi = useMemo(
     () =>
-      data.pois.find((entry) => entry.id === selection.mapa.selectedPoiId) ||
+      visiblePois.find((entry) => entry.id === selection.mapa.selectedPoiId) ||
       relatedPoisForCase[0] ||
-      data.pois[0] ||
+      visiblePois[0] ||
       null,
-    [data.pois, relatedPoisForCase, selection.mapa.selectedPoiId]
+    [relatedPoisForCase, selection.mapa.selectedPoiId, visiblePois]
   );
 
   const selectedProfile = useMemo(
@@ -338,10 +339,10 @@ const useQuestSession = (data, toolData = null) => {
         selectedPoi,
         selectedProfile,
         cases: data.cases,
-        pois: data.pois,
+        pois: visiblePois,
         villains: data.villains,
       }),
-    [activeCase, data.cases, data.pois, data.villains, selectedCase, selectedPoi, selectedProfile]
+    [activeCase, data.cases, data.villains, selectedCase, selectedPoi, selectedProfile, visiblePois]
   );
 
   const openLeads = useMemo(() => {

@@ -1,3 +1,5 @@
+import { filterVisiblePois, isVisiblePoi } from './poiVisibility';
+
 const STOP_WORDS = new Set([
   'activo',
   'activa',
@@ -104,13 +106,20 @@ const buildQuestContext = ({
   villains = [],
 }) => {
   const focusCase = selectedCase || activeCase || cases[0] || null;
-  const relatedPoisForCase = rankRelated(focusCase, pois);
+  const visiblePois = filterVisiblePois(pois);
+  const selectedVisiblePoi = isVisiblePoi(selectedPoi) ? selectedPoi : null;
+  const relatedPoisForCase = rankRelated(focusCase, visiblePois);
   const relatedProfilesForCase = rankRelated(focusCase, villains);
-  const relatedCasesForPoi = rankRelated(selectedPoi, cases);
-  const relatedProfilesForPoi = rankRelated(selectedPoi, villains);
-  const relatedPoisForProfile = rankRelated(selectedProfile, pois);
+  const relatedCasesForPoi = rankRelated(selectedVisiblePoi, cases);
+  const relatedProfilesForPoi = rankRelated(selectedVisiblePoi, villains);
+  const relatedPoisForProfile = rankRelated(selectedProfile, visiblePois);
   const relatedCasesForProfile = rankRelated(selectedProfile, cases);
-  const recommendedPoi = firstOrNull([selectedPoi, relatedPoisForCase[0], relatedPoisForProfile[0], pois[0]]);
+  const recommendedPoi = firstOrNull([
+    selectedVisiblePoi,
+    relatedPoisForCase[0],
+    relatedPoisForProfile[0],
+    visiblePois[0],
+  ]);
   const recommendedProfile = firstOrNull([
     selectedProfile,
     relatedProfilesForCase[0],

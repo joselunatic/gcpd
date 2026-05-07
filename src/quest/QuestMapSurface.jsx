@@ -4,6 +4,7 @@ import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { PHONE_MODE_TRACER } from './hooks/useQuestSession';
+import { filterVisiblePois, isVisiblePoi } from './domain/poiVisibility';
 import { QUEST_MODULE_MAPA } from './state/questModules';
 
 const MAP_TEXTURE_URL = '/mapa.png';
@@ -270,7 +271,7 @@ const buildSpots = (pois = [], fallbackHotspots = []) => {
 const QuestMapSurface = ({ data, session, panelAnchor = null }) => {
   const mapTexture = useLoader(THREE.TextureLoader, MAP_TEXTURE_URL);
   const [fallbackHotspots, setFallbackHotspots] = useState([]);
-  const selectedPoi = session?.selectedPoi;
+  const selectedPoi = isVisiblePoi(session?.selectedPoi) ? session.selectedPoi : null;
   const relatedPoiIds = useMemo(
     () =>
       new Set(
@@ -304,7 +305,7 @@ const QuestMapSurface = ({ data, session, panelAnchor = null }) => {
   }, []);
 
   const spots = useMemo(
-    () => buildSpots(data?.pois || [], fallbackHotspots),
+    () => buildSpots(filterVisiblePois(data?.pois || []), fallbackHotspots),
     [data?.pois, fallbackHotspots]
   );
   const selectedSpot =

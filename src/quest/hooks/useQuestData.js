@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { filterVisiblePois } from '../domain/poiVisibility';
 
 const fetchJson = async (url, fallbackUrl) => {
   try {
@@ -77,7 +78,7 @@ const useQuestData = () => {
           loading: false,
           error: '',
           cases,
-          pois: normalizeList(poisPayload, 'pois'),
+          pois: filterVisiblePois(normalizeList(poisPayload, 'pois')),
           villains: normalizeList(villainsPayload, 'villains'),
         });
       } catch (error) {

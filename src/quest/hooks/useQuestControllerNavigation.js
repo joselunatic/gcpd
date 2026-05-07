@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 
 import {
@@ -9,6 +9,7 @@ import {
   QUEST_MODULE_PERFILES,
 } from '../state/questModules';
 import { getQuestPointerFocus } from '../utils/questPointerFocus';
+import { filterVisiblePois } from '../domain/poiVisibility';
 
 const PRIMARY_MODULES = [
   QUEST_MODULE_OPERACION,
@@ -59,6 +60,7 @@ const useQuestControllerNavigation = ({ data, session }) => {
   const lastMoveAtRef = useRef(0);
   const lastActionRef = useRef(null);
   const didReportInputRef = useRef(false);
+  const visiblePois = useMemo(() => filterVisiblePois(data.pois), [data.pois]);
 
   const navigateModule = (offset) => {
     const currentIndex = Math.max(0, PRIMARY_MODULES.indexOf(session.currentModule));
@@ -87,7 +89,7 @@ const useQuestControllerNavigation = ({ data, session }) => {
 
     if (session.currentModule === QUEST_MODULE_MAPA) {
       return selectAtOffset({
-        items: data.pois,
+        items: visiblePois,
         currentId: session.selectedPoi?.id,
         offset,
         onSelect: session.actions.selectPoi,

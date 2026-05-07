@@ -5,6 +5,7 @@ import {
   QUEST_MODULE_OPERACION,
   QUEST_MODULE_PERFILES,
 } from '../state/questModules';
+import { filterVisiblePois } from './poiVisibility';
 
 const summarize = (value, fallback = 'Sin datos disponibles.') => {
   const source = Array.isArray(value) ? value.join(' ') : value;
@@ -446,12 +447,14 @@ const buildCasosModel = ({ data, session }) => {
 };
 
 const buildMapaModel = ({ data, session }) => {
-  const selectedPoi = session.selectedPoi;
+  const visiblePois = filterVisiblePois(data.pois);
+  const selectedPoi =
+    visiblePois.find((entry) => entry.id === session.selectedPoi?.id) || visiblePois[0] || null;
   const context = session.questContext || {};
   const relatedCases = context.relatedCasesForPoi || [];
   const relatedProfiles = context.relatedProfilesForPoi || [];
   const relatedPoiIds = new Set((context.relatedPoisForCase || []).map((entry) => entry.id).filter(Boolean));
-  const orderedPois = orderMapPois(data.pois, selectedPoi, relatedPoiIds);
+  const orderedPois = orderMapPois(visiblePois, selectedPoi, relatedPoiIds);
   const mapResources = listPoiResources(selectedPoi);
   const selectedResourceId = session.selection?.mapa?.selectedResourceId;
   const selectedMapResource =
@@ -469,7 +472,7 @@ const buildMapaModel = ({ data, session }) => {
     title: 'MAPA',
     subtitle: selectedPoi
       ? `${selectedPoi.name} · ${selectedPoi.district || 'sin distrito'}`
-      : `${data.pois.length} ubicaciones indexadas`,
+      : `${visiblePois.length} ubicaciones indexadas`,
     focusTitle: selectedPoi?.name || 'SIN UBICACIÓN',
     focusBody: selectedPoi
       ? (selectedPoi.summary || 'Ubicación sin resumen.')
