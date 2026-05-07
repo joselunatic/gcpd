@@ -410,8 +410,12 @@ const mergeItemsWithPreview = (items, previewLines) => {
       const rightParts = padParts(
         trimParts(toParts(right), COLUMN.right),
         COLUMN.right
-      );
+      ).map((part) => ({
+        ...part,
+        className: `${part.className || ""} tui-panel-right`.trim(),
+      }));
       return {
+        className: "tui-split-selectable",
         parts: [
           ...leftParts,
           { text: COLUMN.divider, className: "tui-sep" },

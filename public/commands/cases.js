@@ -293,7 +293,10 @@ function mergeItemsWithPreview(items, previewLines) {
           ...part,
           className: `${part.className || ""} tui-panel-right`.trim(),
         }));
-        return { parts: [...leftParts, { text: COLUMN.divider, className: "tui-sep" }, ...rightParts] };
+        return {
+          className: "tui-split-selectable",
+          parts: [...leftParts, { text: COLUMN.divider, className: "tui-sep" }, ...rightParts],
+        };
       }),
     };
   });

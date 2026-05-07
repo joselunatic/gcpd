@@ -468,6 +468,18 @@
   animation: pulseSelect 1.2s ease-in-out infinite;
 }
 
+.touch-selectable.is-selected.tui-split-selectable {
+  background:
+    linear-gradient(
+      90deg,
+      var(--bg-focus) 0,
+      var(--bg-focus) 43%,
+      transparent 43%,
+      transparent 100%
+    );
+  box-shadow: inset 0 0 6px rgba(90, 180, 223, 0.18);
+}
+
 .touch-selectable.touch-tap {
   animation: none;
 }
