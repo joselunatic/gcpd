@@ -154,6 +154,12 @@
   }
 }
 
+@media (min-width: 1024px) and (max-height: 1100px) {
+  #monitor {
+    margin-top: 1.2vh;
+  }
+}
+
 @media (max-width: 639px) and (orientation: portrait) {
   #monitor {
     padding: 2px 2px 6px;
