@@ -505,9 +505,9 @@ function isPrintable(keycode) {
   //console.log("Keycode: ", keycode);
   return (
     (keycode > 47 && keycode < 58) || // number keys
+    (keycode > 95 && keycode < 106) || // numpad keys
     keycode === 32 || // spacebar & return key(s) (if you want to allow carriage returns)
     (keycode > 64 && keycode < 91) // letter keys
-    // (keycode > 95 && keycode < 112) // numpad keys
     // || (keycode > 185 && keycode < 193) // ;=,-./` (in order)
     // || (keycode > 218 && keycode < 223)
   );
@@ -593,8 +593,13 @@ async function input(pw = false, options = {}) {
         let span = document.createElement("span");
 
         let keyCode = event.keyCode;
-        let chrCode = keyCode - 48 * Math.floor(keyCode / 48);
-        let chr = String.fromCharCode(96 <= keyCode ? chrCode : keyCode);
+        let chr = "";
+        if (keyCode > 95 && keyCode < 106) {
+          chr = String(keyCode - 96);
+        } else {
+          let chrCode = keyCode - 48 * Math.floor(keyCode / 48);
+          chr = String.fromCharCode(96 <= keyCode ? chrCode : keyCode);
+        }
         // Add span to the input
         span.classList.add("char");
         span.textContent = chr;
