@@ -8,10 +8,10 @@
   align-items: center;
 }
 
-@media (min-width: 1024px) and (max-height: 980px) {
+@media (min-width: 1024px) and (max-height: 1100px) {
   .imsai {
     justify-content: flex-start;
-    transform: scale(0.95);
+    transform: scale(0.93);
     transform-origin: top center;
   }
 }
