@@ -711,7 +711,7 @@ function ensureMapStyles() {
     .terminal-map-popup {
       position: absolute;
       inset: 0;
-      z-index: 95;
+      z-index: 180;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -730,7 +730,7 @@ function ensureMapStyles() {
       height: 100%;
       overflow: hidden;
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto minmax(0, 1fr);
       border: 1px solid rgba(124, 255, 178, 0.72);
       border-radius: 12px;
       background:
@@ -773,17 +773,21 @@ function ensureMapStyles() {
       overflow: auto;
       display: grid;
       gap: 12px;
-      padding: 12px;
-      grid-template-columns: minmax(220px, 1fr) minmax(0, 1.4fr);
+      padding: 10px;
+      grid-template-columns: minmax(300px, 1fr) minmax(0, 1.1fr);
+      align-items: stretch;
     }
     .terminal-map-popup__media {
       display: grid;
       gap: 8px;
-      align-content: start;
+      align-content: stretch;
+      grid-template-rows: minmax(0, 1fr) auto;
+      min-height: 0;
     }
     .terminal-map-popup__image {
       position: relative;
-      min-height: 220px;
+      min-height: 0;
+      height: 100%;
       border: 1px solid rgba(124, 255, 178, 0.24);
       border-radius: 10px;
       overflow: hidden;
@@ -816,20 +820,21 @@ function ensureMapStyles() {
       line-height: 1.55;
       color: rgba(228, 255, 243, 0.84);
       letter-spacing: 0.04em;
-      padding: 10px 12px;
+      padding: 8px 10px;
       border: 1px solid rgba(124, 255, 178, 0.18);
       border-radius: 10px;
       background: rgba(4, 12, 10, 0.74);
     }
     .terminal-map-popup__details {
       display: grid;
-      gap: 10px;
-      align-content: start;
+      gap: 8px;
+      align-content: stretch;
+      min-height: 0;
     }
     .terminal-map-popup__section {
       display: grid;
       gap: 6px;
-      padding: 10px 12px;
+      padding: 8px 10px;
       border: 1px solid rgba(124, 255, 178, 0.16);
       border-radius: 10px;
       background: rgba(4, 12, 10, 0.7);
@@ -1026,13 +1031,44 @@ async function showMapOverlay({ pois, hotspotsData }) {
     closePoiPopup();
     const status = poi.status ? String(poi.status).toUpperCase() : "UNKNOWN";
     const access = statusLabel(evaluation);
-    const summary = poi.summary || "SIN RESUMEN.";
+    const summary = poi.summary || "";
     const geo = getPoiGeo(poi) || {};
     const content = getPoiContent(poi);
     const imageSrc = geo.image || "";
-    const details = Array.isArray(content.details) && content.details.length ? content.details : ["SIN DATOS."];
-    const contacts = Array.isArray(content.contacts) && content.contacts.length ? content.contacts : ["SIN DATOS."];
-    const notes = Array.isArray(content.notes) && content.notes.length ? content.notes : ["SIN DATOS."];
+    const details = Array.isArray(content.details) ? content.details : [];
+    const contacts = Array.isArray(content.contacts) ? content.contacts : [];
+    const notes = Array.isArray(content.notes) ? content.notes : [];
+    const sectionBlocks = [];
+    if (details.length) {
+      sectionBlocks.push(`
+        <div class="terminal-map-popup__section">
+          <div class="terminal-map-popup__section-title">INTEL</div>
+          <div class="terminal-map-popup__lines">${details
+            .map((entry) => `<div>${escapeHtml(entry)}</div>`)
+            .join("")}</div>
+        </div>
+      `);
+    }
+    if (contacts.length) {
+      sectionBlocks.push(`
+        <div class="terminal-map-popup__section">
+          <div class="terminal-map-popup__section-title">CONTACTOS</div>
+          <div class="terminal-map-popup__lines">${contacts
+            .map((entry) => `<div>${escapeHtml(entry)}</div>`)
+            .join("")}</div>
+        </div>
+      `);
+    }
+    if (notes.length) {
+      sectionBlocks.push(`
+        <div class="terminal-map-popup__section">
+          <div class="terminal-map-popup__section-title">NOTAS</div>
+          <div class="terminal-map-popup__lines">${notes
+            .map((entry) => `<div>${escapeHtml(entry)}</div>`)
+            .join("")}</div>
+        </div>
+      `);
+    }
 
     poiPopup = document.createElement("div");
     poiPopup.className = "terminal-map-popup";
@@ -1052,11 +1088,8 @@ async function showMapOverlay({ pois, hotspotsData }) {
           <div class="terminal-map-popup__media">
             <div class="terminal-map-popup__image">
               <img alt="Evidencia POI" />
-              <div class="terminal-map-popup__image-placeholder">${escapeHtml(
-                imageSrc ? "CARGANDO EVIDENCIA..." : "SIN EVIDENCIA ADJUNTA."
-              )}</div>
             </div>
-            <div class="terminal-map-popup__summary">${escapeHtml(summary)}</div>
+            ${summary ? `<div class="terminal-map-popup__summary">${escapeHtml(summary)}</div>` : ""}
           </div>
           <div class="terminal-map-popup__details">
             <div class="terminal-map-popup__section">
@@ -1068,33 +1101,14 @@ async function showMapOverlay({ pois, hotspotsData }) {
                 <div>DISTRICT: ${escapeHtml(poi.district || "--")}</div>
               </div>
             </div>
-            <div class="terminal-map-popup__section">
-              <div class="terminal-map-popup__section-title">INTEL</div>
-              <div class="terminal-map-popup__lines">${details
-                .map((entry) => `<div>${escapeHtml(entry)}</div>`)
-                .join("")}</div>
-            </div>
-            <div class="terminal-map-popup__section">
-              <div class="terminal-map-popup__section-title">CONTACTOS</div>
-              <div class="terminal-map-popup__lines">${contacts
-                .map((entry) => `<div>${escapeHtml(entry)}</div>`)
-                .join("")}</div>
-            </div>
-            <div class="terminal-map-popup__section">
-              <div class="terminal-map-popup__section-title">NOTAS</div>
-              <div class="terminal-map-popup__lines">${notes
-                .map((entry) => `<div>${escapeHtml(entry)}</div>`)
-                .join("")}</div>
-            </div>
+            ${sectionBlocks.join("")}
           </div>
         </div>
       </div>
     `;
     const popupImage = poiPopup.querySelector(".terminal-map-popup__image img");
-    const popupPlaceholder = poiPopup.querySelector(".terminal-map-popup__image-placeholder");
     if (popupImage && imageSrc) {
       popupImage.src = imageSrc.startsWith("/uploads/") ? `/api${imageSrc}` : imageSrc;
-      popupPlaceholder.style.display = "none";
     }
     const closeButton = poiPopup.querySelector(".terminal-map-popup__close");
     const backdrop = poiPopup.querySelector(".terminal-map-popup__backdrop");
