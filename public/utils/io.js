@@ -772,8 +772,14 @@ function scroll(el = document.querySelector(".terminal")) {
 
 /** Types the given text and asks input */
 async function prompt(text, pw = false, speak = false, options = {}) {
-  await type(text, { speak: speak });
-  return input(pw, options);
+  const { instant = false, ...inputOptions } = options || {};
+  await type(text, {
+    speak: speak,
+    ...(instant
+      ? { wait: false, initialWait: false, finalWait: false }
+      : {}),
+  });
+  return input(pw, inputOptions);
 }
 
 /** Sets a global event listeners and returns when a key is hit */

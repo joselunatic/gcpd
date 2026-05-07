@@ -321,7 +321,7 @@ async function remoteOsShell({ banner = [] } = {}) {
 
   let exitRequested = false;
   while (!exitRequested) {
-    const command = await prompt("REMOTE> ");
+    const command = await prompt("REMOTE> ", false, false, { instant: true });
     const result = await handleOsCommand(command);
     exitRequested = Boolean(result?.exit);
   }
