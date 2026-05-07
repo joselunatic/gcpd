@@ -1,4 +1,4 @@
-import { filterVisiblePois, isVisiblePoi } from './poiVisibility';
+import { filterVisiblePois, isVisiblePoi } from './poiVisibility.js';
 
 const STOP_WORDS = new Set([
   'activo',

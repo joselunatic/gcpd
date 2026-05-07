@@ -4,8 +4,8 @@ import {
   QUEST_MODULE_MAPA,
   QUEST_MODULE_OPERACION,
   QUEST_MODULE_PERFILES,
-} from '../state/questModules';
-import { filterVisiblePois } from './poiVisibility';
+} from '../state/questModules.js';
+import { filterVisiblePois } from './poiVisibility.js';
 
 const summarize = (value, fallback = 'Sin datos disponibles.') => {
   const source = Array.isArray(value) ? value.join(' ') : value;
