@@ -289,13 +289,115 @@ function ensureMapStyles() {
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .terminal-map-panel__block {
+  .terminal-map-panel__block {
       font-size: 11px;
       color: rgba(191, 255, 220, 0.8);
       line-height: 1.52;
       letter-spacing: 0.05em;
       overflow-wrap: anywhere;
       word-break: break-word;
+    }
+    .terminal-map-panel__inset {
+      display: grid;
+      gap: 6px;
+      margin-top: 2px;
+      padding: 10px 10px 12px;
+      border: 1px solid rgba(124, 255, 178, 0.18);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(124, 255, 178, 0.12), transparent 58%),
+        rgba(3, 10, 8, 0.68);
+      border-radius: 10px;
+    }
+    .terminal-map-panel__inset.is-hidden {
+      display: none;
+    }
+    .terminal-map-panel__inset-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      color: rgba(191, 255, 220, 0.66);
+      text-transform: uppercase;
+    }
+    .terminal-map-panel__inset-title {
+      color: #e4fff3;
+    }
+    .terminal-map-panel__inset-body {
+      position: relative;
+      aspect-ratio: 1.45 / 1;
+      min-height: 172px;
+      border: 1px dashed rgba(124, 255, 178, 0.42);
+      border-radius: 10px;
+      overflow: hidden;
+      background:
+        linear-gradient(rgba(124, 255, 178, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124, 255, 178, 0.08) 1px, transparent 1px),
+        radial-gradient(circle at 50% 50%, rgba(124, 255, 178, 0.08), transparent 60%),
+        rgba(1, 5, 4, 0.94);
+      background-size: 18px 18px, 18px 18px, 100% 100%, 100% 100%;
+    }
+    .terminal-map-panel__inset-body::before,
+    .terminal-map-panel__inset-body::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .terminal-map-panel__inset-body::before {
+      background:
+        linear-gradient(90deg, transparent 0, transparent 49%, rgba(124, 255, 178, 0.16) 50%, transparent 51%),
+        linear-gradient(transparent 0, transparent 49%, rgba(124, 255, 178, 0.16) 50%, transparent 51%);
+      opacity: 0.5;
+    }
+    .terminal-map-panel__inset-body::after {
+      border-radius: inherit;
+      box-shadow: inset 0 0 42px rgba(124, 255, 178, 0.08);
+    }
+    .terminal-map-panel__inset-node {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      padding: 3px 5px;
+      border: 1px solid rgba(124, 255, 178, 0.48);
+      border-radius: 999px;
+      background: rgba(2, 10, 8, 0.92);
+      color: #dfffee;
+      font-size: 8px;
+      line-height: 1;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      cursor: pointer;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 12px rgba(124, 255, 178, 0.18);
+      transition: transform 120ms ease-out, box-shadow 120ms ease-out, border-color 120ms ease-out;
+      max-width: 70%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .terminal-map-panel__inset-node:hover,
+    .terminal-map-panel__inset-node.is-active {
+      border-color: #e4fff3;
+      box-shadow: 0 0 0 1px rgba(191, 255, 220, 0.5), 0 0 18px rgba(124, 255, 178, 0.4);
+      transform: translate(-50%, -50%) scale(1.03);
+    }
+    .terminal-map-panel__inset-node--focus {
+      border-color: rgba(166, 226, 255, 0.95);
+      background: rgba(2, 12, 18, 0.96);
+      color: #f1fbff;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.72), 0 0 18px rgba(103, 207, 255, 0.28);
+    }
+    .terminal-map-panel__inset-empty {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: rgba(191, 255, 220, 0.58);
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      text-align: center;
+      padding: 0 10px;
     }
     .terminal-map-panel__block span {
       display: block;
@@ -573,6 +675,146 @@ function ensureMapStyles() {
       display: block;
       object-fit: contain;
     }
+    .terminal-map-popup {
+      position: absolute;
+      inset: 0;
+      z-index: 95;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(1, 6, 5, 0.78);
+      backdrop-filter: blur(1px);
+    }
+    .terminal-map-popup__backdrop {
+      position: absolute;
+      inset: 0;
+    }
+    .terminal-map-popup__card {
+      position: relative;
+      z-index: 1;
+      width: min(980px, 94%);
+      max-height: 90%;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      border: 1px solid rgba(124, 255, 178, 0.72);
+      border-radius: 12px;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(124, 255, 178, 0.14), transparent 42%),
+        #030806;
+      box-shadow: 0 0 30px rgba(124, 255, 178, 0.18);
+    }
+    .terminal-map-popup__head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(124, 255, 178, 0.3);
+      background: rgba(4, 12, 10, 0.96);
+      font: 600 11px/1.2 "Courier New", monospace;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #dfffee;
+    }
+    .terminal-map-popup__eyebrow {
+      color: rgba(191, 255, 220, 0.7);
+    }
+    .terminal-map-popup__close {
+      background: transparent;
+      border: 1px solid rgba(124, 255, 178, 0.72);
+      color: #bfffdc;
+      font: 600 10px/1 "Courier New", monospace;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .terminal-map-popup__close:focus-visible {
+      outline: 2px solid rgba(228, 255, 243, 0.98);
+      outline-offset: 2px;
+    }
+    .terminal-map-popup__body {
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      gap: 12px;
+      padding: 12px;
+      grid-template-columns: minmax(220px, 1fr) minmax(0, 1.4fr);
+    }
+    .terminal-map-popup__media {
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+    .terminal-map-popup__image {
+      position: relative;
+      min-height: 220px;
+      border: 1px solid rgba(124, 255, 178, 0.24);
+      border-radius: 10px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(124, 255, 178, 0.1), transparent 55%),
+        rgba(2, 7, 5, 0.9);
+    }
+    .terminal-map-popup__image img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .terminal-map-popup__image-placeholder {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: rgba(191, 255, 220, 0.58);
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      text-align: center;
+      padding: 0 12px;
+    }
+    .terminal-map-popup__summary {
+      font-size: 11px;
+      line-height: 1.55;
+      color: rgba(228, 255, 243, 0.84);
+      letter-spacing: 0.04em;
+      padding: 10px 12px;
+      border: 1px solid rgba(124, 255, 178, 0.18);
+      border-radius: 10px;
+      background: rgba(4, 12, 10, 0.74);
+    }
+    .terminal-map-popup__details {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+    .terminal-map-popup__section {
+      display: grid;
+      gap: 6px;
+      padding: 10px 12px;
+      border: 1px solid rgba(124, 255, 178, 0.16);
+      border-radius: 10px;
+      background: rgba(4, 12, 10, 0.7);
+    }
+    .terminal-map-popup__section-title {
+      color: rgba(191, 255, 220, 0.66);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .terminal-map-popup__lines {
+      display: grid;
+      gap: 4px;
+      font-size: 11px;
+      color: rgba(228, 255, 243, 0.82);
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
     @media (max-width: 639px) {
       .terminal-map-shell {
         width: 100%;
@@ -583,6 +825,12 @@ function ensureMapStyles() {
       .terminal-map-panel {
         width: 100%;
         height: 45%;
+      }
+      .terminal-map-popup {
+        padding: 12px;
+      }
+      .terminal-map-popup__body {
+        grid-template-columns: 1fr;
       }
       .terminal-map-lightbox {
         padding: 14px;
@@ -653,6 +901,15 @@ async function showMapOverlay({ pois, hotspotsData }) {
       <div class="terminal-map-panel__label">DISTRICT</div>
       <div>--</div>
     </div>
+    <div class="terminal-map-panel__inset is-hidden" data-panel="inset">
+      <div class="terminal-map-panel__inset-head">
+        <span class="terminal-map-panel__inset-title">SECTOR LOCAL</span>
+        <span class="terminal-map-panel__inset-meta">SIN CLUSTER</span>
+      </div>
+      <div class="terminal-map-panel__inset-body">
+        <div class="terminal-map-panel__inset-empty">SIN CLUSTER ACTIVO.</div>
+      </div>
+    </div>
     <div class="terminal-map-panel__image" role="button" tabindex="-1" aria-disabled="true" aria-label="Sin evidencia disponible">
       <img class="terminal-map-panel__image-el" alt="POI" />
       <span class="terminal-map-panel__image-placeholder">${escapeHtml(emptyImageText)}</span>
@@ -697,6 +954,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
   const campaignState = loadCampaignState();
   let activeHotspot = null;
   let lightbox = null;
+  let poiPopup = null;
   let selectedImageSrc = "";
   let selectedImageTitle = "";
 
@@ -704,6 +962,9 @@ async function showMapOverlay({ pois, hotspotsData }) {
   const imageEl = panel.querySelector(".terminal-map-panel__image-el");
   const imagePlaceholder = panel.querySelector(".terminal-map-panel__image-placeholder");
   const imageCaption = panel.querySelector(".terminal-map-panel__image-caption");
+  const inset = panel.querySelector("[data-panel='inset']");
+  const insetBody = panel.querySelector(".terminal-map-panel__inset-body");
+  const insetMeta = panel.querySelector(".terminal-map-panel__inset-meta");
 
   const closeLightbox = () => {
     if (!lightbox) return;
@@ -742,6 +1003,164 @@ async function showMapOverlay({ pois, hotspotsData }) {
     if (backdrop) backdrop.addEventListener("click", closeLightbox);
     overlay.appendChild(lightbox);
     if (closeButton) closeButton.focus();
+  };
+
+  const closePoiPopup = () => {
+    if (!poiPopup) return;
+    if (poiPopup.parentNode) {
+      poiPopup.parentNode.removeChild(poiPopup);
+    }
+    poiPopup = null;
+  };
+
+  const openPoiPopup = (poi, evaluation, clusterContext = null) => {
+    if (!poi || !evaluation) return;
+    closePoiPopup();
+    const status = poi.status ? String(poi.status).toUpperCase() : "UNKNOWN";
+    const access = statusLabel(evaluation);
+    const summary = poi.summary || "SIN RESUMEN.";
+    const geo = getPoiGeo(poi) || {};
+    const content = getPoiContent(poi);
+    const imageSrc = geo.image || "";
+    const details = Array.isArray(content.details) && content.details.length ? content.details : ["SIN DATOS."];
+    const contacts = Array.isArray(content.contacts) && content.contacts.length ? content.contacts : ["SIN DATOS."];
+    const notes = Array.isArray(content.notes) && content.notes.length ? content.notes : ["SIN DATOS."];
+
+    poiPopup = document.createElement("div");
+    poiPopup.className = "terminal-map-popup";
+    poiPopup.innerHTML = `
+      <div class="terminal-map-popup__backdrop"></div>
+      <div class="terminal-map-popup__card" role="dialog" aria-modal="true" aria-label="Ficha del POI">
+        <div class="terminal-map-popup__head">
+          <div>
+            <div class="terminal-map-popup__eyebrow">${escapeHtml(
+              clusterContext?.label ? `CLUSTER ${clusterContext.label}` : "POI DETALLE"
+            )}</div>
+            <div>${escapeHtml((poi.name || poi.id || "POI").toUpperCase())}</div>
+          </div>
+          <button class="terminal-map-popup__close" type="button">CERRAR</button>
+        </div>
+        <div class="terminal-map-popup__body">
+          <div class="terminal-map-popup__media">
+            <div class="terminal-map-popup__image">
+              <img alt="Evidencia POI" />
+              <div class="terminal-map-popup__image-placeholder">${escapeHtml(
+                imageSrc ? "CARGANDO EVIDENCIA..." : "SIN EVIDENCIA ADJUNTA."
+              )}</div>
+            </div>
+            <div class="terminal-map-popup__summary">${escapeHtml(summary)}</div>
+          </div>
+          <div class="terminal-map-popup__details">
+            <div class="terminal-map-popup__section">
+              <div class="terminal-map-popup__section-title">METADATOS</div>
+              <div class="terminal-map-popup__lines">
+                <div>ID: ${escapeHtml(poi.id || "--")}</div>
+                <div>STATUS: ${escapeHtml(status)}</div>
+                <div>ACCESS: ${escapeHtml(access)}</div>
+                <div>DISTRICT: ${escapeHtml(poi.district || "--")}</div>
+              </div>
+            </div>
+            <div class="terminal-map-popup__section">
+              <div class="terminal-map-popup__section-title">INTEL</div>
+              <div class="terminal-map-popup__lines">${details
+                .map((entry) => `<div>${escapeHtml(entry)}</div>`)
+                .join("")}</div>
+            </div>
+            <div class="terminal-map-popup__section">
+              <div class="terminal-map-popup__section-title">CONTACTOS</div>
+              <div class="terminal-map-popup__lines">${contacts
+                .map((entry) => `<div>${escapeHtml(entry)}</div>`)
+                .join("")}</div>
+            </div>
+            <div class="terminal-map-popup__section">
+              <div class="terminal-map-popup__section-title">NOTAS</div>
+              <div class="terminal-map-popup__lines">${notes
+                .map((entry) => `<div>${escapeHtml(entry)}</div>`)
+                .join("")}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const popupImage = poiPopup.querySelector(".terminal-map-popup__image img");
+    const popupPlaceholder = poiPopup.querySelector(".terminal-map-popup__image-placeholder");
+    if (popupImage) {
+      if (imageSrc) {
+        const resolvedSrc = imageSrc.startsWith("/uploads/")
+          ? `/api${imageSrc}`
+          : imageSrc;
+        popupImage.src = resolvedSrc;
+        popupPlaceholder.style.display = "none";
+      } else {
+        popupImage.removeAttribute("src");
+      }
+    }
+    const closeButton = poiPopup.querySelector(".terminal-map-popup__close");
+    const backdrop = poiPopup.querySelector(".terminal-map-popup__backdrop");
+    if (closeButton) closeButton.addEventListener("click", closePoiPopup);
+    if (backdrop) backdrop.addEventListener("click", closePoiPopup);
+    overlay.appendChild(poiPopup);
+    if (closeButton) closeButton.focus();
+  };
+
+  const getClusterInsetBounds = (cluster) => {
+    const xs = cluster.entries.map((entry) => Number(entry.spot.x || 0));
+    const ys = cluster.entries.map((entry) => Number(entry.spot.y || 0));
+    const minX = Math.max(0, Math.min(...xs));
+    const maxX = Math.min(100, Math.max(...xs));
+    const minY = Math.max(0, Math.min(...ys));
+    const maxY = Math.min(100, Math.max(...ys));
+    const rangeX = Math.max(1, maxX - minX);
+    const rangeY = Math.max(1, maxY - minY);
+    const padX = Math.max(6, rangeX * 0.12);
+    const padY = Math.max(6, rangeY * 0.12);
+    return {
+      minX: Math.max(0, minX - padX),
+      minY: Math.max(0, minY - padY),
+      maxX: Math.min(100, maxX + padX),
+      maxY: Math.min(100, maxY + padY),
+    };
+  };
+
+  const renderClusterInset = (cluster, selectedPoiId = "") => {
+    if (!inset || !insetBody) return;
+    if (!cluster?.entries?.length) {
+      inset.classList.add("is-hidden");
+      return;
+    }
+    const bounds = getClusterInsetBounds(cluster);
+    const width = Math.max(1, bounds.maxX - bounds.minX);
+    const height = Math.max(1, bounds.maxY - bounds.minY);
+    inset.classList.remove("is-hidden");
+    if (insetMeta) {
+      insetMeta.textContent = `${cluster.entries.length} POIS / ${selectedPoiId ? `FOCUS ${selectedPoiId.toUpperCase()}` : "SIN FOCO"}`;
+    }
+    insetBody.innerHTML = "";
+    const entries = cluster.entries.map((entry) => {
+      const x = ((Number(entry.spot.x || 0) - bounds.minX) / width) * 100;
+      const y = ((Number(entry.spot.y || 0) - bounds.minY) / height) * 100;
+      return {
+        ...entry,
+        x: Math.max(8, Math.min(92, x)),
+        y: Math.max(8, Math.min(92, y)),
+      };
+    });
+    entries.forEach((entry) => {
+      const node = document.createElement("button");
+      node.type = "button";
+      node.className = `terminal-map-panel__inset-node${entry.poi.id === selectedPoiId ? " is-active terminal-map-panel__inset-node--focus" : ""}`;
+      node.style.left = `${entry.x}%`;
+      node.style.top = `${entry.y}%`;
+      node.textContent = entry.poi.name || entry.poi.id || "POI";
+      node.title = `${entry.poi.name || entry.poi.id} (${entry.spot.x}%, ${entry.spot.y}%)`;
+      node.setAttribute("aria-label", node.title);
+      node.addEventListener("click", () => {
+      renderClusterInset(cluster, entry.poi.id);
+      openPoiPopup(entry.poi, entry.evaluation, cluster);
+      });
+      insetBody.appendChild(node);
+    });
   };
 
   const handleImageFrameClick = () => {
@@ -884,10 +1303,11 @@ async function showMapOverlay({ pois, hotspotsData }) {
       activeHotspot = button;
     }
     updatePanel(poi, evaluation);
+    openPoiPopup(poi, evaluation);
     return true;
   };
 
-  const updateClusterPanel = (cluster, button) => {
+  const updateClusterPanel = (cluster) => {
     if (!cluster?.entries?.length) return;
     panel.querySelector(".terminal-map-panel__title").textContent =
       `SECTOR :: ${cluster.label}`;
@@ -904,6 +1324,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
       summaryNode.textContent =
         "Sector denso. Selecciona un POI de la lista para abrir su ficha.";
     }
+    renderClusterInset(cluster);
     const detailNode = panel.querySelector("[data-panel='details'] .terminal-map-panel__list");
     if (detailNode) {
       detailNode.innerHTML = "";
@@ -912,7 +1333,10 @@ async function showMapOverlay({ pois, hotspotsData }) {
         item.type = "button";
         item.className = "terminal-map-panel__poi-button";
         item.textContent = `${poi.name || poi.id}${poi.district ? ` · ${poi.district}` : ""}`;
-        item.addEventListener("click", () => selectPoiFromNode(button, poi, evaluation));
+        item.addEventListener("click", () => {
+          renderClusterInset(cluster, poi.id);
+          openPoiPopup(poi, evaluation, cluster);
+        });
         detailNode.appendChild(item);
       });
     }
@@ -977,7 +1401,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
       }
       button.classList.add("is-active");
       activeHotspot = button;
-      updateClusterPanel(cluster, button);
+      updateClusterPanel(cluster);
     });
     button.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -1083,7 +1507,6 @@ async function showMapOverlay({ pois, hotspotsData }) {
   img.addEventListener("load", layout);
   if (img.complete) layout();
 
-  let zoomActive = false;
   const applyZoom = (event) => {
     if (event.pointerType && event.pointerType !== "mouse") return;
     if (event.target && event.target.closest(".terminal-map-hotspot")) return;
@@ -1096,13 +1519,11 @@ async function showMapOverlay({ pois, hotspotsData }) {
       Math.min(100, y)
     )}%`;
     viewport.style.transform = "scale(1.45)";
-    zoomActive = true;
   };
 
   const clearZoom = () => {
     viewport.style.transformOrigin = "center center";
     viewport.style.transform = "scale(0.96)";
-    zoomActive = false;
   };
 
   frame.addEventListener("pointermove", applyZoom);
@@ -1115,6 +1536,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
     frame.removeEventListener("pointerenter", applyZoom);
     frame.removeEventListener("pointerleave", clearZoom);
     closeLightbox();
+    closePoiPopup();
     if (imageFrame) {
       imageFrame.removeEventListener("click", handleImageFrameClick);
       imageFrame.removeEventListener("keydown", handleImageFrameKeydown);
@@ -1141,6 +1563,10 @@ async function showMapOverlay({ pois, hotspotsData }) {
   const disposeKeymap = pushKeymap(
     {
       Escape: () => {
+        if (poiPopup) {
+          closePoiPopup();
+          return true;
+        }
         if (lightbox) {
           closeLightbox();
           return true;
@@ -1149,10 +1575,18 @@ async function showMapOverlay({ pois, hotspotsData }) {
         return true;
       },
       B: () => {
+        if (poiPopup) {
+          closePoiPopup();
+          return true;
+        }
         exitOverlay();
         return true;
       },
       Backspace: () => {
+        if (poiPopup) {
+          closePoiPopup();
+          return true;
+        }
         exitOverlay();
         return true;
       },
@@ -1194,7 +1628,7 @@ const statusLabel = (evaluation) =>
     lockedLabel: "LOCKED",
   });
 
-const formatNodeLine = (node, evaluation, index, campaignState) => {
+const formatNodeLine = (node, evaluation, index) => {
   const label = getNodeLabel(node);
   const parentId = getPoiHierarchy(node).parentId || "";
   const isSub = parentId && parentId !== node.id;
@@ -1220,7 +1654,7 @@ const buildSectorSummary = (pois = []) => {
     .map(([district, count]) => `${district}: ${count}`);
 };
 
-const buildPreviewLines = (poi, evaluation, campaignState, allPois = [], breadcrumb = []) => {
+const buildPreviewLines = (poi, evaluation, campaignState, allPois = []) => {
   if (!poi) {
     return [
       { parts: [{ text: "SIN SECTOR SELECCIONADO.", className: "tui-muted" }] },
@@ -1328,7 +1762,7 @@ const mergeItemsWithPreview = (items, previewLines) => {
   });
 };
 
-const renderDetails = async (poi, evaluation) => {
+const renderDetails = async (poi) => {
   const content = getPoiContent(poi);
   const details = Array.isArray(content.details) ? content.details : [];
   const contacts = Array.isArray(content.contacts) ? content.contacts : [];
@@ -1419,10 +1853,9 @@ async function browsePois(pois) {
       return;
     }
 
-    const breadcrumb = crumbs.join(" / ");
     const activeCaseId = statusContext?.state?.activeCaseId || "";
     const items = nodes.map(({ poi, evaluation }, index) => ({
-      lines: formatNodeLine(poi, evaluation, index, campaignState),
+      lines: formatNodeLine(poi, evaluation, index),
       action: "input",
       value: String(index + 1),
       _poi: poi,
@@ -1506,8 +1939,7 @@ async function browsePois(pois) {
       focusItem?._poi,
       focusItem?._evaluation,
       campaignState,
-      pois,
-      crumbs
+      pois
     );
     const pageItemsMerged = mergeItemsWithPreview(pageItems, previewLines);
     const footerLines =
@@ -1599,7 +2031,7 @@ async function browsePois(pois) {
     }
 
     clear();
-    await renderDetails(poi, evaluation);
+    await renderDetails(poi);
 
     const nodeType = getNodeType(poi);
     if (
