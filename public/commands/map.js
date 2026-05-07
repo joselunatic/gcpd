@@ -46,7 +46,6 @@ import {
 const API_URL = "/api/pois-data";
 const FALLBACK_URL = "/data/map/pois.json";
 const HOTSPOTS_URL = "/data/map/hotspots.json";
-const POI_IMAGE_ASPECT = 16 / 9;
 const MAP4X_IMAGE = "/mapa4x.png";
 const MAP4X_WIDTH = 3200;
 const MAP4X_HEIGHT = 4300;
@@ -167,18 +166,14 @@ function ensureMapStyles() {
     .terminal-map-shell {
       width: 100%;
       height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 16px;
+      display: block;
       position: relative;
       padding: 12px;
       box-sizing: border-box;
     }
     .terminal-map-panel {
-      flex: 1;
-      width: auto;
-      height: 100%;
+      width: min(44vw, 560px);
+      height: calc(100% - 56px);
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -190,17 +185,13 @@ function ensureMapStyles() {
       border: 1px solid rgba(124, 255, 178, 0.2);
       background: rgba(6, 16, 12, 0.9);
       box-shadow: 0 0 18px rgba(124, 255, 178, 0.08);
-      position: relative;
+      position: absolute;
+      right: 14px;
+      top: 54px;
       overflow: hidden auto;
       border-radius: 10px;
       z-index: 60;
-      position: relative;
-      left: 0;
-      top: 0;
-      transform: none;
-    }
-    .terminal-map-panel__close {
-      display: none;
+      backdrop-filter: blur(2px);
     }
     .terminal-map-panel__title {
       font-size: 13px;
@@ -222,94 +213,12 @@ function ensureMapStyles() {
     .terminal-map-panel__label {
       color: rgba(191, 255, 220, 0.55);
     }
-    .terminal-map-panel__image {
-      width: 100%;
-      aspect-ratio: ${POI_IMAGE_ASPECT};
-      min-height: 186px;
-      max-height: 360px;
-      border: 1px dashed rgba(124, 255, 178, 0.45);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(191, 255, 220, 0.6);
-      font-size: 10px;
-      letter-spacing: 0.25em;
+    .terminal-map-panel__inset {
       position: relative;
-      overflow: hidden;
-      background:
-        radial-gradient(circle at 30% 25%, rgba(124, 255, 178, 0.12), transparent 52%),
-        rgba(4, 8, 7, 0.95);
-      transition: border-color 140ms ease-out, box-shadow 140ms ease-out;
-    }
-    .terminal-map-panel__image.is-clickable {
-      border: 1px solid rgba(124, 255, 178, 0.72);
-      box-shadow: inset 0 0 0 1px rgba(124, 255, 178, 0.16),
-        0 0 18px rgba(124, 255, 178, 0.15);
-      cursor: zoom-in;
-      outline: none;
-    }
-    .terminal-map-panel__image.is-clickable:focus-visible {
-      outline: 2px solid rgba(228, 255, 243, 0.98);
-      outline-offset: 2px;
-    }
-    .terminal-map-panel__image-el {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: none;
-      transition: transform 160ms ease-out, filter 160ms ease-out;
-      filter: saturate(1.08) contrast(1.03) brightness(0.98);
-    }
-    .terminal-map-panel__image.is-clickable:hover .terminal-map-panel__image-el,
-    .terminal-map-panel__image.is-clickable:focus-visible .terminal-map-panel__image-el {
-      transform: scale(1.035);
-      filter: saturate(1.14) contrast(1.06) brightness(1.02);
-    }
-    .terminal-map-panel__image-placeholder {
-      z-index: 1;
-      text-align: center;
-      padding: 0 10px;
-      line-height: 1.45;
-    }
-    .terminal-map-panel__image-caption {
-      position: absolute;
-      left: 8px;
-      right: 8px;
-      bottom: 8px;
-      z-index: 2;
-      font-size: 9px;
-      letter-spacing: 0.14em;
-      color: #e7fff4;
-      text-transform: uppercase;
-      text-shadow: 0 0 8px rgba(0, 0, 0, 0.85);
-      padding: 5px 7px;
-      border: 1px solid rgba(124, 255, 178, 0.38);
-      background: rgba(4, 8, 7, 0.72);
-      display: none;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  .terminal-map-panel__block {
-      font-size: 11px;
-      color: rgba(191, 255, 220, 0.8);
-      line-height: 1.52;
-      letter-spacing: 0.05em;
-      overflow-wrap: anywhere;
-      word-break: break-word;
-    }
-  .terminal-map-panel__inset {
       display: grid;
-      gap: 6px;
-      margin-top: 2px;
-      padding: 10px 10px 12px;
-      border: 1px solid rgba(124, 255, 178, 0.18);
-      background:
-        radial-gradient(circle at 50% 50%, rgba(124, 255, 178, 0.12), transparent 58%),
-        rgba(3, 10, 8, 0.68);
-      border-radius: 10px;
+      gap: 8px;
+      flex: 1;
+      min-height: 0;
     }
     .terminal-map-panel__inset.is-hidden {
       display: none;
@@ -329,8 +238,8 @@ function ensureMapStyles() {
     }
     .terminal-map-panel__inset-body {
       position: relative;
-      aspect-ratio: 1.45 / 1;
-      min-height: 172px;
+      flex: 1;
+      min-height: 0;
       border: 1px dashed rgba(124, 255, 178, 0.42);
       border-radius: 10px;
       overflow: hidden;
@@ -418,46 +327,19 @@ function ensureMapStyles() {
       text-align: center;
       padding: 0 10px;
     }
-    .terminal-map-panel__block span {
-      display: block;
-      color: rgba(191, 255, 220, 0.55);
-      margin-bottom: 4px;
-    }
-    .terminal-map-panel__copy {
-      max-height: 136px;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding-right: 6px;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      word-break: break-word;
-    }
-    .terminal-map-panel__list {
-      display: grid;
-      gap: 4px;
-      font-size: 10px;
-      color: rgba(191, 255, 220, 0.75);
-      max-height: 118px;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding-right: 6px;
-      white-space: pre-wrap;
-    }
-    .terminal-map-panel__list > div {
-      overflow-wrap: anywhere;
-      word-break: break-word;
-      line-height: 1.5;
-      white-space: pre-wrap;
-    }
     .terminal-map-frame {
       position: relative;
       overflow: hidden;
       border-radius: 10px;
       box-shadow: 0 0 0 1px rgba(124, 255, 178, 0.15), 0 0 30px rgba(124, 255, 178, 0.08);
       background: #040807;
-      flex: 1;
-      width: auto;
+      width: 100%;
       height: 100%;
+    }
+    .terminal-map-stage {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
     }
     .terminal-map-frame::before {
       content: "";
@@ -492,10 +374,10 @@ function ensureMapStyles() {
     .terminal-map-viewport {
       position: absolute;
       inset: 0;
-      transform: scale(0.96);
+      transform: none;
       transform-origin: center center;
-      transition: transform 120ms ease-out, transform-origin 120ms ease-out;
-      will-change: transform;
+      transition: none;
+      will-change: auto;
     }
     .terminal-map-hotspot {
       position: absolute;
@@ -577,6 +459,119 @@ function ensureMapStyles() {
       outline: 2px solid rgba(228, 255, 243, 0.98);
       outline-offset: 2px;
     }
+    .terminal-map-loupe {
+      position: absolute;
+      right: 16px;
+      top: 68px;
+      width: min(46%, 520px);
+      height: min(56%, 440px);
+      min-width: 320px;
+      min-height: 260px;
+      z-index: 70;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      border: 1px solid rgba(124, 255, 178, 0.52);
+      border-radius: 12px;
+      background: rgba(2, 8, 6, 0.92);
+      box-shadow: 0 0 24px rgba(124, 255, 178, 0.18);
+      overflow: hidden;
+      backdrop-filter: blur(2px);
+      pointer-events: auto;
+    }
+    .terminal-map-loupe.is-hidden {
+      display: none;
+    }
+    .terminal-map-loupe__head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(124, 255, 178, 0.24);
+      font: 600 10px/1.2 "Courier New", monospace;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #dfffee;
+      background: rgba(4, 12, 10, 0.94);
+    }
+    .terminal-map-loupe__meta {
+      color: rgba(191, 255, 220, 0.72);
+    }
+    .terminal-map-loupe__body {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      background:
+        linear-gradient(rgba(124, 255, 178, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124, 255, 178, 0.05) 1px, transparent 1px),
+        #020604;
+      background-size: 28px 28px;
+    }
+    .terminal-map-loupe__surface {
+      position: absolute;
+      inset: 0;
+      background-repeat: no-repeat;
+      background-color: #030804;
+      transform-origin: 0 0;
+    }
+    .terminal-map-loupe__surface::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 50%, transparent 0%, rgba(1, 5, 4, 0.06) 66%, rgba(1, 5, 4, 0.28) 100%);
+      mix-blend-mode: screen;
+    }
+    .terminal-map-loupe__node {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      padding: 3px 6px;
+      border: 1px solid rgba(166, 226, 255, 0.96);
+      border-radius: 999px;
+      background: rgba(2, 12, 18, 0.94);
+      color: #f1fbff;
+      font-size: 8px;
+      line-height: 1;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      cursor: pointer;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.72), 0 0 16px rgba(103, 207, 255, 0.22);
+      max-width: 72%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .terminal-map-loupe__node:hover,
+    .terminal-map-loupe__node.is-active {
+      border-color: #e4fff3;
+      box-shadow: 0 0 0 1px rgba(191, 255, 220, 0.5), 0 0 18px rgba(124, 255, 178, 0.38);
+    }
+    .terminal-map-loupe__node.is-focus {
+      border-color: rgba(255, 224, 152, 0.98);
+      color: #fff3d8;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.72), 0 0 18px rgba(255, 207, 103, 0.36);
+    }
+    .terminal-map-loupe__empty {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: rgba(191, 255, 220, 0.58);
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      text-align: center;
+      padding: 0 14px;
+    }
+    .terminal-map-loupe__foot {
+      padding: 7px 10px;
+      border-top: 1px solid rgba(124, 255, 178, 0.18);
+      font: 600 9px/1.2 "Courier New", monospace;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(191, 255, 220, 0.62);
+      background: rgba(4, 12, 10, 0.94);
+    }
     .terminal-map-panel__poi-button {
       width: 100% !important;
       border: 1px solid rgba(124, 255, 178, 0.28);
@@ -596,6 +591,15 @@ function ensureMapStyles() {
       color: #e4fff3;
       outline: none;
       background: rgba(14, 26, 20, 0.92);
+    }
+    .terminal-map-panel__meta--compact {
+      grid-template-columns: auto 1fr auto 1fr;
+      gap: 4px 10px;
+    }
+    .terminal-map-panel__meta-value {
+      color: #e4fff3;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     .terminal-map-ui {
       position: absolute;
@@ -701,7 +705,7 @@ function ensureMapStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 18px;
+      padding: 12px;
       background: rgba(1, 6, 5, 0.78);
       backdrop-filter: blur(1px);
     }
@@ -712,8 +716,8 @@ function ensureMapStyles() {
     .terminal-map-popup__card {
       position: relative;
       z-index: 1;
-      width: min(980px, 94%);
-      max-height: 90%;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
       display: grid;
       grid-template-rows: auto 1fr;
@@ -838,12 +842,14 @@ function ensureMapStyles() {
       .terminal-map-shell {
         width: 100%;
         height: 100%;
-        flex-direction: column;
         gap: 12px;
       }
       .terminal-map-panel {
-        width: 100%;
-        height: 45%;
+        width: calc(100% - 20px);
+        height: auto;
+        top: 54px;
+        right: 10px;
+        bottom: 10px;
       }
       .terminal-map-popup {
         padding: 12px;
@@ -861,16 +867,6 @@ function ensureMapStyles() {
     }
   `;
   document.head.appendChild(style);
-}
-
-function computeFitSize(containerWidth, containerHeight, ratio) {
-  let width = containerWidth;
-  let height = width / ratio;
-  if (height > containerHeight) {
-    height = containerHeight;
-    width = height * ratio;
-  }
-  return { width, height };
 }
 
 async function showMapOverlay({ pois, hotspotsData }) {
@@ -898,139 +894,99 @@ async function showMapOverlay({ pois, hotspotsData }) {
   viewport.className = "terminal-map-viewport";
   frame.appendChild(viewport);
 
-  const panel = document.createElement("div");
-  panel.className = "terminal-map-panel";
-  const emptyState = hotspotsData?.emptyState || {};
-  const scopedLabel = hotspotsData?.scopedLabel || "";
-  const emptyTitle = String(emptyState.title || "SECTOR :: SIN SELECCION").toUpperCase();
-  const emptyImageText = emptyState.imageText || "SELECCIONA UN POI PARA CARGAR EVIDENCIA.";
-  const emptySummary = emptyState.summary || "Esperando seleccion de POI.";
-  const emptyDetails = emptyState.details || "SIN DATOS.";
-  const emptyContacts = emptyState.contacts || "SIN DATOS.";
-  const emptyNotes = emptyState.notes || "SIN DATOS.";
-  panel.innerHTML = `
-    <div class="terminal-map-panel__title">${escapeHtml(emptyTitle)}</div>
-    <div class="terminal-map-panel__meta">
-      <div class="terminal-map-panel__label">ID</div>
-      <div>--</div>
-      <div class="terminal-map-panel__label">STATUS</div>
-      <div>--</div>
-      <div class="terminal-map-panel__label">ACCESS</div>
-      <div>--</div>
-      <div class="terminal-map-panel__label">DISTRICT</div>
-      <div>--</div>
-    </div>
-    <div class="terminal-map-panel__inset is-hidden" data-panel="inset">
-      <div class="terminal-map-panel__inset-head">
-        <span class="terminal-map-panel__inset-title">SECTOR LOCAL</span>
-        <span class="terminal-map-panel__inset-meta">SIN CLUSTER</span>
-      </div>
-      <div class="terminal-map-panel__inset-body">
-        <div class="terminal-map-panel__inset-empty">SIN CLUSTER ACTIVO.</div>
-      </div>
-    </div>
-    <div class="terminal-map-panel__image" role="button" tabindex="-1" aria-disabled="true" aria-label="Sin evidencia disponible">
-      <img class="terminal-map-panel__image-el" alt="POI" />
-      <span class="terminal-map-panel__image-placeholder">${escapeHtml(emptyImageText)}</span>
-      <span class="terminal-map-panel__image-caption"></span>
-    </div>
-    <div class="terminal-map-panel__block" data-panel="summary">
-      <span>RESUMEN</span>
-      <div class="terminal-map-panel__copy">${escapeHtml(emptySummary)}</div>
-    </div>
-    <div class="terminal-map-panel__block" data-panel="details">
-      <span>INTEL</span>
-      <div class="terminal-map-panel__list">${escapeHtml(emptyDetails)}</div>
-    </div>
-    <div class="terminal-map-panel__block" data-panel="contacts">
-      <span>CONTACTOS</span>
-      <div class="terminal-map-panel__list">${escapeHtml(emptyContacts)}</div>
-    </div>
-    <div class="terminal-map-panel__block" data-panel="notes">
-      <span>NOTAS</span>
-      <div class="terminal-map-panel__list">${escapeHtml(emptyNotes)}</div>
-    </div>
-  `;
-  shell.appendChild(panel);
+  const baseImage = document.createElement("img");
+  baseImage.className = "terminal-map-image";
+  baseImage.alt = "MAPA GOTHAM";
+  baseImage.src = hotspotsData?.image || "/mapa.png";
+  viewport.appendChild(baseImage);
 
-  const img = document.createElement("img");
-  img.className = "terminal-map-image";
-  img.alt = "MAPA GOTHAM";
-  img.src = hotspotsData?.image || "/mapa.png";
-  viewport.appendChild(img);
+  const loupe = document.createElement("div");
+  loupe.className = "terminal-map-loupe is-hidden";
+  loupe.innerHTML = `
+    <div class="terminal-map-loupe__head">
+      <div data-role="title">LUPA :: INACTIVA</div>
+      <div class="terminal-map-loupe__meta" data-role="meta">MUEVE EL RATON SOBRE EL MAPA</div>
+    </div>
+    <div class="terminal-map-loupe__body">
+      <div class="terminal-map-loupe__surface"></div>
+      <div class="terminal-map-loupe__empty" data-role="empty">SIN DATOS</div>
+    </div>
+    <div class="terminal-map-loupe__foot" data-role="foot">HOVER PARA DESPLEGAR POIS EN ZOOM REAL</div>
+  `;
+  frame.appendChild(loupe);
 
   const ui = document.createElement("div");
   ui.className = "terminal-map-ui";
   ui.innerHTML = `
-    <div>${escapeHtml(scopedLabel || "MAPA :: SECTORES")}</div>
+    <div>${escapeHtml(hotspotsData?.scopedLabel || "MAPA :: SECTORES")}</div>
     <button class="terminal-map-ui__button" type="button" data-action="exit">SALIR</button>
   `;
   overlay.appendChild(ui);
 
   const exitButton = ui.querySelector("[data-action='exit']");
+  const loupeTitle = loupe.querySelector("[data-role='title']");
+  const loupeMeta = loupe.querySelector("[data-role='meta']");
+  const loupeFoot = loupe.querySelector("[data-role='foot']");
+  const loupeEmpty = loupe.querySelector("[data-role='empty']");
+  const loupeSurface = loupe.querySelector(".terminal-map-loupe__surface");
 
   const hotspotNodes = [];
   const campaignState = loadCampaignState();
   let activeHotspot = null;
-  let activeCluster = null;
-  let activeClusterPoiId = "";
-  let lightbox = null;
   let poiPopup = null;
-  let selectedImageSrc = "";
-  let selectedImageTitle = "";
+  let currentTarget = null;
+  let exitResolver = null;
+  let disposed = false;
 
-  const imageFrame = panel.querySelector(".terminal-map-panel__image");
-  const imageEl = panel.querySelector(".terminal-map-panel__image-el");
-  const imagePlaceholder = panel.querySelector(".terminal-map-panel__image-placeholder");
-  const imageCaption = panel.querySelector(".terminal-map-panel__image-caption");
-  const inset = panel.querySelector("[data-panel='inset']");
-  const insetBody = panel.querySelector(".terminal-map-panel__inset-body");
-  const insetMeta = panel.querySelector(".terminal-map-panel__inset-meta");
+  const visibleEntries = (Array.isArray(hotspotsData?.hotspots) ? hotspotsData.hotspots : [])
+    .map((spot) => {
+      const poi = pois.find((entry) => entry.id === spot.id);
+      if (!poi) return null;
+      const evaluation = evaluateAccess(poi, campaignState);
+      if (!evaluation.visible && !evaluation.listed) return null;
+      return { spot, poi, evaluation };
+    })
+    .filter(Boolean);
 
-  const closeLightbox = () => {
-    if (!lightbox) return;
-    if (lightbox.parentNode) {
-      lightbox.parentNode.removeChild(lightbox);
-    }
-    lightbox = null;
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const pctToPx = (pct, size) => (clamp(Number(pct) || 0, 0, 100) / 100) * size;
+
+  const buildClusterGroups = (entries = []) => {
+    const cols = 6;
+    const rows = 8;
+    const groups = new Map();
+    entries.forEach((entry) => {
+      const col = Math.max(0, Math.min(cols - 1, Math.floor((Number(entry.spot.x) / 100) * cols)));
+      const row = Math.max(0, Math.min(rows - 1, Math.floor((Number(entry.spot.y) / 100) * rows)));
+      const key = `${col}:${row}`;
+      if (!groups.has(key)) groups.set(key, { col, row, entries: [] });
+      groups.get(key).entries.push(entry);
+    });
+    return Array.from(groups.values()).map((group) => {
+      const x =
+        group.entries.reduce((sum, entry) => sum + Number(entry.spot.x || 0), 0) /
+        group.entries.length;
+      const y =
+        group.entries.reduce((sum, entry) => sum + Number(entry.spot.y || 0), 0) /
+        group.entries.length;
+      return {
+        ...group,
+        id: `X${group.col + 1}-Y${group.row + 1}`,
+        label: `X${group.col + 1} / Y${group.row + 1}`,
+        x,
+        y,
+      };
+    });
   };
 
-  const openLightbox = () => {
-    if (!selectedImageSrc || lightbox || !overlay) return;
-
-    lightbox = document.createElement("div");
-    lightbox.className = "terminal-map-lightbox";
-    lightbox.innerHTML = `
-      <div class="terminal-map-lightbox__backdrop"></div>
-      <div class="terminal-map-lightbox__card" role="dialog" aria-modal="true">
-        <div class="terminal-map-lightbox__head">
-          <span>EVIDENCIA :: DETALLE ${escapeHtml(selectedImageTitle || "POI")}</span>
-          <button class="terminal-map-lightbox__close" type="button">CERRAR</button>
-        </div>
-        <div class="terminal-map-lightbox__body">
-          <img class="terminal-map-lightbox__img" alt="Evidencia POI" />
-        </div>
-      </div>
-    `;
-
-    const largeImage = lightbox.querySelector(".terminal-map-lightbox__img");
-    if (largeImage) {
-      largeImage.src = selectedImageSrc;
-      largeImage.alt = `Evidencia ${selectedImageTitle || "POI"}`;
-    }
-    const closeButton = lightbox.querySelector(".terminal-map-lightbox__close");
-    const backdrop = lightbox.querySelector(".terminal-map-lightbox__backdrop");
-    if (closeButton) closeButton.addEventListener("click", closeLightbox);
-    if (backdrop) backdrop.addEventListener("click", closeLightbox);
-    overlay.appendChild(lightbox);
-    if (closeButton) closeButton.focus();
-  };
+  const clusterGroups = visibleEntries.length > 12 ? buildClusterGroups(visibleEntries) : [];
+  const useClusters = clusterGroups.some((group) => group.entries.length > 1);
+  if (visibleEntries.length > 12) overlay.classList.add("is-dense");
+  if (useClusters) overlay.classList.add("is-clustered");
 
   const closePoiPopup = () => {
     if (!poiPopup) return;
-    if (poiPopup.parentNode) {
-      poiPopup.parentNode.removeChild(poiPopup);
-    }
+    poiPopup.remove();
     poiPopup = null;
   };
 
@@ -1103,19 +1059,11 @@ async function showMapOverlay({ pois, hotspotsData }) {
         </div>
       </div>
     `;
-
     const popupImage = poiPopup.querySelector(".terminal-map-popup__image img");
     const popupPlaceholder = poiPopup.querySelector(".terminal-map-popup__image-placeholder");
-    if (popupImage) {
-      if (imageSrc) {
-        const resolvedSrc = imageSrc.startsWith("/uploads/")
-          ? `/api${imageSrc}`
-          : imageSrc;
-        popupImage.src = resolvedSrc;
-        popupPlaceholder.style.display = "none";
-      } else {
-        popupImage.removeAttribute("src");
-      }
+    if (popupImage && imageSrc) {
+      popupImage.src = imageSrc.startsWith("/uploads/") ? `/api${imageSrc}` : imageSrc;
+      popupPlaceholder.style.display = "none";
     }
     const closeButton = poiPopup.querySelector(".terminal-map-popup__close");
     const backdrop = poiPopup.querySelector(".terminal-map-popup__backdrop");
@@ -1125,226 +1073,10 @@ async function showMapOverlay({ pois, hotspotsData }) {
     if (closeButton) closeButton.focus();
   };
 
-  const getClusterInsetBounds = (cluster) => {
-    const xs = cluster.entries.map((entry) => Number(entry.spot.x || 0));
-    const ys = cluster.entries.map((entry) => Number(entry.spot.y || 0));
-    const minX = Math.max(0, Math.min(...xs));
-    const maxX = Math.min(100, Math.max(...xs));
-    const minY = Math.max(0, Math.min(...ys));
-    const maxY = Math.min(100, Math.max(...ys));
-    const rangeX = Math.max(1, maxX - minX);
-    const rangeY = Math.max(1, maxY - minY);
-    const padX = Math.max(6, rangeX * 0.12);
-    const padY = Math.max(6, rangeY * 0.12);
-    return {
-      minX: Math.max(0, minX - padX),
-      minY: Math.max(0, minY - padY),
-      maxX: Math.min(100, maxX + padX),
-      maxY: Math.min(100, maxY + padY),
-    };
-  };
-
-  const renderClusterInset = (cluster, selectedPoiId = "") => {
-    if (!inset || !insetBody) return;
-    if (!cluster?.entries?.length) {
-      inset.classList.add("is-hidden");
-      activeCluster = null;
-      activeClusterPoiId = "";
-      return;
-    }
-    activeCluster = cluster;
-    activeClusterPoiId = selectedPoiId || "";
-    const bounds = getClusterInsetBounds(cluster);
-    const cropLeft = Math.max(0, Math.round((bounds.minX / 100) * MAP4X_WIDTH));
-    const cropTop = Math.max(0, Math.round((bounds.minY / 100) * MAP4X_HEIGHT));
-    const cropWidth = Math.max(1, Math.round(((bounds.maxX - bounds.minX) / 100) * MAP4X_WIDTH));
-    const cropHeight = Math.max(1, Math.round(((bounds.maxY - bounds.minY) / 100) * MAP4X_HEIGHT));
-    const bodyRect = insetBody.getBoundingClientRect();
-    const stageWidth = Math.max(240, Math.floor(bodyRect.width || 360));
-    const stageHeight = Math.max(180, Math.floor(bodyRect.height || 240));
-    const zoom = Math.max(stageWidth / cropWidth, stageHeight / cropHeight);
-    inset.classList.remove("is-hidden");
-    if (insetMeta) {
-      insetMeta.textContent = `${cluster.entries.length} POIS / ${selectedPoiId ? `FOCUS ${selectedPoiId.toUpperCase()}` : "SIN FOCO"}`;
-    }
-    insetBody.innerHTML = "";
-    const stage = document.createElement("div");
-    stage.className = "terminal-map-panel__inset-stage";
-    stage.style.width = `${stageWidth}px`;
-    stage.style.height = `${stageHeight}px`;
-
-    const surface = document.createElement("div");
-    surface.className = "terminal-map-panel__inset-surface";
-    surface.style.width = `${stageWidth}px`;
-    surface.style.height = `${stageHeight}px`;
-    surface.style.backgroundImage = `url(${MAP4X_IMAGE})`;
-    surface.style.backgroundSize = `${Math.round(MAP4X_WIDTH * zoom)}px ${Math.round(MAP4X_HEIGHT * zoom)}px`;
-    surface.style.backgroundPosition = `${Math.round(-cropLeft * zoom)}px ${Math.round(-cropTop * zoom)}px`;
-    stage.appendChild(surface);
-    insetBody.appendChild(stage);
-
-    const entries = cluster.entries.map((entry) => {
-      const spotX = Number(entry.spot.x || 0);
-      const spotY = Number(entry.spot.y || 0);
-      const xPx = (spotX / 100) * MAP4X_WIDTH;
-      const yPx = (spotY / 100) * MAP4X_HEIGHT;
-      return {
-        ...entry,
-        x: Math.max(10, Math.min(stageWidth - 10, (xPx - cropLeft) * zoom)),
-        y: Math.max(10, Math.min(stageHeight - 10, (yPx - cropTop) * zoom)),
-      };
-    });
-    entries.forEach((entry) => {
-      const node = document.createElement("button");
-      node.type = "button";
-      node.className = `terminal-map-panel__inset-node${
-        entry.poi.id === selectedPoiId ? " is-active terminal-map-panel__inset-node--focus" : ""
-      }`;
-      node.style.left = `${entry.x}px`;
-      node.style.top = `${entry.y}px`;
-      node.textContent = entry.poi.name || entry.poi.id || "POI";
-      node.title = `${entry.poi.name || entry.poi.id} (${entry.spot.x}%, ${entry.spot.y}%)`;
-      node.setAttribute("aria-label", node.title);
-      node.addEventListener("click", () => {
-        activeClusterPoiId = entry.poi.id;
-        renderClusterInset(cluster, entry.poi.id);
-        openPoiPopup(entry.poi, entry.evaluation, cluster);
-      });
-      stage.appendChild(node);
-    });
-  };
-
-  const handleImageFrameClick = () => {
-    if (!selectedImageSrc) return;
-    openLightbox();
-  };
-  const handleImageFrameKeydown = (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handleImageFrameClick();
-    }
-  };
-  if (imageFrame) {
-    imageFrame.addEventListener("click", handleImageFrameClick);
-    imageFrame.addEventListener("keydown", handleImageFrameKeydown);
-  }
-
-  const updatePanel = (poi, evaluation) => {
-    if (!poi) return;
-    const status = poi.status ? String(poi.status).toUpperCase() : "UNKNOWN";
-    const access = statusLabel(evaluation);
-    const summary = poi.summary || "SIN RESUMEN.";
-    const geo = getPoiGeo(poi) || {};
-    const content = getPoiContent(poi);
-    const imageSrc = geo.image || "";
-    const details = Array.isArray(content.details) && content.details.length ? content.details : ["SIN DATOS."];
-    const contacts = Array.isArray(content.contacts) && content.contacts.length ? content.contacts : ["SIN DATOS."];
-    const notes = Array.isArray(content.notes) && content.notes.length ? content.notes : ["SIN DATOS."];
-    panel.querySelector(".terminal-map-panel__title").textContent =
-      `SECTOR :: ${(poi.name || poi.id || "UNKNOWN").toUpperCase()}`;
-    const meta = panel.querySelectorAll(".terminal-map-panel__meta div");
-    if (meta.length >= 8) {
-      meta[1].textContent = poi.id || "--";
-      meta[3].textContent = status;
-      meta[5].textContent = access;
-      meta[7].textContent = poi.district || "--";
-    }
-    const summaryNode = panel.querySelector("[data-panel='summary'] .terminal-map-panel__copy");
-    if (summaryNode) {
-      summaryNode.textContent = summary;
-    }
-    const detailNode = panel.querySelector("[data-panel='details'] .terminal-map-panel__list");
-    if (detailNode) {
-      detailNode.innerHTML = details
-        .map((entry) => `<div>${escapeHtml(entry)}</div>`)
-        .join("");
-    }
-    const contactNode = panel.querySelector("[data-panel='contacts'] .terminal-map-panel__list");
-    if (contactNode) {
-      contactNode.innerHTML = contacts
-        .map((entry) => `<div>${escapeHtml(entry)}</div>`)
-        .join("");
-    }
-    const notesNode = panel.querySelector("[data-panel='notes'] .terminal-map-panel__list");
-    if (notesNode) {
-      notesNode.innerHTML = notes
-        .map((entry) => `<div>${escapeHtml(entry)}</div>`)
-        .join("");
-    }
-    if (imageEl) {
-      if (imageSrc) {
-        const resolvedSrc = imageSrc.startsWith("/uploads/")
-          ? `/api${imageSrc}`
-          : imageSrc;
-        selectedImageSrc = resolvedSrc;
-        selectedImageTitle = (poi.name || poi.id || "POI").toUpperCase();
-        imageEl.src = resolvedSrc;
-        imageEl.style.display = "block";
-        if (imagePlaceholder) imagePlaceholder.style.display = "none";
-        if (imageCaption) {
-          imageCaption.style.display = "block";
-          imageCaption.textContent = `EVIDENCIA :: ${selectedImageTitle} (CLICK PARA AMPLIAR)`;
-        }
-        if (imageFrame) {
-          imageFrame.classList.add("is-clickable");
-          imageFrame.tabIndex = 0;
-          imageFrame.setAttribute("aria-disabled", "false");
-          imageFrame.setAttribute("aria-label", `Abrir evidencia de ${selectedImageTitle}`);
-        }
-      } else {
-        selectedImageSrc = "";
-        selectedImageTitle = "";
-        closeLightbox();
-        imageEl.removeAttribute("src");
-        imageEl.style.display = "none";
-        if (imagePlaceholder) {
-          imagePlaceholder.style.display = "block";
-          imagePlaceholder.textContent = "SIN EVIDENCIA ADJUNTA.";
-        }
-        if (imageCaption) {
-          imageCaption.style.display = "none";
-          imageCaption.textContent = "";
-        }
-        if (imageFrame) {
-          imageFrame.classList.remove("is-clickable");
-          imageFrame.tabIndex = -1;
-          imageFrame.setAttribute("aria-disabled", "true");
-          imageFrame.setAttribute("aria-label", "Sin evidencia disponible");
-        }
-      }
-    }
-  };
-
-  const resetPanelImage = (message = "SELECCIONA UN POI DEL SECTOR.") => {
-    selectedImageSrc = "";
-    selectedImageTitle = "";
-    closeLightbox();
-    if (imageEl) {
-      imageEl.removeAttribute("src");
-      imageEl.style.display = "none";
-    }
-    if (imagePlaceholder) {
-      imagePlaceholder.style.display = "block";
-      imagePlaceholder.textContent = message;
-    }
-    if (imageCaption) {
-      imageCaption.style.display = "none";
-      imageCaption.textContent = "";
-    }
-    if (imageFrame) {
-      imageFrame.classList.remove("is-clickable");
-      imageFrame.tabIndex = -1;
-      imageFrame.setAttribute("aria-disabled", "true");
-      imageFrame.setAttribute("aria-label", "Sin evidencia disponible");
-    }
-  };
-
-  const selectPoiFromNode = async (button, poi, evaluation) => {
+  const selectPoiFromNode = async (button, poi, evaluation, clusterContext = null) => {
     if (!evaluation.unlocked) {
       const unlocked = await attemptUnlock(poi, evaluation);
-      if (!unlocked) {
-        return false;
-      }
+      if (!unlocked) return false;
     }
     if (activeHotspot && activeHotspot !== button) {
       activeHotspot.classList.remove("is-active");
@@ -1353,66 +1085,141 @@ async function showMapOverlay({ pois, hotspotsData }) {
       button.classList.add("is-active");
       activeHotspot = button;
     }
-    updatePanel(poi, evaluation);
-    openPoiPopup(poi, evaluation);
+    openPoiPopup(poi, evaluation, clusterContext);
     return true;
   };
 
-  const updateClusterPanel = (cluster) => {
-    if (!cluster?.entries?.length) return;
-    panel.querySelector(".terminal-map-panel__title").textContent =
-      `SECTOR :: ${cluster.label}`;
-    const meta = panel.querySelectorAll(".terminal-map-panel__meta div");
-    const unlockedCount = cluster.entries.filter(({ evaluation }) => evaluation.unlocked).length;
-    if (meta.length >= 8) {
-      meta[1].textContent = cluster.id;
-      meta[3].textContent = `${cluster.entries.length} POIS`;
-      meta[5].textContent = `${unlockedCount}/${cluster.entries.length} ONLINE`;
-      meta[7].textContent = "GRID";
+  const hideLoupe = () => {
+    if (!loupe.classList.contains("is-hidden")) {
+      loupe.classList.add("is-hidden");
     }
-    const summaryNode = panel.querySelector("[data-panel='summary'] .terminal-map-panel__copy");
-    if (summaryNode) {
-      summaryNode.textContent =
-        "Sector denso. Selecciona un POI de la lista para abrir su ficha.";
-    }
-    renderClusterInset(cluster);
-    const detailNode = panel.querySelector("[data-panel='details'] .terminal-map-panel__list");
-    if (detailNode) {
-      detailNode.innerHTML = "";
-      cluster.entries.forEach(({ poi, evaluation }) => {
-        const item = document.createElement("button");
-        item.type = "button";
-        item.className = "terminal-map-panel__poi-button";
-        item.textContent = `${poi.name || poi.id}${poi.district ? ` · ${poi.district}` : ""}`;
-        item.addEventListener("click", () => {
-          renderClusterInset(cluster, poi.id);
-          openPoiPopup(poi, evaluation, cluster);
-        });
-        detailNode.appendChild(item);
-      });
-    }
-    const contactNode = panel.querySelector("[data-panel='contacts'] .terminal-map-panel__list");
-    if (contactNode) {
-      contactNode.innerHTML = cluster.entries
-        .map(({ poi }) => `<div>${escapeHtml(poi.status || "SIN ESTADO")}</div>`)
-        .join("");
-    }
-    const notesNode = panel.querySelector("[data-panel='notes'] .terminal-map-panel__list");
-    if (notesNode) {
-      notesNode.innerHTML = `<div>${escapeHtml(
-        "El cluster agrupa POIs cercanos para evitar solapamiento visual."
-      )}</div>`;
-    }
-    resetPanelImage("SELECCIONA UN POI DEL SECTOR.");
+    currentTarget = null;
   };
 
-  const addHotspot = (spot, poi, evaluation) => {
+  const renderLoupe = (target) => {
+    if (!target) {
+      hideLoupe();
+      return;
+    }
+    const bodyRect = loupe.querySelector(".terminal-map-loupe__body").getBoundingClientRect();
+    const stageWidth = Math.max(260, Math.floor(bodyRect.width || 360));
+    const stageHeight = Math.max(200, Math.floor(bodyRect.height || 260));
+    const centerX = clamp(target.x ?? 50, 0, 100);
+    const centerY = clamp(target.y ?? 50, 0, 100);
+
+    const entries = target.cluster?.entries?.length ? target.cluster.entries : visibleEntries;
+    const bounds =
+      target.cluster?.entries?.length
+        ? (() => {
+            const xs = target.cluster.entries.map((entry) => Number(entry.spot.x || 0));
+            const ys = target.cluster.entries.map((entry) => Number(entry.spot.y || 0));
+            const minX = Math.min(...xs);
+            const minY = Math.min(...ys);
+            const maxX = Math.max(...xs);
+            const maxY = Math.max(...ys);
+            const padX = Math.max(6, (maxX - minX) * 0.18);
+            const padY = Math.max(6, (maxY - minY) * 0.18);
+            return {
+              minX: clamp(minX - padX, 0, 100),
+              minY: clamp(minY - padY, 0, 100),
+              maxX: clamp(maxX + padX, 0, 100),
+              maxY: clamp(maxY + padY, 0, 100),
+            };
+          })()
+        : {
+            minX: clamp(centerX - 9, 0, 100),
+            minY: clamp(centerY - 9, 0, 100),
+            maxX: clamp(centerX + 9, 0, 100),
+            maxY: clamp(centerY + 9, 0, 100),
+          };
+
+    const cropLeft = Math.max(0, Math.round((bounds.minX / 100) * MAP4X_WIDTH));
+    const cropTop = Math.max(0, Math.round((bounds.minY / 100) * MAP4X_HEIGHT));
+    const cropWidth = Math.max(1, Math.round(((bounds.maxX - bounds.minX) / 100) * MAP4X_WIDTH));
+    const cropHeight = Math.max(1, Math.round(((bounds.maxY - bounds.minY) / 100) * MAP4X_HEIGHT));
+    const zoom = Math.max(stageWidth / cropWidth, stageHeight / cropHeight);
+
+    loupe.classList.remove("is-hidden");
+    loupeTitle.textContent = target.cluster?.label ? `LUPA :: ${target.cluster.label}` : "LUPA :: MAPA";
+    loupeMeta.textContent = target.cluster
+      ? `${target.cluster.entries.length} POIS / FOCO SECTOR`
+      : target.poi
+      ? `${target.poi.name || target.poi.id} / FOCO POI`
+      : "MUESTRA LOCAL";
+    loupeFoot.textContent = target.cluster
+      ? "CLICK SOBRE UN POI PARA ABRIR FICHA"
+      : "MUEVE EL RATON PARA REPOSICIONAR EL ZOOM";
+
+    loupeSurface.style.width = `${stageWidth}px`;
+    loupeSurface.style.height = `${stageHeight}px`;
+    loupeSurface.style.backgroundImage = `url(${MAP4X_IMAGE})`;
+    loupeSurface.style.backgroundSize = `${Math.round(MAP4X_WIDTH * zoom)}px ${Math.round(
+      MAP4X_HEIGHT * zoom
+    )}px`;
+    loupeSurface.style.backgroundPosition = `${Math.round(-cropLeft * zoom)}px ${Math.round(
+      -cropTop * zoom
+    )}px`;
+    loupeSurface.innerHTML = "";
+
+    const scopedEntries = (target.cluster?.entries?.length ? target.cluster.entries : entries)
+      .filter((entry) => {
+        const x = Number(entry.spot.x || 0);
+        const y = Number(entry.spot.y || 0);
+        return x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY;
+      })
+      .sort((a, b) => {
+        const ax = Number(a.spot.x || 0) - centerX;
+        const ay = Number(a.spot.y || 0) - centerY;
+        const bx = Number(b.spot.x || 0) - centerX;
+        const by = Number(b.spot.y || 0) - centerY;
+        return Math.hypot(ax, ay) - Math.hypot(bx, by);
+      });
+
+    const renderEntries = scopedEntries.length
+      ? scopedEntries
+      : entries
+          .slice()
+          .sort((a, b) => {
+            const ax = Number(a.spot.x || 0) - centerX;
+            const ay = Number(a.spot.y || 0) - centerY;
+            const bx = Number(b.spot.x || 0) - centerX;
+            const by = Number(b.spot.y || 0) - centerY;
+            return Math.hypot(ax, ay) - Math.hypot(bx, by);
+          })
+          .slice(0, 6);
+
+    if (!renderEntries.length) {
+      loupeEmpty.style.display = "grid";
+      loupeEmpty.textContent = "SIN POIS EN ESTE ZOOM.";
+      return;
+    }
+
+    loupeEmpty.style.display = "none";
+    renderEntries.forEach((entry) => {
+      const node = document.createElement("button");
+      node.type = "button";
+      node.className = "terminal-map-loupe__node";
+      if (!entry.evaluation.unlocked) node.classList.add("is-locked");
+      if (target.poi?.id && entry.poi.id === target.poi.id) node.classList.add("is-focus");
+      node.textContent = entry.poi.name || entry.poi.id || "POI";
+      const xPx = pctToPx(entry.spot.x, MAP4X_WIDTH);
+      const yPx = pctToPx(entry.spot.y, MAP4X_HEIGHT);
+      node.style.left = `${clamp((xPx - cropLeft) * zoom, 12, stageWidth - 12)}px`;
+      node.style.top = `${clamp((yPx - cropTop) * zoom, 12, stageHeight - 12)}px`;
+      node.title = `${entry.poi.name || entry.poi.id} (${entry.spot.x}%, ${entry.spot.y}%)`;
+      node.setAttribute("aria-label", node.title);
+      node.addEventListener("click", () => {
+        selectPoiFromNode(node, entry.poi, entry.evaluation, target.cluster || null);
+      });
+      loupeSurface.appendChild(node);
+    });
+  };
+
+  const addHotspot = (spot, poi, evaluation, clusterContext = null) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "terminal-map-hotspot";
-    if (!evaluation.unlocked) {
-      button.classList.add("is-locked");
-    }
+    if (!evaluation.unlocked) button.classList.add("is-locked");
     button.dataset.x = String(spot.x || 0);
     button.dataset.y = String(spot.y || 0);
     button.dataset.poi = poi.id;
@@ -1421,15 +1228,31 @@ async function showMapOverlay({ pois, hotspotsData }) {
     button.title = fullLabel;
     button.setAttribute("aria-label", fullLabel);
     button.tabIndex = 0;
-
-    button.addEventListener("click", () => selectPoiFromNode(button, poi, evaluation));
+    button.addEventListener("mouseenter", () => {
+      renderLoupe({
+        kind: "poi",
+        x: Number(spot.x || 0),
+        y: Number(spot.y || 0),
+        poi,
+        cluster: clusterContext,
+      });
+    });
+    button.addEventListener("focus", () => {
+      renderLoupe({
+        kind: "poi",
+        x: Number(spot.x || 0),
+        y: Number(spot.y || 0),
+        poi,
+        cluster: clusterContext,
+      });
+    });
+    button.addEventListener("click", () => selectPoiFromNode(button, poi, evaluation, clusterContext));
     button.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         button.click();
       }
     });
-
     viewport.appendChild(button);
     hotspotNodes.push(button);
   };
@@ -1441,19 +1264,12 @@ async function showMapOverlay({ pois, hotspotsData }) {
     button.dataset.x = String(cluster.x);
     button.dataset.y = String(cluster.y);
     button.textContent = `${cluster.entries.length} POIS`;
-    button.title = `${cluster.label}: ${cluster.entries
-      .map(({ poi }) => poi.name || poi.id)
-      .join(", ")}`;
+    button.title = `${cluster.label}: ${cluster.entries.map(({ poi }) => poi.name || poi.id).join(", ")}`;
     button.setAttribute("aria-label", button.title);
     button.tabIndex = 0;
-    button.addEventListener("click", () => {
-      if (activeHotspot && activeHotspot !== button) {
-        activeHotspot.classList.remove("is-active");
-      }
-      button.classList.add("is-active");
-      activeHotspot = button;
-      updateClusterPanel(cluster);
-    });
+    button.addEventListener("mouseenter", () => renderLoupe({ kind: "cluster", ...cluster }));
+    button.addEventListener("focus", () => renderLoupe({ kind: "cluster", ...cluster }));
+    button.addEventListener("click", () => renderLoupe({ kind: "cluster", ...cluster }));
     button.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
@@ -1464,55 +1280,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
     hotspotNodes.push(button);
   };
 
-  const buildClusterGroups = (entries = []) => {
-    const cols = 6;
-    const rows = 8;
-    const groups = new Map();
-    entries.forEach((entry) => {
-      const col = Math.max(0, Math.min(cols - 1, Math.floor((Number(entry.spot.x) / 100) * cols)));
-      const row = Math.max(0, Math.min(rows - 1, Math.floor((Number(entry.spot.y) / 100) * rows)));
-      const key = `${col}:${row}`;
-      if (!groups.has(key)) groups.set(key, { col, row, entries: [] });
-      groups.get(key).entries.push(entry);
-    });
-    return Array.from(groups.values()).map((group) => {
-      const x =
-        group.entries.reduce((sum, entry) => sum + Number(entry.spot.x || 0), 0) /
-        group.entries.length;
-      const y =
-        group.entries.reduce((sum, entry) => sum + Number(entry.spot.y || 0), 0) /
-        group.entries.length;
-      return {
-        ...group,
-        id: `X${group.col + 1}-Y${group.row + 1}`,
-        label: `X${group.col + 1} / Y${group.row + 1}`,
-        x,
-        y,
-      };
-    });
-  };
-
-  const spots = Array.isArray(hotspotsData?.hotspots) ? hotspotsData.hotspots : [];
-  const visibleEntries = spots
-    .map((spot) => {
-      const poi = pois.find((entry) => entry.id === spot.id);
-      if (!poi) return null;
-      const evaluation = evaluateAccess(poi, campaignState);
-      if (!evaluation.visible && !evaluation.listed) return null;
-      return { spot, poi, evaluation };
-    })
-    .filter(Boolean);
-  if (visibleEntries.length > 12) {
-    overlay.classList.add("is-dense");
-  }
-  const clusterGroups = overlay.classList.contains("is-dense")
-    ? buildClusterGroups(visibleEntries)
-    : [];
-  const shouldCluster = clusterGroups.some((group) => group.entries.length > 1);
-  if (shouldCluster) {
-    overlay.classList.add("is-clustered");
-  }
-  (shouldCluster ? clusterGroups : visibleEntries).forEach((entry) => {
+  (useClusters ? clusterGroups : visibleEntries).forEach((entry) => {
     if (entry.entries?.length > 1) {
       addCluster(entry);
       return;
@@ -1521,89 +1289,62 @@ async function showMapOverlay({ pois, hotspotsData }) {
     addHotspot(single.spot, single.poi, single.evaluation);
   });
 
-  const layout = () => {
+  const renderLayout = () => {
     const shellBounds = shell.getBoundingClientRect();
-    const isNarrow = window.matchMedia("(max-width: 639px)").matches;
-    const ratio =
-      Number(hotspotsData?.aspectRatio) ||
-      (img.naturalWidth && img.naturalHeight
-        ? img.naturalWidth / img.naturalHeight
-        : 1);
-    const gap = 16;
-    const maxWidth = isNarrow ? shellBounds.width : (shellBounds.width - gap) / 2;
-    const fitted = computeFitSize(maxWidth, shellBounds.height, ratio);
-    frame.style.width = `${Math.floor(fitted.width)}px`;
-    frame.style.height = `${Math.floor(fitted.height)}px`;
-    if (isNarrow) {
-      panel.style.width = "100%";
-      panel.style.height = `${Math.floor(shellBounds.height * 0.45)}px`;
-    } else {
-      panel.style.width = `${Math.floor(fitted.width)}px`;
-      panel.style.height = `${Math.floor(fitted.height)}px`;
-    }
+    frame.style.width = `${Math.floor(shellBounds.width)}px`;
+    frame.style.height = `${Math.floor(shellBounds.height)}px`;
+    const dense = overlay.classList.contains("is-dense");
     hotspotNodes.forEach((node) => {
       const x = Number(node.dataset.x || 0);
       const y = Number(node.dataset.y || 0);
       node.style.left = `${x}%`;
       node.style.top = `${y}%`;
-      const dense = overlay.classList.contains("is-dense");
-      const maxLabelWidth = dense ? 118 : 150;
-      node.style.maxWidth = `${Math.max(44, Math.min(maxLabelWidth, Math.floor(fitted.width * 0.42)))}px`;
+      node.style.maxWidth = `${Math.max(44, Math.min(dense ? 118 : 150, Math.floor(shellBounds.width * 0.3)))}px`;
     });
-    if (activeCluster) {
-      renderClusterInset(activeCluster, activeClusterPoiId);
+    if (currentTarget) {
+      renderLoupe(currentTarget);
     }
   };
 
-  const resizeObserver = new ResizeObserver(layout);
+  const resizeObserver = new ResizeObserver(renderLayout);
   resizeObserver.observe(screenHost);
+  resizeObserver.observe(shell);
 
-  img.addEventListener("load", layout);
-  if (img.complete) layout();
+  baseImage.addEventListener("load", renderLayout);
+  if (baseImage.complete) renderLayout();
 
-  const applyZoom = (event) => {
+  const onPointerMove = (event) => {
     if (event.pointerType && event.pointerType !== "mouse") return;
     if (event.target && event.target.closest(".terminal-map-hotspot")) return;
-    if (event.buttons) return;
+    if (event.target && event.target.closest(".terminal-map-loupe")) return;
     const rect = frame.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
-    viewport.style.transformOrigin = `${Math.max(0, Math.min(100, x))}% ${Math.max(
-      0,
-      Math.min(100, y)
-    )}%`;
-    viewport.style.transform = "scale(1.45)";
+    currentTarget = { kind: "cursor", x: clamp(x, 0, 100), y: clamp(y, 0, 100) };
+    renderLoupe(currentTarget);
   };
 
-  const clearZoom = () => {
-    viewport.style.transformOrigin = "center center";
-    viewport.style.transform = "scale(0.96)";
+  const onPointerLeave = () => {
+    currentTarget = null;
+    hideLoupe();
   };
 
-  frame.addEventListener("pointermove", applyZoom);
-  frame.addEventListener("pointerenter", applyZoom);
-  frame.addEventListener("pointerleave", clearZoom);
+  frame.addEventListener("pointermove", onPointerMove);
+  frame.addEventListener("pointerleave", onPointerLeave);
 
   const cleanup = () => {
     resizeObserver.disconnect();
-    frame.removeEventListener("pointermove", applyZoom);
-    frame.removeEventListener("pointerenter", applyZoom);
-    frame.removeEventListener("pointerleave", clearZoom);
-    closeLightbox();
+    frame.removeEventListener("pointermove", onPointerMove);
+    frame.removeEventListener("pointerleave", onPointerLeave);
     closePoiPopup();
-    if (imageFrame) {
-      imageFrame.removeEventListener("click", handleImageFrameClick);
-      imageFrame.removeEventListener("keydown", handleImageFrameKeydown);
-    }
     terminal.classList.remove("terminal-viewer-active");
     document.body.classList.remove("terminal-viewer-active");
     if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
   };
 
-  let disposed = false;
-  let resolveExit = null;
   const exitPromise = new Promise((resolve) => {
-    resolveExit = resolve;
+    exitResolver = resolve;
   });
 
   const exitOverlay = () => {
@@ -1611,7 +1352,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
     disposed = true;
     disposeKeymap();
     cleanup();
-    if (resolveExit) resolveExit(true);
+    if (exitResolver) exitResolver(true);
   };
 
   const disposeKeymap = pushKeymap(
@@ -1619,10 +1360,6 @@ async function showMapOverlay({ pois, hotspotsData }) {
       Escape: () => {
         if (poiPopup) {
           closePoiPopup();
-          return true;
-        }
-        if (lightbox) {
-          closeLightbox();
           return true;
         }
         exitOverlay();
@@ -1649,9 +1386,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
   );
 
   if (exitButton) {
-    exitButton.addEventListener("click", () => {
-      exitOverlay();
-    });
+    exitButton.addEventListener("click", exitOverlay);
   }
 
   return exitPromise;
