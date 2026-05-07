@@ -47,6 +47,9 @@ const API_URL = "/api/pois-data";
 const FALLBACK_URL = "/data/map/pois.json";
 const HOTSPOTS_URL = "/data/map/hotspots.json";
 const POI_IMAGE_ASPECT = 16 / 9;
+const MAP4X_IMAGE = "/mapa4x.png";
+const MAP4X_WIDTH = 3200;
+const MAP4X_HEIGHT = 4300;
 let cache;
 let dataSource = "api";
 
@@ -297,7 +300,7 @@ function ensureMapStyles() {
       overflow-wrap: anywhere;
       word-break: break-word;
     }
-    .terminal-map-panel__inset {
+  .terminal-map-panel__inset {
       display: grid;
       gap: 6px;
       margin-top: 2px;
@@ -331,12 +334,7 @@ function ensureMapStyles() {
       border: 1px dashed rgba(124, 255, 178, 0.42);
       border-radius: 10px;
       overflow: hidden;
-      background:
-        linear-gradient(rgba(124, 255, 178, 0.08) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(124, 255, 178, 0.08) 1px, transparent 1px),
-        radial-gradient(circle at 50% 50%, rgba(124, 255, 178, 0.08), transparent 60%),
-        rgba(1, 5, 4, 0.94);
-      background-size: 18px 18px, 18px 18px, 100% 100%, 100% 100%;
+      background: rgba(1, 5, 4, 0.94);
     }
     .terminal-map-panel__inset-body::before,
     .terminal-map-panel__inset-body::after {
@@ -347,13 +345,29 @@ function ensureMapStyles() {
     }
     .terminal-map-panel__inset-body::before {
       background:
-        linear-gradient(90deg, transparent 0, transparent 49%, rgba(124, 255, 178, 0.16) 50%, transparent 51%),
-        linear-gradient(transparent 0, transparent 49%, rgba(124, 255, 178, 0.16) 50%, transparent 51%);
-      opacity: 0.5;
+        linear-gradient(rgba(124, 255, 178, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124, 255, 178, 0.04) 1px, transparent 1px);
+      background-size: 26px 26px;
+      mix-blend-mode: screen;
+      opacity: 0.55;
     }
     .terminal-map-panel__inset-body::after {
       border-radius: inherit;
       box-shadow: inset 0 0 42px rgba(124, 255, 178, 0.08);
+      background: radial-gradient(circle at 50% 50%, transparent 0%, rgba(1, 5, 4, 0.1) 66%, rgba(1, 5, 4, 0.32) 100%);
+    }
+    .terminal-map-panel__inset-stage {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: inherit;
+    }
+    .terminal-map-panel__inset-surface {
+      position: absolute;
+      inset: 0;
+      background-repeat: no-repeat;
+      background-color: #030804;
+      transform-origin: 0 0;
     }
     .terminal-map-panel__inset-node {
       position: absolute;
@@ -386,6 +400,11 @@ function ensureMapStyles() {
       background: rgba(2, 12, 18, 0.96);
       color: #f1fbff;
       box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.72), 0 0 18px rgba(103, 207, 255, 0.28);
+    }
+    .terminal-map-panel__inset-node.is-cluster-focus {
+      border-color: rgba(255, 224, 152, 0.98);
+      color: #fff3d8;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.72), 0 0 18px rgba(255, 207, 103, 0.36);
     }
     .terminal-map-panel__inset-empty {
       position: absolute;
@@ -953,6 +972,8 @@ async function showMapOverlay({ pois, hotspotsData }) {
   const hotspotNodes = [];
   const campaignState = loadCampaignState();
   let activeHotspot = null;
+  let activeCluster = null;
+  let activeClusterPoiId = "";
   let lightbox = null;
   let poiPopup = null;
   let selectedImageSrc = "";
@@ -1127,39 +1148,69 @@ async function showMapOverlay({ pois, hotspotsData }) {
     if (!inset || !insetBody) return;
     if (!cluster?.entries?.length) {
       inset.classList.add("is-hidden");
+      activeCluster = null;
+      activeClusterPoiId = "";
       return;
     }
+    activeCluster = cluster;
+    activeClusterPoiId = selectedPoiId || "";
     const bounds = getClusterInsetBounds(cluster);
-    const width = Math.max(1, bounds.maxX - bounds.minX);
-    const height = Math.max(1, bounds.maxY - bounds.minY);
+    const cropLeft = Math.max(0, Math.round((bounds.minX / 100) * MAP4X_WIDTH));
+    const cropTop = Math.max(0, Math.round((bounds.minY / 100) * MAP4X_HEIGHT));
+    const cropWidth = Math.max(1, Math.round(((bounds.maxX - bounds.minX) / 100) * MAP4X_WIDTH));
+    const cropHeight = Math.max(1, Math.round(((bounds.maxY - bounds.minY) / 100) * MAP4X_HEIGHT));
+    const bodyRect = insetBody.getBoundingClientRect();
+    const stageWidth = Math.max(240, Math.floor(bodyRect.width || 360));
+    const stageHeight = Math.max(180, Math.floor(bodyRect.height || 240));
+    const zoom = Math.max(stageWidth / cropWidth, stageHeight / cropHeight);
     inset.classList.remove("is-hidden");
     if (insetMeta) {
       insetMeta.textContent = `${cluster.entries.length} POIS / ${selectedPoiId ? `FOCUS ${selectedPoiId.toUpperCase()}` : "SIN FOCO"}`;
     }
     insetBody.innerHTML = "";
+    const stage = document.createElement("div");
+    stage.className = "terminal-map-panel__inset-stage";
+    stage.style.width = `${stageWidth}px`;
+    stage.style.height = `${stageHeight}px`;
+
+    const surface = document.createElement("div");
+    surface.className = "terminal-map-panel__inset-surface";
+    surface.style.width = `${stageWidth}px`;
+    surface.style.height = `${stageHeight}px`;
+    surface.style.backgroundImage = `url(${MAP4X_IMAGE})`;
+    surface.style.backgroundSize = `${Math.round(MAP4X_WIDTH * zoom)}px ${Math.round(MAP4X_HEIGHT * zoom)}px`;
+    surface.style.backgroundPosition = `${Math.round(-cropLeft * zoom)}px ${Math.round(-cropTop * zoom)}px`;
+    stage.appendChild(surface);
+    insetBody.appendChild(stage);
+
     const entries = cluster.entries.map((entry) => {
-      const x = ((Number(entry.spot.x || 0) - bounds.minX) / width) * 100;
-      const y = ((Number(entry.spot.y || 0) - bounds.minY) / height) * 100;
+      const spotX = Number(entry.spot.x || 0);
+      const spotY = Number(entry.spot.y || 0);
+      const xPx = (spotX / 100) * MAP4X_WIDTH;
+      const yPx = (spotY / 100) * MAP4X_HEIGHT;
       return {
         ...entry,
-        x: Math.max(8, Math.min(92, x)),
-        y: Math.max(8, Math.min(92, y)),
+        x: Math.max(10, Math.min(stageWidth - 10, (xPx - cropLeft) * zoom)),
+        y: Math.max(10, Math.min(stageHeight - 10, (yPx - cropTop) * zoom)),
       };
     });
     entries.forEach((entry) => {
       const node = document.createElement("button");
       node.type = "button";
-      node.className = `terminal-map-panel__inset-node${entry.poi.id === selectedPoiId ? " is-active terminal-map-panel__inset-node--focus" : ""}`;
-      node.style.left = `${entry.x}%`;
-      node.style.top = `${entry.y}%`;
+      node.className = `terminal-map-panel__inset-node${
+        entry.poi.id === selectedPoiId ? " is-active terminal-map-panel__inset-node--focus" : ""
+      }`;
+      node.style.left = `${entry.x}px`;
+      node.style.top = `${entry.y}px`;
       node.textContent = entry.poi.name || entry.poi.id || "POI";
       node.title = `${entry.poi.name || entry.poi.id} (${entry.spot.x}%, ${entry.spot.y}%)`;
       node.setAttribute("aria-label", node.title);
       node.addEventListener("click", () => {
-      renderClusterInset(cluster, entry.poi.id);
-      openPoiPopup(entry.poi, entry.evaluation, cluster);
+        activeClusterPoiId = entry.poi.id;
+        renderClusterInset(cluster, entry.poi.id);
+        openPoiPopup(entry.poi, entry.evaluation, cluster);
       });
-      insetBody.appendChild(node);
+      stage.appendChild(node);
     });
   };
 
@@ -1499,6 +1550,9 @@ async function showMapOverlay({ pois, hotspotsData }) {
       const maxLabelWidth = dense ? 118 : 150;
       node.style.maxWidth = `${Math.max(44, Math.min(maxLabelWidth, Math.floor(fitted.width * 0.42)))}px`;
     });
+    if (activeCluster) {
+      renderClusterInset(activeCluster, activeClusterPoiId);
+    }
   };
 
   const resizeObserver = new ResizeObserver(layout);
