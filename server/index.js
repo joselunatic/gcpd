@@ -1709,6 +1709,7 @@ seedInitialData();
 
 function seedInitialData() {
   seedCases();
+  pruneLegacyCases();
   seedPois();
   seedVillains();
 }
@@ -1832,6 +1833,14 @@ function seedCases() {
     return;
   }
   return;
+}
+
+function pruneLegacyCases() {
+  const legacyIds = ['case_court_echo'];
+  const deleteStmt = db.prepare('DELETE FROM cases_data WHERE id = ?');
+  legacyIds.forEach((id) => {
+    deleteStmt.run(id);
+  });
 }
 
 function seedPois() {

@@ -1210,11 +1210,11 @@ async function remoteOsScreen(line, index) {
   clear();
   await remoteOsShell({
     banner: [
-      "REMOTE TTY ACTIVE",
-      line?.label || "TERMINAL REMOTO",
+      "REMOTE ACCESS CHANNEL OPEN",
+      "WAYNE AUXILIARY NODE",
       "",
-      "PROTO-IA LIMITADA",
-      "HELP PARA COMANDOS",
+      "BROTHER-MK0 // RESTRICTED COGNITIVE PROFILE",
+      "HELP // DIRECTORIO DE ORDENES",
       "",
     ],
   });

@@ -21,6 +21,7 @@ import { normalizePoisClient, getPoiName } from "/utils/poiContract.js";
 const fastRender = { wait: false, initialWait: false, finalWait: false };
 const COLUMN = { left: 38, right: 51, divider: "│" };
 const POIS_URL = "/api/pois-data";
+const EXIT_CONTEXT_COMMANDS = ["EXIT", "BYE", "HANGUP"];
 let poisCachePromise;
 
 async function loadPoisIndex() {
@@ -580,7 +581,9 @@ async function browseCases(cases) {
           { text: "ENTER", className: "tui-accent" },
           { text: " dossier | ", className: "tui-muted" },
           { text: "B", className: "tui-accent" },
-          { text: " salir", className: "tui-muted" },
+          { text: " back | ", className: "tui-muted" },
+          { text: "EXIT", className: "tui-accent" },
+          { text: " remote", className: "tui-muted" },
         ],
       },
       { parts: [{ text: "ARCHIVO DE CASOS", className: "tui-muted tui-panel-right" }] }
@@ -605,7 +608,9 @@ async function browseCases(cases) {
           { text: "ENTER", className: "tui-accent" },
           { text: " dossier | ", className: "tui-muted" },
           { text: "B", className: "tui-accent" },
-          { text: " salir", className: "tui-muted" },
+          { text: " back | ", className: "tui-muted" },
+          { text: "EXIT", className: "tui-accent" },
+          { text: " remote", className: "tui-muted" },
         ],
       },
       {
@@ -660,11 +665,14 @@ async function browseCases(cases) {
       }
       value = node?.dataset?.value || "";
     } else {
-      value = await input(false, { hint: "AUX-01 > open case 3 | B exit | N/P page" });
+      value = await input(false, {
+        hint: "AUX-01 > open case 3 | B back | EXIT remote | N/P page",
+      });
     }
     if (!value) continue;
     const normalized = String(value).trim().toUpperCase();
     if (normalized === "X") return;
+    if (EXIT_CONTEXT_COMMANDS.includes(normalized)) return;
     if (normalized === "B") {
       if (stack.length > 1) stack.pop();
       else return;

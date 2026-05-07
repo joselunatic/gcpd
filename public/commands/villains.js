@@ -33,6 +33,7 @@ import { normalizePoisClient, getPoiName } from "/utils/poiContract.js";
 const API_URL = "/api/villains-data";
 const FALLBACK_URL = "/data/villains/gallery.json";
 const POIS_URL = "/api/pois-data";
+const EXIT_CONTEXT_COMMANDS = ["EXIT", "BYE", "HANGUP"];
 let cache;
 let dataSource = "api";
 let poisCachePromise;
@@ -115,6 +116,7 @@ const fetchGallery = async () => {
 };
 
 const fastRender = { wait: false, initialWait: false, finalWait: false };
+const detailRender = { wait: 8, initialWait: false, finalWait: false };
 const COLUMN = { left: 38, right: 51, divider: "│" };
 
 const mergeLine = (left = "", right = "") =>
@@ -147,7 +149,7 @@ const renderDetails = async (villain, evaluation, poisIndex = new Map()) => {
     ...(villain.summary ? detailLine(`RESUMEN: ${villain.summary}`) : []),
   ].filter(Boolean);
   lines.push(" ");
-  await type(lines, { stopBlinking: true });
+  await type(lines, { stopBlinking: true, ...detailRender });
 
   const profileLines = [];
   if (hasValue(villain.realName)) {
@@ -171,44 +173,46 @@ const renderDetails = async (villain, evaluation, poisIndex = new Map()) => {
     );
   }
   if (profileLines.length) {
-    await type(["PERFIL", " "], { stopBlinking: true });
-    await type(profileLines, { stopBlinking: true });
+    await type(["PERFIL", " "], { stopBlinking: true, ...detailRender });
+    await type(profileLines, { stopBlinking: true, ...detailRender });
   }
 
   if (locations.length) {
-    await type(["RED OPERATIVA"], { stopBlinking: true });
+    await type(["RED OPERATIVA"], { stopBlinking: true, ...detailRender });
     const locationLines = [];
     locations.forEach((entry) => {
       const roleLabel = (entry.role || "related").replace(/_/g, " ").toUpperCase();
       const suffix = entry.district ? ` · ${entry.district}` : "";
       locationLines.push(`> ${roleLabel}: ${entry.label}${suffix}`);
     });
-    await type(locationLines, { stopBlinking: true });
+    await type(locationLines, { stopBlinking: true, ...detailRender });
   }
 
   if (villain.patterns?.length) {
-    await type(["PATRONES"], { stopBlinking: true });
+    await type(["PATRONES"], { stopBlinking: true, ...detailRender });
     const patternLines = [];
     villain.patterns.forEach((entry) => {
       wrapLine(`> ${entry}`, 80).forEach((line, idx) => {
         patternLines.push(idx === 0 ? line : `  ${line}`);
       });
     });
-    await type(patternLines, { stopBlinking: true });
+    await type(patternLines, { stopBlinking: true, ...detailRender });
   }
   if (villain.knownAssociates?.length) {
-    await type(["ASOCIADOS"], { stopBlinking: true });
+    await type(["ASOCIADOS"], { stopBlinking: true, ...detailRender });
     await type(villain.knownAssociates.map((entry) => `> ${entry}`), {
       stopBlinking: true,
+      ...detailRender,
     });
   }
   if (villain.notes?.length) {
-    await type(["ANALISIS"], { stopBlinking: true });
+    await type(["ANALISIS"], { stopBlinking: true, ...detailRender });
     await type(villain.notes.map((entry) => `> ${entry}`), {
       stopBlinking: true,
+      ...detailRender,
     });
   }
-  await type([" "], { stopBlinking: true });
+  await type([" "], { stopBlinking: true, ...detailRender });
   markSeen("villains", villain.id, Number(villain.updatedAt || Date.now()));
 };
 
@@ -419,6 +423,111 @@ const mergeItemsWithPreview = (items, previewLines) => {
   });
 };
 
+function countRenderedItemLines(items = []) {
+  return items.reduce((sum, item) => {
+    const lines = Array.isArray(item.lines) ? item.lines : [item.lines];
+    return sum + lines.length;
+  }, 0);
+}
+
+function fillLineNode(node, lineInput = "") {
+  if (!node) return;
+  const existingClasses = Array.from(node.classList);
+  node.textContent = "";
+  existingClasses.forEach((cls) => {
+    if (cls.startsWith("tui-")) node.classList.remove(cls);
+  });
+  let plainText = "";
+  if (typeof lineInput === "string" || typeof lineInput === "number") {
+    plainText = String(lineInput ?? "");
+    node.textContent = plainText;
+  } else if (lineInput && typeof lineInput === "object") {
+    if (lineInput.className) {
+      String(lineInput.className)
+        .split(" ")
+        .filter(Boolean)
+        .forEach((cls) => node.classList.add(cls));
+    }
+    if (lineInput.semantic) {
+      node.classList.add(`tui-${String(lineInput.semantic)}`);
+    }
+    if (Array.isArray(lineInput.parts)) {
+      lineInput.parts.forEach((part) => {
+        const span = document.createElement("span");
+        const text = String(part?.text || "");
+        plainText += text;
+        span.textContent = text;
+        if (part?.className) {
+          String(part.className)
+            .split(" ")
+            .filter(Boolean)
+            .forEach((cls) => span.classList.add(cls));
+        }
+        node.appendChild(span);
+      });
+    } else {
+      plainText = String(lineInput.text || "");
+      node.textContent = plainText;
+    }
+  }
+  node.dataset.text = plainText;
+}
+
+function flashPanelNode(node) {
+  if (!node) return;
+  node.classList.remove("cases-live-refresh");
+  void node.offsetWidth;
+  node.classList.add("cases-live-refresh");
+}
+
+function installVillainsLivePreview({
+  headerLines,
+  pageItems,
+  terminal,
+  campaignState,
+  crumbs,
+  poisIndex,
+}) {
+  const itemLineCount = countRenderedItemLines(pageItems);
+  const headerCount = headerLines.length;
+
+  return ({ index }) => {
+    const liveTerminal = terminal || document.querySelector(".terminal");
+    if (!liveTerminal) return;
+
+    const terminalLines = Array.from(
+      liveTerminal.querySelectorAll(".terminal-line")
+    );
+    const itemNodes = terminalLines.slice(
+      headerCount,
+      headerCount + itemLineCount
+    );
+    const selected = pageItems[index] || pageItems[0] || null;
+    if (!selected || !itemNodes.length) return;
+
+    const mergedItems = mergeItemsWithPreview(
+      pageItems,
+      buildPreviewLines(
+        selected._villain,
+        selected._evaluation,
+        campaignState,
+        crumbs,
+        poisIndex
+      )
+    );
+
+    let itemCursor = 0;
+    mergedItems.forEach((item) => {
+      const lines = Array.isArray(item.lines) ? item.lines : [item.lines];
+      lines.forEach((line) => {
+        fillLineNode(itemNodes[itemCursor], line);
+        flashPanelNode(itemNodes[itemCursor]);
+        itemCursor += 1;
+      });
+    });
+  };
+}
+
 async function attemptUnlock(villain, evaluation) {
   return attemptEntityUnlock(villain, evaluation, {
     passwordPrompt: "CLAVE DE ARCHIVO: ",
@@ -515,7 +624,9 @@ async function browseVillains(villains) {
             { text: "/", className: "tui-accent" },
             { text: " buscar | ", className: "tui-muted" },
             { text: "B", className: "tui-accent" },
-            { text: " back", className: "tui-muted" },
+            { text: " back | ", className: "tui-muted" },
+            { text: "EXIT", className: "tui-accent" },
+            { text: " remote", className: "tui-muted" },
           ],
         },
         ""
@@ -575,7 +686,18 @@ async function browseVillains(villains) {
       items: pageItemsMerged,
       footerLines,
       chips,
-      context: { backValue: "B", backAction: "input" },
+      context: {
+        backValue: "B",
+        backAction: "input",
+        onSelectionChange: installVillainsLivePreview({
+          headerLines,
+          pageItems,
+          terminal: document.querySelector(".terminal"),
+          campaignState,
+          crumbs,
+          poisIndex,
+        }),
+      },
       defaultIndex: pageDefaultIndex,
     }, fastRender);
 
@@ -591,13 +713,17 @@ async function browseVillains(villains) {
       choice = value || "";
     } else {
       choice = await input(false, {
-        hint: "AUX-01 > open profile 2 | / filter threat:high | back",
+        hint: "AUX-01 > open profile 2 | / filter threat:high | B back | EXIT remote",
       });
     }
     if (!choice) continue;
     const normalized = choice.trim().toUpperCase();
     if (normalized === "X") {
       await type([" ", "SALIDA DE GALERIA.", " "], { stopBlinking: true });
+      clear();
+      return;
+    }
+    if (EXIT_CONTEXT_COMMANDS.includes(normalized)) {
       clear();
       return;
     }

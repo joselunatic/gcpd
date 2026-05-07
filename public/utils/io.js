@@ -194,9 +194,9 @@ function getChar(char) {
 async function type(
   text,
   {
-    wait = 50,
-    initialWait = 1000,
-    finalWait = 500,
+    wait = 20,
+    initialWait = 150,
+    finalWait = 60,
     typerClass = "",
     useContainer = false,
     stopBlinking = true,
