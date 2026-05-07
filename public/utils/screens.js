@@ -172,6 +172,32 @@ function getTerminalState() {
   return read(localStorage) || read(sessionStorage);
 }
 
+const hiddenRemoteOsLine = {
+  number: "(311) 437-9011",
+  label: "TERMINAL REMOTO // OS LIMITADO",
+  action: "remote-os",
+  desktopLines: [
+    "ESTADO: ENLACE DISPONIBLE",
+    "",
+    "Consola remota de contingencia.",
+    "Limitada a comandos primarios.",
+    "",
+    "Acceso restringido.",
+    "Respuestas sinteticas.",
+    "",
+    "Protocolo de desconexion:",
+    "  EXIT / BYE / HANGUP",
+  ],
+  mobileLines: [
+    "ESTADO: ENLACE DISPONIBLE",
+    "",
+    "Consola remota.",
+    "Comandos primarios.",
+    "",
+    "Salida: EXIT / BYE / HANGUP",
+  ],
+};
+
 const dialerLines = [
   {
     number: "(311) 399-2364",
@@ -252,31 +278,6 @@ const dialerLines = [
     action: "activate",
   },
   {
-    number: "(311) 437-9011",
-    label: "TERMINAL REMOTO // OS LIMITADO",
-    action: "remote-os",
-    desktopLines: [
-      "ESTADO: ENLACE DISPONIBLE",
-      "",
-      "Consola remota de contingencia.",
-      "Limitada a comandos primarios.",
-      "",
-      "Acceso restringido.",
-      "Respuestas sinteticas.",
-      "",
-      "Protocolo de desconexion:",
-      "  EXIT / BYE / HANGUP",
-    ],
-    mobileLines: [
-      "ESTADO: ENLACE DISPONIBLE",
-      "",
-      "Consola remota.",
-      "Comandos primarios.",
-      "",
-      "Salida: EXIT / BYE / HANGUP",
-    ],
-  },
-  {
     number: "(311) 437-1083",
     label: "CLOCKTOWER BACKUP",
     action: "message",
@@ -348,150 +349,6 @@ const dialerLines = [
       "",
       "Arkham sigue activo.",
       "Sincronizacion no recomendada.",
-    ],
-  },
-  {
-    number: "(311) 767-7305",
-    label: "TRONCAL WAYNE GALA",
-    action: "message",
-    desktopLines: [
-      "ESTADO: ARCHIVADO",
-      "",
-      "Linea troncal de cobertura civil.",
-      "Eventos publicos, galas beneficas y actividad corporativa.",
-      "",
-      "Identidad asociada:",
-      "  WAYNE, BRUCE",
-      "  Perfil: filantropo / empresario",
-      "",
-      "Registros disponibles:",
-      "  - Presencia social programada",
-      "  - Donaciones estrategicas",
-      "  - Accesos institucionales",
-      "",
-      "La identidad ha sido confirmada.",
-      "No se esperan futuras apariciones.",
-      "Los eventos continuan sin el anfitrion.",
-      "La ciudad no solicita explicaciones.",
-    ],
-    mobileLines: [
-      "ESTADO: ARCHIVADO",
-      "",
-      "Cobertura publica Wayne.",
-      "Galas y actos civiles.",
-      "",
-      "Identidad confirmada.",
-      "No se esperan apariciones.",
-      "",
-      "Los eventos continuan.",
-      "El anfitrion no.",
-    ],
-  },
-  {
-    number: "(311) 767-3395",
-    label: "HIBERNACULO BATMOVIL",
-    action: "message",
-    desktopLines: [
-      "ESTADO: CONTACTO SUSPENDIDO",
-      "",
-      "Perfil civil.",
-      "Activo irregular tolerado por criterio personal.",
-      "",
-      "Ultima interaccion registrada:",
-      "  Comunicacion directa.",
-      "  Canal abierto sin restricciones.",
-      "",
-      "Desde ese momento:",
-      "  No se han emitido llamadas.",
-      "  No se han aceptado respuestas.",
-      "  Los intentos quedan sin registrar.",
-      "",
-      "El sistema interpreta silencio",
-      "como instruccion valida.",
-      "",
-      "No se espera reanudacion.",
-    ],
-    mobileLines: [
-      "ESTADO: CONTACTO SUSPENDIDO",
-      "",
-      "Selina Kyle.",
-      "Activo irregular.",
-      "",
-      "Ultima comunicacion directa.",
-      "Silencio sostenido.",
-      "",
-      "El sistema lo asume",
-      "como orden.",
-    ],
-  },
-  {
-    number: "(311) 936-1493",
-    label: "BELFRY (RETIRADO)",
-    action: "message",
-    desktopLines: [
-      "ESTADO: INACTIVO",
-      "",
-      "Contacto institucional retirado.",
-      "Ultimo cargo: Comisionado del GCPD.",
-      "",
-      "Situacion actual:",
-      "  Jubilado.",
-      "  Sin funciones operativas.",
-      "  Fuera de cadena de mando.",
-      "",
-      "El canal permanece tecnicamente disponible.",
-      "No se han emitido llamadas.",
-      "",
-      "La reactivacion no esta recomendada.",
-      "El sistema prioriza estabilidad civil.",
-      "Algunos aliados merecen descanso.",
-    ],
-    mobileLines: [
-      "ESTADO: INACTIVO",
-      "",
-      "James W. Gordon",
-      "Commissioner (retired)",
-      "",
-      "Canal disponible.",
-      "No utilizado.",
-      "",
-      "Reactivar no recomendado.",
-    ],
-  },
-  {
-    number: "(311) 936-3923",
-    label: "RELE ORBITAL WAYNE",
-    action: "message",
-    desktopLines: [
-      "ESTADO: EN ESPERA",
-      "",
-      "Enlace fuera de jurisdiccion terrestre.",
-      "Infraestructura autonoma de contingencia global.",
-      "",
-      "Diseñado para operar",
-      "cuando los sistemas locales fallan.",
-      "No responde a autoridad civil.",
-      "No solicita confirmacion humana.",
-      "",
-      "Ultima ventana de enlace:",
-      "  CERRADA",
-      "",
-      "El rele permanece activo.",
-      "No se recomienda inicializacion.",
-      "Algunas decisiones no deben tomarse",
-      "desde la superficie.",
-    ],
-    mobileLines: [
-      "ESTADO: EN ESPERA",
-      "",
-      "Rele orbital Wayne.",
-      "Contingencia global.",
-      "",
-      "Ventana cerrada.",
-      "Sistema activo.",
-      "",
-      "Inicializacion",
-      "no recomendada.",
     ],
   },
 ];
@@ -971,49 +828,6 @@ async function dialer() {
   document.body.classList.add("dialer-mode");
   const existingInput = document.querySelector("#input");
   if (existingInput) existingInput.remove();
-
-  const dialerItems = [
-    {
-      number: "(311) 399-2364",
-      label: "GARAJE DEL BATSIGNAL",
-    },
-    {
-      number: "(311) 399-3582",
-      label: "FAILSAFE ZUR-EN-ARRH",
-    },
-    {
-      number: "(311) 437-8739",
-      label: "NODO AUX BROTHER-MK0",
-    },
-    {
-      number: "(311) 437-9011",
-      label: "TERMINAL REMOTO // OS LIMITADO",
-    },
-    {
-      number: "(311) 437-1083",
-      label: "CLOCKTOWER BACKUP",
-    },
-    {
-      number: "(311) 437-2977",
-      label: "ALA SEGURA DE ARKHAM",
-    },
-    {
-      number: "(311) 767-7305",
-      label: "TRONCAL WAYNE GALA",
-    },
-    {
-      number: "(311) 767-3395",
-      label: "HIBERNACULO BATMOVIL",
-    },
-    {
-      number: "(311) 936-1493",
-      label: "BELFRY (RETIRADO)",
-    },
-    {
-      number: "(311) 936-3923",
-      label: "RELE ORBITAL WAYNE",
-    },
-  ];
 
   const isPortrait = isPortraitNarrow();
   setFastMode(false);
@@ -1535,13 +1349,7 @@ async function restoreTerminalState(saved = {}) {
       await osMenu();
       return true;
     case "os-remote": {
-      const index = Number(saved.context?.lineIndex);
-      const resolvedIndex =
-        Number.isFinite(index) && index >= 0 && index < dialerLines.length
-          ? index
-          : 3;
-      const line = dialerLines[resolvedIndex] || dialerLines[3];
-      await remoteOsScreen(line, resolvedIndex);
+      await remoteOsScreen(hiddenRemoteOsLine, -1);
       return true;
     }
     case "main":
@@ -1552,8 +1360,8 @@ async function restoreTerminalState(saved = {}) {
       const resolvedIndex =
         Number.isFinite(index) && index >= 0 && index < dialerLines.length
           ? index
-          : 2;
-      const line = dialerLines[resolvedIndex] || dialerLines[2];
+          : 0;
+      const line = dialerLines[resolvedIndex] || dialerLines[0];
       const isPortrait = isPortraitNarrow();
       await displayLineMessage(line, isPortrait, resolvedIndex);
       return true;
