@@ -7,7 +7,7 @@ const output = [
   " ",
   "VISUAL / MEDIA:",
   "SHOW W | SHOW JOKER | SHOW BALA | SHOW IMAGE <CODIGO> | SHOW <evidencia-id>",
-  "AUDIO [id], BALLISTICA",
+  "AUDIO [id], BALLISTICA, TACTICAL",
   " ",
   "COMUNICACIONES:",
   "DIAL <telefono>, DIALER, TRACER <telefono>",

@@ -229,6 +229,7 @@ async function handleHelp() {
     "AUDIO - Audioregistros",
     "DIAL - Linea telefonica externa",
     "TRACER #TELEFONO - Trazado remoto de portadora activa",
+    "TACTICAL - Mapa tactico en vivo",
     "HELP - Lista comandos disponibles",
     "EXIT - Cierra la sesion",
     "LOGOUT - Cierra sesion principal",
@@ -298,6 +299,13 @@ async function handleOsCommand(rawInput) {
     const module = await import("/commands/tracer.js");
     if (module?.startTracer) {
       await module.startTracer({ number });
+      return { exit: false };
+    }
+  }
+  if (command === "tactical") {
+    const module = await import("/commands/tactical.js");
+    if (module?.startTactical) {
+      await module.startTactical();
       return { exit: false };
     }
   }

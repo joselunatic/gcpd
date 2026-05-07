@@ -21,6 +21,8 @@ const SESSION_DURATION_MS = Number(process.env.DM_SESSION_DURATION_MS || 1000 * 
 const GLOBAL_COMMANDS_KEY = 'global_commands';
 const TRACER_CONFIG_KEY = 'tracer_config';
 const HIDDEN_IMAGES_KEY = 'hidden_poi_images';
+const LIVE_MAP_STATE_KEY = 'live_map_state';
+const LIVE_MAP_BACKGROUNDS_KEY = 'live_map_backgrounds';
 const TRACER_RING_TIMEOUT_MS = 60_000;
 const TRACER_STEP_MS = 15_000;
 const TRACER_EXACT_MS = 45_000;
@@ -240,6 +242,35 @@ const hiddenImageStorage = multer.diskStorage({
 
 const hiddenImageUpload = multer({
   storage: hiddenImageStorage,
+  limits: { fileSize: 12 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (!['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
+      cb(new Error('Solo se permiten PNG/JPG/WEBP.'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+const liveMapDir = path.join(uploadsDir, 'live-map');
+fs.mkdirSync(liveMapDir, { recursive: true });
+
+const liveMapBackgroundStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, liveMapDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const safeExt = ['.png', '.jpg', '.jpeg', '.webp'].includes(ext) ? ext : '.png';
+    const stamp = Date.now();
+    const random = crypto.randomBytes(4).toString('hex');
+    cb(null, `live-map-${stamp}-${random}${safeExt}`);
+  },
+});
+
+const liveMapBackgroundUpload = multer({
+  storage: liveMapBackgroundStorage,
   limits: { fileSize: 12 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
@@ -602,6 +633,101 @@ function findHiddenImageByCode(code = '') {
   };
 }
 
+function clampPercent(value, fallback = 50) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(0, Math.min(100, numeric));
+}
+
+function normalizeLiveMapToken(entry = {}) {
+  if (!entry || typeof entry !== 'object') return null;
+  const label = String(entry.label || '').trim();
+  const id = String(entry.id || `token-${crypto.randomUUID()}`).trim();
+  if (!id || !label) return null;
+  return {
+    id,
+    label,
+    x: clampPercent(entry.x),
+    y: clampPercent(entry.y),
+    visible: entry.visible !== false,
+    kind: String(entry.kind || '').trim(),
+    updatedAt: Number(entry.updatedAt) || Date.now(),
+  };
+}
+
+function normalizeLiveMapState(input = {}) {
+  const state = input && typeof input === 'object' ? input : {};
+  const tokens = Array.isArray(state.tokens)
+    ? state.tokens
+        .map((entry) => normalizeLiveMapToken(entry))
+        .filter(Boolean)
+        .filter((entry, index, list) => list.findIndex((item) => item.id === entry.id) === index)
+    : [];
+  return {
+    backgroundImagePath: String(state.backgroundImagePath || '').trim(),
+    tokens,
+    updatedAt: Number(state.updatedAt) || Date.now(),
+  };
+}
+
+function getLiveMapState() {
+  const raw = getSetting(LIVE_MAP_STATE_KEY);
+  return normalizeLiveMapState(parseJSON(raw, {}));
+}
+
+function setLiveMapState(input = {}) {
+  const state = normalizeLiveMapState({
+    ...input,
+    updatedAt: Date.now(),
+  });
+  setSetting(LIVE_MAP_STATE_KEY, stringify(state));
+  return state;
+}
+
+function normalizeLiveMapBackground(entry = {}) {
+  if (!entry || typeof entry !== 'object') return null;
+  const pathValue = String(entry.path || entry.url || '').trim();
+  if (!pathValue) return null;
+  const label = String(entry.label || entry.originalName || path.basename(pathValue)).trim();
+  return {
+    id: String(entry.id || `live-map-bg-${crypto.randomUUID()}`).trim(),
+    label: label || path.basename(pathValue),
+    path: pathValue,
+    originalName: String(entry.originalName || '').trim(),
+    updatedAt: Number(entry.updatedAt) || Date.now(),
+  };
+}
+
+function getLiveMapBackgrounds() {
+  const raw = getSetting(LIVE_MAP_BACKGROUNDS_KEY);
+  const parsed = parseJSON(raw, []);
+  const backgrounds = Array.isArray(parsed) ? parsed : [];
+  return backgrounds
+    .map((entry) => normalizeLiveMapBackground(entry))
+    .filter(Boolean)
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+function setLiveMapBackgrounds(backgrounds = []) {
+  const normalized = Array.isArray(backgrounds)
+    ? backgrounds
+        .map((entry) => normalizeLiveMapBackground(entry))
+        .filter(Boolean)
+        .filter((entry, index, list) => list.findIndex((item) => item.id === entry.id) === index)
+    : [];
+  setSetting(LIVE_MAP_BACKGROUNDS_KEY, stringify(normalized));
+  return getLiveMapBackgrounds();
+}
+
+function addLiveMapBackground(background = {}) {
+  const [normalized] = [normalizeLiveMapBackground(background)].filter(Boolean);
+  if (!normalized) return getLiveMapBackgrounds();
+  return setLiveMapBackgrounds([
+    normalized,
+    ...getLiveMapBackgrounds().filter((entry) => entry.path !== normalized.path),
+  ]);
+}
+
 function getPoiLocatorById(poiId = '') {
   const id = String(poiId || '').trim();
   if (!id) return null;
@@ -706,6 +832,8 @@ function setTracerConfig(config = {}) {
 let tracerDmSocket = null;
 const tracerAgentSockets = new Set();
 const tracerCalls = new Map();
+const liveMapDmSockets = new Set();
+const liveMapAgentSockets = new Set();
 
 function wsSend(socket, payload) {
   if (!socket || socket.readyState !== 1) return;
@@ -714,6 +842,29 @@ function wsSend(socket, payload) {
   } catch (error) {
     console.warn('[TRACER_WS] send failed', error?.message || error);
   }
+}
+
+function broadcastLiveMapToAgents(payload) {
+  liveMapAgentSockets.forEach((socket) => wsSend(socket, payload));
+}
+
+function broadcastLiveMapState(state = getLiveMapState()) {
+  const payload = { type: 'live-map:state', state };
+  broadcastLiveMapToAgents(payload);
+  liveMapDmSockets.forEach((socket) => wsSend(socket, payload));
+}
+
+function broadcastLiveMapTokenMove(token) {
+  if (!token) return;
+  broadcastLiveMapToAgents({
+    type: 'live-map:token-move',
+    token: {
+      id: token.id,
+      x: token.x,
+      y: token.y,
+      updatedAt: token.updatedAt,
+    },
+  });
 }
 
 function getTraceStage(elapsedMs = 0) {
@@ -2214,6 +2365,43 @@ app.post('/api/tracer-config', authMiddleware, (req, res) => {
   res.json(saved);
 });
 
+app.get('/api/live-map', (req, res) => {
+  res.json(getLiveMapState());
+});
+
+app.post('/api/live-map', authMiddleware, (req, res) => {
+  const saved = setLiveMapState(req.body || {});
+  broadcastLiveMapState(saved);
+  res.json(saved);
+});
+
+app.get('/api/live-map-backgrounds', authMiddleware, (req, res) => {
+  res.json({ backgrounds: getLiveMapBackgrounds() });
+});
+
+app.post('/api/live-map-background-upload', authMiddleware, (req, res) => {
+  liveMapBackgroundUpload.single('file')(req, res, (err) => {
+    if (err) {
+      console.warn('[LIVE_MAP_BG_UPLOAD] failed', { ip: req.ip, error: err.message });
+      return res.status(400).json({ message: err.message || 'Error al subir plano.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: 'Imagen de plano requerida.' });
+    }
+    const url = `/uploads/live-map/${req.file.filename}`;
+    const [background] = addLiveMapBackground({
+      label: String(req.body?.label || req.file.originalname || '').trim(),
+      path: url,
+      originalName: req.file.originalname,
+      updatedAt: Date.now(),
+    }).filter((entry) => entry.path === url);
+    res.json({
+      background,
+      backgrounds: getLiveMapBackgrounds(),
+    });
+  });
+});
+
 app.post('/api/phone-lines-called', (req, res) => {
   const number = String(req.body?.number || '').trim();
   if (!number) {
@@ -2962,21 +3150,97 @@ const server = app.listen(PORT, () => {
 });
 
 const tracerWss = new WebSocketServer({ noServer: true });
+const liveMapWss = new WebSocketServer({ noServer: true });
 
 server.on('upgrade', (request, socket, head) => {
   try {
     const base = `http://${request.headers.host || 'localhost'}`;
     const url = new URL(request.url || '/', base);
-    if (url.pathname !== '/ws/tracer') {
-      socket.destroy();
+    if (url.pathname === '/ws/tracer') {
+      tracerWss.handleUpgrade(request, socket, head, (ws) => {
+        tracerWss.emit('connection', ws, request, url);
+      });
       return;
     }
-    tracerWss.handleUpgrade(request, socket, head, (ws) => {
-      tracerWss.emit('connection', ws, request, url);
-    });
+    if (url.pathname === '/ws/live-map') {
+      liveMapWss.handleUpgrade(request, socket, head, (ws) => {
+        liveMapWss.emit('connection', ws, request, url);
+      });
+      return;
+    }
+    socket.destroy();
   } catch (error) {
     socket.destroy();
   }
+});
+
+liveMapWss.on('connection', (ws, request, url) => {
+  const role = String(url.searchParams.get('role') || 'agent').toLowerCase();
+  const token = String(url.searchParams.get('token') || '');
+  const isDmRole = role === 'dm';
+
+  if (isDmRole) {
+    const session = validateToken(token);
+    if (!session) {
+      wsSend(ws, {
+        type: 'live-map:error',
+        code: 'unauthorized',
+        message: 'Sesion no valida.',
+      });
+      ws.close(4401, 'unauthorized');
+      return;
+    }
+    liveMapDmSockets.add(ws);
+  } else {
+    liveMapAgentSockets.add(ws);
+  }
+
+  wsSend(ws, { type: 'live-map:state', state: getLiveMapState() });
+
+  ws.on('message', (raw) => {
+    let payload;
+    try {
+      payload = JSON.parse(String(raw || '{}'));
+    } catch (error) {
+      wsSend(ws, {
+        type: 'live-map:error',
+        code: 'invalid_payload',
+        message: 'Payload invalido.',
+      });
+      return;
+    }
+    if (!isDmRole) return;
+    if (payload.type === 'live-map:state') {
+      const saved = setLiveMapState(payload.state || {});
+      broadcastLiveMapState(saved);
+      return;
+    }
+    if (payload.type === 'live-map:token-move') {
+      const tokenId = String(payload.token?.id || '').trim();
+      if (!tokenId) return;
+      const current = getLiveMapState();
+      const updatedToken = {
+        ...current.tokens.find((entry) => entry.id === tokenId),
+        id: tokenId,
+        x: clampPercent(payload.token?.x),
+        y: clampPercent(payload.token?.y),
+        updatedAt: Date.now(),
+      };
+      const tokens = current.tokens.map((entry) =>
+        entry.id === tokenId ? updatedToken : entry
+      );
+      const saved = setLiveMapState({ ...current, tokens });
+      broadcastLiveMapTokenMove(updatedToken);
+      liveMapDmSockets.forEach((socket) =>
+        wsSend(socket, { type: 'live-map:state', state: saved })
+      );
+    }
+  });
+
+  ws.on('close', () => {
+    liveMapDmSockets.delete(ws);
+    liveMapAgentSockets.delete(ws);
+  });
 });
 
 tracerWss.on('connection', (ws, request, url) => {

@@ -28,6 +28,9 @@ const POI_RESOURCE_UPLOAD_ENDPOINT = '/api/poi-resource-upload';
 const HIDDEN_IMAGES_ENDPOINT = '/api/hidden-images';
 const HIDDEN_IMAGE_UPLOAD_ENDPOINT = '/api/hidden-image-upload';
 const TRACER_CONFIG_ENDPOINT = '/api/tracer-config';
+const LIVE_MAP_ENDPOINT = '/api/live-map';
+const LIVE_MAP_BACKGROUNDS_ENDPOINT = '/api/live-map-backgrounds';
+const LIVE_MAP_BACKGROUND_UPLOAD_ENDPOINT = '/api/live-map-background-upload';
 
 const initialCaseForm = {
   id: '',
@@ -428,6 +431,7 @@ const VIEW_OPTIONS = [
   { id: 'villains', label: 'Villanos' },
   { id: 'evidence', label: 'Evidencias' },
   { id: 'tracer', label: 'Tracer' },
+  { id: 'liveMap', label: 'Mapa Live' },
   { id: 'access', label: 'Accesos' },
   { id: 'campaign', label: 'Campaña' },
 ];
@@ -436,6 +440,16 @@ const MAP_IMAGE = '/mapa.png';
 const MAP_ASPECT_RATIO = 0.744;
 const MAP_GRID_STEP = 1;
 const POI_IMAGE_ASPECT = 16 / 9;
+const LIVE_MAP_DEFAULT_STATE = {
+  backgroundImagePath: '',
+  tokens: [],
+  updatedAt: 0,
+};
+const LIVE_MAP_DEFAULT_TOKEN = {
+  label: '',
+  kind: '',
+  visible: true,
+};
 
 const clampNumber = (value) => {
   const num = Number(value);
@@ -990,6 +1004,15 @@ const DmPanel = () => {
   const [tracerLoading, setTracerLoading] = useState(false);
   const [tracerMessage, setTracerMessage] = useState('');
   const [tracerMapExpanded, setTracerMapExpanded] = useState(false);
+  const [liveMapState, setLiveMapState] = useState(LIVE_MAP_DEFAULT_STATE);
+  const [liveMapTokenForm, setLiveMapTokenForm] = useState(LIVE_MAP_DEFAULT_TOKEN);
+  const [liveMapSelectedTokenId, setLiveMapSelectedTokenId] = useState('');
+  const [liveMapLoading, setLiveMapLoading] = useState(false);
+  const [liveMapMessage, setLiveMapMessage] = useState('');
+  const [liveMapWsState, setLiveMapWsState] = useState('offline');
+  const [liveMapBackgrounds, setLiveMapBackgrounds] = useState([]);
+  const [liveMapBackgroundFile, setLiveMapBackgroundFile] = useState(null);
+  const [liveMapBackgroundUploading, setLiveMapBackgroundUploading] = useState(false);
   const evidencePreviewRef = useRef(null);
   const evidenceViewerRef = useRef(null);
   const evidenceMeshRef = useRef(null);
@@ -997,6 +1020,8 @@ const DmPanel = () => {
   const evidenceAxisCleanupRef = useRef(null);
   const ballisticsPreviewLeftRef = useRef(null);
   const ballisticsPreviewRightRef = useRef(null);
+  const liveMapSocketRef = useRef(null);
+  const liveMapDragRef = useRef(null);
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -3108,6 +3133,150 @@ const DmPanel = () => {
     [authorized, sessionToken]
   );
 
+  const normalizeLiveMapState = useCallback((state = {}) => ({
+    backgroundImagePath: String(state.backgroundImagePath || ''),
+    tokens: Array.isArray(state.tokens)
+      ? state.tokens
+          .map((token) => ({
+            id: String(token.id || ''),
+            label: String(token.label || ''),
+            x: Math.max(0, Math.min(100, Number(token.x) || 0)),
+            y: Math.max(0, Math.min(100, Number(token.y) || 0)),
+            visible: token.visible !== false,
+            kind: String(token.kind || ''),
+            updatedAt: Number(token.updatedAt) || Date.now(),
+          }))
+          .filter((token) => token.id && token.label)
+      : [],
+    updatedAt: Number(state.updatedAt) || Date.now(),
+  }), []);
+
+  const loadLiveMapState = useCallback(async () => {
+    setLiveMapLoading(true);
+    setLiveMapMessage('');
+    try {
+      const res = await fetch(LIVE_MAP_ENDPOINT, { cache: 'no-store' });
+      if (!res.ok) throw new Error('No se pudo cargar Mapa Live.');
+      setLiveMapState(normalizeLiveMapState(await res.json()));
+    } catch (error) {
+      setLiveMapMessage(error.message || 'No se pudo cargar Mapa Live.');
+    } finally {
+      setLiveMapLoading(false);
+    }
+  }, [normalizeLiveMapState]);
+
+  const sendLiveMapSocket = useCallback((payload) => {
+    const socket = liveMapSocketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+    socket.send(JSON.stringify(payload));
+    return true;
+  }, []);
+
+  const saveLiveMapState = useCallback(
+    async (state, { tokenMove = null } = {}) => {
+      if (!authorized || !sessionToken) {
+        setLiveMapMessage('Necesitas sesion activa para guardar Mapa Live.');
+        return null;
+      }
+      const nextState = normalizeLiveMapState(state);
+      setLiveMapState(nextState);
+      setLiveMapLoading(true);
+      setLiveMapMessage('');
+      try {
+        const res = await fetch(LIVE_MAP_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${sessionToken}`,
+          },
+          body: JSON.stringify(nextState),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || 'No se pudo guardar Mapa Live.');
+        }
+        const saved = normalizeLiveMapState(await res.json());
+        setLiveMapState(saved);
+        if (tokenMove) {
+          sendLiveMapSocket({ type: 'live-map:token-move', token: tokenMove });
+        } else {
+          sendLiveMapSocket({ type: 'live-map:state', state: saved });
+        }
+        setLiveMapMessage('Mapa Live sincronizado.');
+        return saved;
+      } catch (error) {
+        setLiveMapMessage(error.message || 'No se pudo guardar Mapa Live.');
+        return null;
+      } finally {
+        setLiveMapLoading(false);
+      }
+    },
+    [authorized, normalizeLiveMapState, sendLiveMapSocket, sessionToken]
+  );
+
+  const loadLiveMapBackgrounds = useCallback(async () => {
+    if (!authorized || !sessionToken) return;
+    try {
+      const res = await fetch(LIVE_MAP_BACKGROUNDS_ENDPOINT, {
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      if (!res.ok) throw new Error('No se pudo cargar el listado de planos.');
+      const data = await res.json();
+      setLiveMapBackgrounds(Array.isArray(data?.backgrounds) ? data.backgrounds : []);
+    } catch (error) {
+      setLiveMapMessage(error.message || 'No se pudo cargar el listado de planos.');
+    }
+  }, [authorized, sessionToken]);
+
+  const handleLiveMapBackgroundUpload = useCallback(async () => {
+    if (!authorized || !sessionToken) {
+      setLiveMapMessage('Necesitas sesion activa para subir planos.');
+      return;
+    }
+    if (!liveMapBackgroundFile) {
+      setLiveMapMessage('Selecciona una imagen de plano.');
+      return;
+    }
+    setLiveMapBackgroundUploading(true);
+    setLiveMapMessage('');
+    try {
+      const formData = new FormData();
+      formData.append('file', liveMapBackgroundFile);
+      formData.append('label', liveMapBackgroundFile.name || 'Plano tactico');
+      const res = await fetch(LIVE_MAP_BACKGROUND_UPLOAD_ENDPOINT, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'No se pudo subir el plano.');
+      }
+      const data = await res.json();
+      const backgrounds = Array.isArray(data?.backgrounds) ? data.backgrounds : [];
+      setLiveMapBackgrounds(backgrounds);
+      if (data?.background?.path) {
+        await saveLiveMapState({
+          ...liveMapState,
+          backgroundImagePath: data.background.path,
+        });
+      }
+      setLiveMapBackgroundFile(null);
+      setLiveMapMessage('Plano subido y activado.');
+    } catch (error) {
+      setLiveMapMessage(error.message || 'No se pudo subir el plano.');
+    } finally {
+      setLiveMapBackgroundUploading(false);
+    }
+  }, [
+    authorized,
+    liveMapBackgroundFile,
+    liveMapState,
+    saveLiveMapState,
+    sessionToken,
+  ]);
+
   const saveAudioModels = useCallback(
     async (payload = []) => {
       if (!authorized || !sessionToken) {
@@ -3656,6 +3825,133 @@ const DmPanel = () => {
     [tracerLineForm.id, tracerLines, tracerHotspots, saveTracerConfig]
   );
 
+  const handleLiveMapBackgroundChange = useCallback(
+    async (event) => {
+      const backgroundImagePath = event.target.value;
+      await saveLiveMapState({ ...liveMapState, backgroundImagePath });
+    },
+    [liveMapState, saveLiveMapState]
+  );
+
+  const handleLiveMapTokenCreate = useCallback(
+    async (event) => {
+      event.preventDefault();
+      const label = liveMapTokenForm.label.trim();
+      if (!label) {
+        setLiveMapMessage('Etiqueta obligatoria para crear token.');
+        return;
+      }
+      const token = {
+        id: `token-${
+          window.crypto?.randomUUID ? window.crypto.randomUUID() : Date.now()
+        }`,
+        label,
+        kind: liveMapTokenForm.kind.trim(),
+        visible: liveMapTokenForm.visible !== false,
+        x: 50,
+        y: 50,
+        updatedAt: Date.now(),
+      };
+      const nextState = {
+        ...liveMapState,
+        tokens: [...liveMapState.tokens, token],
+      };
+      await saveLiveMapState(nextState);
+      setLiveMapTokenForm(LIVE_MAP_DEFAULT_TOKEN);
+      setLiveMapSelectedTokenId(token.id);
+    },
+    [liveMapState, liveMapTokenForm, saveLiveMapState]
+  );
+
+  const handleLiveMapTokenDelete = useCallback(
+    async (id) => {
+      if (!id) return;
+      const nextState = {
+        ...liveMapState,
+        tokens: liveMapState.tokens.filter((token) => token.id !== id),
+      };
+      await saveLiveMapState(nextState);
+      if (liveMapSelectedTokenId === id) {
+        setLiveMapSelectedTokenId('');
+      }
+    },
+    [liveMapSelectedTokenId, liveMapState, saveLiveMapState]
+  );
+
+  const handleLiveMapTokenVisibility = useCallback(
+    async (id, visible) => {
+      const nextTokens = liveMapState.tokens.map((token) =>
+        token.id === id ? { ...token, visible, updatedAt: Date.now() } : token
+      );
+      await saveLiveMapState({ ...liveMapState, tokens: nextTokens });
+    },
+    [liveMapState, saveLiveMapState]
+  );
+
+  const updateLiveMapTokenPosition = useCallback(
+    async (id, x, y) => {
+      const nextTokens = liveMapState.tokens.map((token) =>
+        token.id === id ? { ...token, x, y, updatedAt: Date.now() } : token
+      );
+      const tokenMove = nextTokens.find((token) => token.id === id);
+      await saveLiveMapState(
+        { ...liveMapState, tokens: nextTokens },
+        { tokenMove }
+      );
+    },
+    [liveMapState, saveLiveMapState]
+  );
+
+  const getLiveMapPointerPosition = useCallback((event, element) => {
+    const rect = element.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    return {
+      x: Math.max(0, Math.min(100, x)),
+      y: Math.max(0, Math.min(100, y)),
+    };
+  }, []);
+
+  const handleLiveMapTokenPointerDown = useCallback(
+    (event, tokenId) => {
+      event.preventDefault();
+      const surface = event.currentTarget.closest('.live-map-control__surface');
+      if (!surface) return;
+      setLiveMapSelectedTokenId(tokenId);
+      liveMapDragRef.current = { tokenId, surface };
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    },
+    []
+  );
+
+  const handleLiveMapTokenPointerMove = useCallback(
+    (event) => {
+      const drag = liveMapDragRef.current;
+      if (!drag) return;
+      const point = getLiveMapPointerPosition(event, drag.surface);
+      setLiveMapState((prev) => ({
+        ...prev,
+        tokens: prev.tokens.map((token) =>
+          token.id === drag.tokenId
+            ? { ...token, x: point.x, y: point.y, updatedAt: Date.now() }
+            : token
+        ),
+      }));
+    },
+    [getLiveMapPointerPosition]
+  );
+
+  const handleLiveMapTokenPointerUp = useCallback(
+    async (event) => {
+      const drag = liveMapDragRef.current;
+      if (!drag) return;
+      const point = getLiveMapPointerPosition(event, drag.surface);
+      liveMapDragRef.current = null;
+      await updateLiveMapTokenPosition(drag.tokenId, point.x, point.y);
+    },
+    [getLiveMapPointerPosition, updateLiveMapTokenPosition]
+  );
+
   useEffect(() => {
     if (activeView !== 'evidence') return;
     if (evidenceForm.id) return;
@@ -3701,6 +3997,49 @@ const DmPanel = () => {
     if (activeView !== 'tracer') return;
     loadTracerConfig();
   }, [authorized, activeView, loadTracerConfig]);
+
+  useEffect(() => {
+    if (!authorized) return;
+    if (activeView !== 'liveMap') return;
+    loadLiveMapState();
+    loadLiveMapBackgrounds();
+  }, [authorized, activeView, loadLiveMapBackgrounds, loadLiveMapState]);
+
+  useEffect(() => {
+    if (!authorized || !sessionToken || activeView !== 'liveMap') return undefined;
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const encodedToken = encodeURIComponent(sessionToken);
+    const socket = new WebSocket(
+      `${protocol}://${window.location.host}/ws/live-map?role=dm&token=${encodedToken}`
+    );
+    liveMapSocketRef.current = socket;
+    setLiveMapWsState('connecting');
+    socket.onopen = () => setLiveMapWsState('online');
+    socket.onerror = () => setLiveMapWsState('error');
+    socket.onclose = () => {
+      if (liveMapSocketRef.current === socket) {
+        liveMapSocketRef.current = null;
+      }
+      setLiveMapWsState('offline');
+    };
+    socket.onmessage = (event) => {
+      let payload;
+      try {
+        payload = JSON.parse(String(event.data || '{}'));
+      } catch {
+        return;
+      }
+      if (payload.type === 'live-map:state') {
+        setLiveMapState(normalizeLiveMapState(payload.state));
+      }
+    };
+    return () => {
+      if (liveMapSocketRef.current === socket) {
+        liveMapSocketRef.current = null;
+      }
+      socket.close();
+    };
+  }, [activeView, authorized, normalizeLiveMapState, sessionToken]);
 
   useEffect(() => {
     const leftCanvas = ballisticsPreviewLeftRef.current;
@@ -6096,6 +6435,200 @@ const DmPanel = () => {
     </section>
   );
 
+  const renderLiveMapView = () => {
+    const selectedToken =
+      liveMapState.tokens.find((token) => token.id === liveMapSelectedTokenId) ||
+      liveMapState.tokens[0] ||
+      null;
+
+    return (
+      <section className="dm-panel__section">
+        <h2 className="dm-panel__section-title">Mapa Live</h2>
+        <p className="dm-panel__hint">
+          Superficie tactica independiente del mapa de POIs. Los agentes solo ven tokens visibles.
+        </p>
+        {liveMapMessage && <p className="dm-panel__hint">{liveMapMessage}</p>}
+        <div className="dm-panel__grid dm-panel__grid--two">
+          <div className="dm-panel__card live-map-control">
+            <div className="dm-panel__panel-title">
+              Mapa tactico
+              <span className="dm-panel__status-pill">WS {liveMapWsState}</span>
+            </div>
+            <label className="live-map-control__background">
+              Fondo
+              <input
+                type="text"
+                value={liveMapState.backgroundImagePath || ''}
+                onChange={(event) =>
+                  setLiveMapState((prev) => ({
+                    ...prev,
+                    backgroundImagePath: event.target.value,
+                  }))
+                }
+                onBlur={handleLiveMapBackgroundChange}
+                placeholder="/mapa.png o /uploads/..."
+              />
+            </label>
+            <div className="live-map-backgrounds">
+              <div className="dm-panel__panel-title">Planos subidos</div>
+              <div className="live-map-backgrounds__upload">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(event) =>
+                    setLiveMapBackgroundFile(event.target.files?.[0] || null)
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={handleLiveMapBackgroundUpload}
+                  disabled={liveMapBackgroundUploading || !liveMapBackgroundFile}
+                >
+                  {liveMapBackgroundUploading ? 'Subiendo...' : 'Subir plano'}
+                </button>
+              </div>
+              <div className="live-map-backgrounds__list">
+                {liveMapBackgrounds.map((background) => (
+                  <button
+                    key={background.id || background.path}
+                    type="button"
+                    className={
+                      liveMapState.backgroundImagePath === background.path
+                        ? 'dm-panel__button is-active'
+                        : 'dm-panel__button'
+                    }
+                    onClick={() =>
+                      saveLiveMapState({
+                        ...liveMapState,
+                        backgroundImagePath: background.path,
+                      })
+                    }
+                  >
+                    <span>{background.label || background.originalName || background.path}</span>
+                  </button>
+                ))}
+                {!liveMapBackgrounds.length && (
+                  <p className="dm-panel__hint">Sin planos subidos.</p>
+                )}
+              </div>
+            </div>
+            <div
+              className="live-map-control__surface"
+              style={
+                liveMapState.backgroundImagePath
+                  ? { backgroundImage: `url(${liveMapState.backgroundImagePath})` }
+                  : undefined
+              }
+              onPointerMove={handleLiveMapTokenPointerMove}
+              onPointerUp={handleLiveMapTokenPointerUp}
+              onPointerCancel={handleLiveMapTokenPointerUp}
+            >
+              {!liveMapState.backgroundImagePath && (
+                <div className="live-map-control__empty">TACTICAL GRID</div>
+              )}
+              {liveMapState.tokens.map((token) => (
+                <button
+                  key={token.id}
+                  type="button"
+                  className={`live-map-token${
+                    liveMapSelectedTokenId === token.id ? ' is-selected' : ''
+                  }${token.visible ? '' : ' is-hidden'}`}
+                  style={{ left: `${token.x}%`, top: `${token.y}%` }}
+                  onPointerDown={(event) => handleLiveMapTokenPointerDown(event, token.id)}
+                  onClick={() => setLiveMapSelectedTokenId(token.id)}
+                  title={token.label}
+                >
+                  {token.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="dm-panel__card">
+            <div className="dm-panel__panel-title">Tokens</div>
+            <form onSubmit={handleLiveMapTokenCreate} className="dm-panel__form dm-panel__form--compact">
+              <label>
+                Etiqueta
+                <input
+                  type="text"
+                  value={liveMapTokenForm.label}
+                  onChange={(event) =>
+                    setLiveMapTokenForm((prev) => ({ ...prev, label: event.target.value }))
+                  }
+                  placeholder="Unidad GCPD"
+                />
+              </label>
+              <label>
+                Tipo
+                <input
+                  type="text"
+                  value={liveMapTokenForm.kind}
+                  onChange={(event) =>
+                    setLiveMapTokenForm((prev) => ({ ...prev, kind: event.target.value }))
+                  }
+                  placeholder="agent / target / vehicle"
+                />
+              </label>
+              <label className="dm-panel__checkbox">
+                <input
+                  type="checkbox"
+                  checked={liveMapTokenForm.visible}
+                  onChange={(event) =>
+                    setLiveMapTokenForm((prev) => ({ ...prev, visible: event.target.checked }))
+                  }
+                />
+                Visible para agentes
+              </label>
+              <button type="submit" disabled={liveMapLoading}>
+                Crear token
+              </button>
+            </form>
+
+            <div className="dm-panel__list dm-panel__list--compact">
+              {liveMapState.tokens.map((token) => (
+                <button
+                  key={token.id}
+                  type="button"
+                  className={liveMapSelectedTokenId === token.id ? 'active' : ''}
+                  onClick={() => setLiveMapSelectedTokenId(token.id)}
+                >
+                  <strong>{token.label}</strong>
+                  <span>
+                    {token.visible ? 'ON' : 'HIDDEN'} · X {token.x.toFixed(1)} / Y {token.y.toFixed(1)}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {selectedToken && (
+              <div className="dm-panel__form dm-panel__form--compact live-map-token-editor">
+                <div className="dm-panel__panel-title">Token seleccionado</div>
+                <p className="dm-panel__hint">{selectedToken.label}</p>
+                <label className="dm-panel__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedToken.visible}
+                    onChange={(event) =>
+                      handleLiveMapTokenVisibility(selectedToken.id, event.target.checked)
+                    }
+                  />
+                  Visible para agentes
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleLiveMapTokenDelete(selectedToken.id)}
+                  disabled={liveMapLoading}
+                >
+                  Eliminar token
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
   const renderTracerView = () => (
     <section className="dm-panel__section">
       <h2 className="dm-panel__section-title">Tracer</h2>
@@ -6733,6 +7266,7 @@ const DmPanel = () => {
             {activeView === 'villains' && renderVillainView()}
             {activeView === 'evidence' && renderEvidenceView()}
             {activeView === 'tracer' && renderTracerView()}
+            {activeView === 'liveMap' && renderLiveMapView()}
             {activeView === 'access' && renderAccessView()}
             {activeView === 'campaign' && renderCampaignView()}
             <PoiQuickCreateModal

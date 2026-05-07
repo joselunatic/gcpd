@@ -2736,6 +2736,115 @@
   padding: 0.75rem;
 }
 
+.live-map-control {
+  gap: 0.85rem;
+}
+
+.live-map-control__background {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.live-map-backgrounds {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid rgba(124, 255, 178, 0.14);
+  background: rgba(2, 14, 14, 0.42);
+  padding: 0.75rem;
+}
+
+.live-map-backgrounds__upload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.live-map-backgrounds__upload input[type='file'] {
+  min-width: 220px;
+  flex: 1 1 260px;
+  color: rgba(194, 255, 232, 0.82);
+}
+
+.live-map-backgrounds__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.live-map-backgrounds__list .dm-panel__button {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-map-backgrounds__list .dm-panel__button.is-active {
+  border-color: rgba(124, 255, 178, 0.78);
+  background: rgba(30, 132, 96, 0.38);
+  color: #c7ffe7;
+  box-shadow: 0 0 14px rgba(124, 255, 178, 0.18);
+}
+
+.live-map-control__surface {
+  position: relative;
+  min-height: min(62vh, 620px);
+  border: 1px solid rgba(124, 255, 178, 0.28);
+  background-color: rgba(1, 10, 12, 0.88);
+  background-image:
+    linear-gradient(rgba(90, 180, 223, 0.11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(90, 180, 223, 0.11) 1px, transparent 1px);
+  background-position: center;
+  background-size: cover, 32px 32px, 32px 32px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.live-map-control__empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(124, 255, 178, 0.3);
+  font-size: 1.5rem;
+  letter-spacing: 0.18em;
+  pointer-events: none;
+}
+
+.live-map-token {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 76px;
+  max-width: 150px;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid rgba(124, 255, 178, 0.72);
+  background: rgba(2, 18, 14, 0.88);
+  color: #9fffd0;
+  font: inherit;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  box-shadow: 0 0 12px rgba(124, 255, 178, 0.18);
+  cursor: grab;
+  touch-action: none;
+}
+
+.live-map-token.is-selected {
+  border-color: #7cb4fc;
+  color: #cfe7ff;
+  box-shadow: 0 0 18px rgba(124, 180, 252, 0.32);
+}
+
+.live-map-token.is-hidden {
+  opacity: 0.45;
+  border-style: dashed;
+}
+
+.live-map-token-editor {
+  margin-top: 1rem;
+  border-top: 1px solid rgba(124, 255, 178, 0.15);
+  padding-top: 1rem;
+}
+
 @media (max-width: 1100px) {
   .dm-panel__workspace-top,
   .dm-panel__editor-actions,
