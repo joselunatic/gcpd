@@ -684,7 +684,13 @@ const Card = ({ name, position, size, textureOptions, onClick, renderOrder = 12 
   );
 };
 
-const MapPoiMarker = ({ item, active, onSelect, mapWidth = MAP_PREVIEW_WIDTH, mapHeight = MAP_PREVIEW_HEIGHT }) => {
+const MapPoiMarker = ({
+  item,
+  active,
+  onSelect,
+  mapWidth = MAP_PREVIEW_WIDTH,
+  mapHeight = MAP_PREVIEW_HEIGHT,
+}) => {
   const [hovered, setHovered] = useState(false);
   const [x, y] = mapPercentToLocal(item.x ?? 50, item.y ?? 50, mapWidth, mapHeight);
   const radius = Math.max(0.017, (Number(item.radius || 1.8) / 100) * mapWidth);
@@ -1089,9 +1095,9 @@ const MapWorkspaceCard = ({
         items={mapItems}
         selectedId={selectedMapItem?.id}
         onSelect={onSelect}
-        width={1.42}
-        height={1.06}
-        position={[-0.05, 0.03, 0.08]}
+        width={1.26}
+        height={0.94}
+        position={[0.0, 0.02, 0.08]}
       />
     </group>
   );

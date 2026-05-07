@@ -9,7 +9,6 @@ import QuestBallisticsWorkbench from './QuestBallisticsWorkbench';
 import QuestAudioWorkbench from './QuestAudioWorkbench';
 import QuestCommsWorkbench from './QuestCommsWorkbench';
 import QuestHdriEnvironment from './QuestHdriEnvironment';
-import QuestMapSurface from './QuestMapSurface';
 import QuestMonitorSurface from './QuestMonitorSurface';
 import QuestStlEvidenceViewer from './QuestStlEvidenceViewer';
 import QuestWorkbenchRayBlocker from './QuestWorkbenchRayBlocker';
@@ -231,11 +230,6 @@ const QuestScene = ({ data, session, recenterKey }) => {
       />
 
       <QuestMonitorSurface
-        data={data}
-        session={session}
-        panelAnchor={environmentAnchors?.panel}
-      />
-      <QuestMapSurface
         data={data}
         session={session}
         panelAnchor={environmentAnchors?.panel}
