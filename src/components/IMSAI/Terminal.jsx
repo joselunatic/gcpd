@@ -21,7 +21,7 @@ const Terminal = ({ reset, on, bootReady = true }) => {
         if (firstRender) {
           ref.current = false;
           console.log('[Terminal]', new Date().toISOString(), 'First Render');
-          if (bootReady && !hasBooted.current) {
+          if (on === 'on' && bootReady && !hasBooted.current) {
             console.log('[Terminal]', new Date().toISOString(), 'Terminal loading, main...');
             loadingTerminal();
             hasBooted.current = true;
@@ -35,27 +35,24 @@ const Terminal = ({ reset, on, bootReady = true }) => {
 
     useEffect(() => {
         if (!bootReady) return;
-        if (hasBooted.current) return;
+        if (hasBooted.current || on !== 'on') return;
         console.log('[Terminal]', new Date().toISOString(), 'Terminal boot ready, loading...');
         loadTerminalOn.current = false;
         loadTerminalReset.current = false;
         loadingTerminal();
         hasBooted.current = true;
-    }, [bootReady]);
+    }, [bootReady, on]);
     
     useEffect(() => {
         console.log('[Terminal]', new Date().toISOString(), 'Terminal on, off: ', on);
         console.log('[Terminal]', new Date().toISOString(), 'Ref: ', ref.current);
-        if (!hasBooted.current) return;
         if (on==='on') {
-            if (loadTerminalOn.current) {
-                console.log('[Terminal]', new Date().toISOString(), 'On, loading terminal: ', loadTerminalOn.current);
-                if (bootReady) {
-                    loadingTerminal();
-                    hasBooted.current = true;
-                }
-                loadTerminalOn.current = false;
+            console.log('[Terminal]', new Date().toISOString(), 'On, loading terminal');
+            if (bootReady) {
+                loadingTerminal();
+                hasBooted.current = true;
             }
+            loadTerminalOn.current = false;
         } else {
             const event = new CustomEvent("stopwoprsound");
             window.dispatchEvent(event);

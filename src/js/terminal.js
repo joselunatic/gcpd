@@ -107,12 +107,19 @@ async function loadingTerminal() {
     typeof import.meta !== "undefined" &&
     import.meta.env &&
     import.meta.env.VITE_DEV_MODE === "1";
+  const forceDialerBoot =
+    !isDevFast &&
+    typeof window !== "undefined" &&
+    window.__woprForceDialerBoot === true;
   let screenStatus = localStorage.getItem("screenStatus");
   if (!screenStatus) {
     screenStatus = sessionStorage.getItem("screenStatus");
   }
   if (isDevFast) {
     screenStatus = "os-remote";
+  } else if (forceDialerBoot) {
+    screenStatus = "dialer";
+    window.__woprForceDialerBoot = false;
   }
   if (
     screen &&
@@ -140,7 +147,7 @@ async function loadingTerminal() {
     module && typeof module.shouldAllowResume === "function"
       ? module.shouldAllowResume()
       : true;
-  const allowResume = isDevFast ? false : allowResumeBase;
+  const allowResume = isDevFast || forceDialerBoot ? false : allowResumeBase;
   if (allowResume && module && module.restoreTerminalSnapshot) {
     const restored = module.restoreTerminalSnapshot(screenStatus);
     if (restored) {

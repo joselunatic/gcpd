@@ -54,6 +54,9 @@ const Base = ({on, setOn, setReset }) => {
             // Power is the bottom switch (PWR ON/OFF) per visual order.
             if (event.target.id === String(RIGHT_SWITCH.POWER)) {
                 const powerStatus = event.target.checked ? 'on' : 'off';
+                if (powerStatus === 'on') {
+                    window.__woprForceDialerBoot = true;
+                }
                 const indicatorLeftDown = byClass('indicator middle left-part', 3);
                 removePassive(indicatorLeftDown);
                 setOn(powerStatus);
