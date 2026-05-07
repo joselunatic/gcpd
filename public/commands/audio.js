@@ -102,7 +102,7 @@ async function unlockAudio(id, password) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.message || "Password incorrecto.");
+    throw new Error(data.message || "Clave incorrecta.");
   }
   return data;
 }
