@@ -2803,7 +2803,9 @@
 
 .live-map-control__surface {
   position: relative;
-  min-height: min(62vh, 620px);
+  width: 100%;
+  min-height: min(52vh, 560px);
+  aspect-ratio: 1.42 / 1;
   border: 1px solid rgba(124, 255, 178, 0.28);
   background-color: rgba(1, 10, 12, 0.88);
   background-image:
@@ -2831,13 +2833,13 @@
   position: absolute;
   transform: translate(-50%, -50%);
   min-width: 0;
-  max-width: 96px;
-  padding: 0.12rem 0.34rem;
+  max-width: 124px;
+  padding: 3px 6px;
   border: 1px solid rgba(92, 181, 255, 0.76);
   background: rgba(5, 19, 35, 0.82);
   color: #bde5ff;
   font: inherit;
-  font-size: 0.62rem;
+  font-size: 10px;
   line-height: 1.1;
   text-transform: uppercase;
   overflow: hidden;
