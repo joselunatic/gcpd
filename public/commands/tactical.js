@@ -171,8 +171,10 @@ function renderState({ overlay, state }) {
   fitMapSurface(overlay);
   let trails = map.querySelector(".tactical-trails");
   if (!trails) {
-    trails = document.createElement("div");
+    trails = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     trails.classList.add("tactical-trails");
+    trails.setAttribute("viewBox", "0 0 100 100");
+    trails.setAttribute("preserveAspectRatio", "none");
     trails.setAttribute("aria-hidden", "true");
     map.insertBefore(trails, map.firstChild);
   }
@@ -198,23 +200,17 @@ function renderState({ overlay, state }) {
     if (!token.trail) return;
     const age = Math.max(0, now - Number(token.trail.updatedAt || token.updatedAt || 0));
     if (age > TRAIL_TTL_MS) return;
-    const mapRect = map.getBoundingClientRect();
-    const dx = token.x - token.trail.fromX;
-    const dy = token.y - token.trail.fromY;
-    const pixelDx = (dx / 100) * mapRect.width;
-    const pixelDy = (dy / 100) * mapRect.height;
-    const pixelDistance = Math.hypot(pixelDx, pixelDy);
-    if (pixelDistance <= 0) return;
-    const segment = document.createElement("div");
-    segment.className = "tactical-trail-segment";
-    segment.dataset.kind = token.kind || "";
-    segment.style.left = `${token.trail.fromX}%`;
-    segment.style.top = `${token.trail.fromY}%`;
-    segment.style.width = `${(pixelDistance / mapRect.width) * 100}%`;
-    segment.style.transform = `translateY(-50%) rotate(${Math.atan2(pixelDy, pixelDx)}rad)`;
-    segment.style.animationDuration = `${TRAIL_TTL_MS}ms`;
-    segment.style.animationDelay = `-${Math.min(age, TRAIL_TTL_MS)}ms`;
-    trails.appendChild(segment);
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", `${token.trail.fromX}`);
+    line.setAttribute("y1", `${token.trail.fromY}`);
+    line.setAttribute("x2", `${token.x}`);
+    line.setAttribute("y2", `${token.y}`);
+    line.setAttribute("stroke", token.kind === "enemy" ? "rgba(255,90,90,0.92)" : "rgba(92,181,255,0.92)");
+    line.setAttribute("stroke-width", "1.2");
+    line.setAttribute("stroke-linecap", "round");
+    line.style.animationDuration = `${TRAIL_TTL_MS}ms`;
+    line.style.animationDelay = `-${Math.min(age, TRAIL_TTL_MS)}ms`;
+    trails.appendChild(line);
   });
   visibleTokens.forEach((token) => {
     let node = existing.get(token.id);
@@ -287,33 +283,23 @@ function injectStyles() {
     .tactical-trails {
       position: absolute;
       inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
       z-index: 2;
+      overflow: visible;
       pointer-events: none;
     }
-    .tactical-trail-segment {
-      position: absolute;
-      height: 4px;
-      min-width: 4px;
-      border-radius: 999px;
-      background: rgba(92,181,255,0.92);
-      transform-origin: left center;
+    .tactical-trails line {
       filter: drop-shadow(0 0 8px rgba(124,255,178,0.42));
       opacity: 0.98;
-      background-image: repeating-linear-gradient(
-        90deg,
-        currentColor 0,
-        currentColor 6px,
-        transparent 6px,
-        transparent 9px
-      );
-      color: rgba(92,181,255,0.92);
+      stroke-dasharray: 1.15 0.7;
+      stroke-width: 1.2;
       animation-name: tacticalTrailFade;
       animation-timing-function: linear;
       animation-fill-mode: forwards;
     }
-    .tactical-trail-segment[data-kind="enemy"] {
-      background: rgba(255,90,90,0.92);
-      color: rgba(255,90,90,0.92);
+    .tactical-trails line[stroke*="255,90,90"] {
       filter: drop-shadow(0 0 6px rgba(255,90,90,0.25));
     }
     .tactical-map::after {
