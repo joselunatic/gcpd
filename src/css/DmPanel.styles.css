@@ -6,6 +6,11 @@
   padding: 2rem 1rem 3rem;
 }
 
+@font-face {
+  font-family: 'WOPR';
+  src: url('/assets/fonts/wopr-tweaked.ttf');
+}
+
 .dm-panel a,
 .dm-panel button,
 .dm-panel input,
@@ -2833,18 +2838,25 @@
   pointer-events: none;
 }
 
-.live-map-token {
+.live-map-control__surface .live-map-token {
   position: absolute;
   transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 0;
   min-width: 0;
-  max-width: 124px;
+  max-width: 116px;
   padding: 3px 6px;
   border: 1px solid rgba(92, 181, 255, 0.76);
   background: rgba(5, 19, 35, 0.82);
   color: #bde5ff;
-  font: inherit;
+  font-family: 'WOPR', 'Share Tech Mono', monospace;
   font-size: 10px;
   line-height: 1.1;
+  letter-spacing: 0;
+  text-align: center;
   text-transform: uppercase;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2854,20 +2866,20 @@
   touch-action: none;
 }
 
-.live-map-token[data-kind='enemy'] {
+.live-map-control__surface .live-map-token[data-kind='enemy'] {
   border-color: rgba(255, 90, 90, 0.8);
   background: rgba(42, 9, 12, 0.86);
   color: #ffc3c3;
   box-shadow: 0 0 10px rgba(255, 90, 90, 0.2);
 }
 
-.live-map-token.is-selected {
+.live-map-control__surface .live-map-token.is-selected {
   border-color: #7cb4fc;
   color: #cfe7ff;
   box-shadow: 0 0 18px rgba(124, 180, 252, 0.32);
 }
 
-.live-map-token.is-hidden {
+.live-map-control__surface .live-map-token.is-hidden {
   opacity: 0.45;
   border-style: dashed;
 }
