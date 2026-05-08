@@ -650,12 +650,16 @@ function normalizeLiveMapTokenKind(kind = '') {
 
 function normalizeLiveMapToken(entry = {}) {
   if (!entry || typeof entry !== 'object') return null;
-  const label = String(entry.label || '').trim();
+  const agentLabel = String(entry.agentLabel || entry.label || entry.dmLabel || '').trim();
+  const dmLabel = String(entry.dmLabel || entry.label || entry.agentLabel || '').trim();
+  const label = agentLabel || dmLabel;
   const id = String(entry.id || `token-${crypto.randomUUID()}`).trim();
   if (!id || !label) return null;
   return {
     id,
     label,
+    agentLabel: agentLabel || label,
+    dmLabel: dmLabel || label,
     x: clampPercent(entry.x),
     y: clampPercent(entry.y),
     visible: entry.visible !== false,
@@ -666,6 +670,7 @@ function normalizeLiveMapToken(entry = {}) {
 
 function normalizeLiveMapScene(entry = {}) {
   if (!entry || typeof entry !== 'object') return { tokens: [], updatedAt: Date.now() };
+  const backgroundLabel = String(entry.backgroundLabel || entry.label || '').trim();
   const tokens = Array.isArray(entry.tokens)
     ? entry.tokens
         .map((token) => normalizeLiveMapToken(token))
@@ -673,6 +678,7 @@ function normalizeLiveMapScene(entry = {}) {
         .filter((entry, index, list) => list.findIndex((item) => item.id === entry.id) === index)
     : [];
   return {
+    backgroundLabel,
     tokens,
     updatedAt: Number(entry.updatedAt) || Date.now(),
   };
@@ -702,17 +708,26 @@ function normalizeLiveMapState(input = {}) {
   const activeScene = activeBackgroundPath
     ? normalizeLiveMapScene({
         ...(backgroundStates[activeBackgroundPath] || {}),
+        backgroundLabel:
+          backgroundStates[activeBackgroundPath]?.backgroundLabel || state.backgroundLabel || '',
         tokens: Array.isArray(state.tokens)
           ? state.tokens
           : backgroundStates[activeBackgroundPath]?.tokens || [],
       })
-    : { tokens: [], updatedAt: Number(state.updatedAt) || Date.now() };
+    : {
+        backgroundLabel: String(state.backgroundLabel || '').trim(),
+        tokens: [],
+      updatedAt: Number(state.updatedAt) || Date.now(),
+    };
   if (activeBackgroundPath) {
     backgroundStates[activeBackgroundPath] = activeScene;
   }
+  const activeBackgroundLabel =
+    activeScene.backgroundLabel || String(state.backgroundLabel || '').trim() || path.basename(activeBackgroundPath || '');
   return {
     backgroundImagePath: activeBackgroundPath,
     backgroundLoaded: Boolean(activeBackgroundPath),
+    backgroundLabel: activeBackgroundLabel,
     fallbackImagePath: LIVE_MAP_FALLBACK_PATH,
     tokens: activeBackgroundPath ? activeScene.tokens : [],
     backgroundStates,
@@ -2492,6 +2507,7 @@ app.delete('/api/live-map-backgrounds/:id', authMiddleware, (req, res) => {
           ...currentState,
           backgroundImagePath: '',
           backgroundLoaded: false,
+          backgroundLabel: '',
           tokens: [],
           backgroundStates: nextBackgroundStates,
         }

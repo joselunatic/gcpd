@@ -2753,6 +2753,11 @@
 .live-map-control__background {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
+}
+
+.live-map-control__background--label {
+  margin-bottom: 0.25rem;
 }
 
 .live-map-backgrounds {
@@ -2857,13 +2862,13 @@
   transform-origin: center;
   min-height: 0;
   min-width: 0;
-  max-width: 124px;
-  padding: 3px 6px;
+  max-width: 150px;
+  padding: 3px 7px;
   border: 1px solid rgba(92, 181, 255, 0.76);
   background: rgba(5, 19, 35, 0.82);
   color: #bde5ff;
   font-family: var(--output-font-family), monospace;
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1.1;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -2914,6 +2919,7 @@
   width: 100%;
   font-size: 0.9rem;
   line-height: 1.22;
+  display: block;
   overflow-wrap: anywhere;
   white-space: normal;
 }
@@ -2924,6 +2930,19 @@
   opacity: 0.78;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.live-map-token-form {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.live-map-token-form > * {
+  min-width: 0;
+}
+
+.live-map-token-form button,
+.live-map-token-form .dm-panel__checkbox {
+  grid-column: 1 / -1;
 }
 
 .live-map-token-editor {
@@ -2941,6 +2960,14 @@
 
 .live-map-token-editor .dm-panel__panel-title {
   grid-column: 1 / -1;
+}
+
+.live-map-token-editor__labels {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.74rem;
+  line-height: 1.25;
 }
 
 .live-map-token-editor .dm-panel__hint {

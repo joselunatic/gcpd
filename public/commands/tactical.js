@@ -9,7 +9,9 @@ const clampPercent = (value) => {
 
 const normalizeToken = (token = {}) => ({
   id: String(token.id || ""),
-  label: String(token.label || ""),
+  label: String(token.agentLabel || token.label || token.dmLabel || ""),
+  agentLabel: String(token.agentLabel || token.label || token.dmLabel || ""),
+  dmLabel: String(token.dmLabel || token.label || token.agentLabel || ""),
   x: clampPercent(token.x),
   y: clampPercent(token.y),
   visible: token.visible !== false,
@@ -29,6 +31,7 @@ const normalizeState = (state = {}) => ({
   backgroundImagePath:
     state.backgroundLoaded === true ? String(state.backgroundImagePath || "") : "",
   backgroundLoaded: state.backgroundLoaded === true,
+  backgroundLabel: String(state.backgroundLabel || ""),
   fallbackImagePath: String(state.fallbackImagePath || FALLBACK_MAP_PATH),
   tokens: Array.isArray(state.tokens)
     ? state.tokens.map(normalizeToken).filter((token) => token.id && token.label)
@@ -74,7 +77,7 @@ function renderState({ overlay, state }) {
       node.dataset.tokenId = token.id;
       map.appendChild(node);
     }
-    node.textContent = token.label;
+    node.textContent = token.agentLabel || token.label || token.dmLabel;
     node.dataset.kind = token.kind || "";
     node.style.left = `${token.x}%`;
     node.style.top = `${token.y}%`;

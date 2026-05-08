@@ -445,13 +445,15 @@ const LIVE_MAP_FALLBACK_PATH = '/assets/livemap/gcpd_live_map_fallback_unavailab
 const LIVE_MAP_DEFAULT_STATE = {
   backgroundImagePath: '',
   backgroundLoaded: false,
+  backgroundLabel: '',
   fallbackImagePath: LIVE_MAP_FALLBACK_PATH,
   tokens: [],
   backgroundStates: {},
   updatedAt: 0,
 };
 const LIVE_MAP_DEFAULT_TOKEN = {
-  label: '',
+  agentLabel: '',
+  dmLabel: '',
   kind: 'ally',
   visible: true,
 };
@@ -470,17 +472,20 @@ const normalizeLiveMapScene = (scene = {}) => {
     ? source.tokens
         .map((token) => ({
           id: String(token.id || ''),
-          label: String(token.label || ''),
+          label: String(token.agentLabel || token.label || token.dmLabel || ''),
+          agentLabel: String(token.agentLabel || token.label || token.dmLabel || ''),
+          dmLabel: String(token.dmLabel || token.label || token.agentLabel || ''),
           x: Math.max(0, Math.min(100, Number(token.x) || 0)),
           y: Math.max(0, Math.min(100, Number(token.y) || 0)),
           visible: token.visible !== false,
           kind: normalizeLiveMapTokenKind(token.kind),
           updatedAt: Number(token.updatedAt) || Date.now(),
         }))
-        .filter((token) => token.id && token.label)
+        .filter((token) => token.id && (token.label || token.dmLabel))
         .filter((token, index, list) => list.findIndex((item) => item.id === token.id) === index)
     : [];
   return {
+    backgroundLabel: String(source.backgroundLabel || source.label || '').trim(),
     tokens,
     updatedAt: Number(source.updatedAt) || Date.now(),
   };
@@ -493,6 +498,14 @@ const normalizeLiveMapSceneMap = (scenes = {}) =>
     acc[pathValue] = normalizeLiveMapScene(scene);
     return acc;
   }, {});
+
+const deriveLiveMapBackgroundLabel = (path = '') => {
+  const value = String(path || '').trim();
+  if (!value) return '';
+  const parts = value.split('/').filter(Boolean);
+  const last = parts[parts.length - 1] || value;
+  return last || '';
+};
 
 const clampNumber = (value) => {
   const num = Number(value);
@@ -1057,6 +1070,7 @@ const DmPanel = () => {
   const [liveMapBackgroundFile, setLiveMapBackgroundFile] = useState(null);
   const [liveMapBackgroundUploading, setLiveMapBackgroundUploading] = useState(false);
   const [liveMapBackgroundDraft, setLiveMapBackgroundDraft] = useState('');
+  const [liveMapBackgroundLabelDraft, setLiveMapBackgroundLabelDraft] = useState('');
   const evidencePreviewRef = useRef(null);
   const evidenceViewerRef = useRef(null);
   const evidenceMeshRef = useRef(null);
@@ -3177,34 +3191,44 @@ const DmPanel = () => {
     [authorized, sessionToken]
   );
 
-  const normalizeLiveMapState = useCallback((state = {}) => ({
-    backgroundImagePath:
+  const normalizeLiveMapState = useCallback((state = {}) => {
+    const normalizedBackgroundStates = normalizeLiveMapSceneMap(state.backgroundStates || {});
+    const activePath =
       String(state.backgroundImagePath || '') &&
       String(state.backgroundImagePath || '') !== LIVE_MAP_FALLBACK_PATH
         ? String(state.backgroundImagePath || '')
-        : '',
-    backgroundLoaded:
-      Boolean(String(state.backgroundImagePath || '')) &&
-      String(state.backgroundImagePath || '') !== LIVE_MAP_FALLBACK_PATH,
-    fallbackImagePath: String(state.fallbackImagePath || LIVE_MAP_FALLBACK_PATH),
-    tokens: (() => {
-      const normalizedBackgroundStates = normalizeLiveMapSceneMap(state.backgroundStates || {});
-      const activePath =
-        String(state.backgroundImagePath || '') &&
-        String(state.backgroundImagePath || '') !== LIVE_MAP_FALLBACK_PATH
-          ? String(state.backgroundImagePath || '')
-          : '';
+        : '';
+    const activeScene =
+      activePath && normalizedBackgroundStates[activePath]
+        ? normalizedBackgroundStates[activePath]
+        : null;
+    const backgroundLabel = String(
+      state.backgroundLabel ||
+        activeScene?.backgroundLabel ||
+        (activePath ? deriveLiveMapBackgroundLabel(activePath) : '')
+    ).trim();
+    const tokens = (() => {
       if (Array.isArray(state.tokens)) {
-        return normalizeLiveMapScene({ tokens: state.tokens }).tokens;
+        return normalizeLiveMapScene({
+          backgroundLabel,
+          tokens: state.tokens,
+        }).tokens;
       }
-      if (activePath && normalizedBackgroundStates[activePath]) {
-        return normalizedBackgroundStates[activePath].tokens;
+      if (activeScene) {
+        return activeScene.tokens;
       }
       return [];
-    })(),
-    backgroundStates: normalizeLiveMapSceneMap(state.backgroundStates || {}),
-    updatedAt: Number(state.updatedAt) || Date.now(),
-  }), []);
+    })();
+    return {
+      backgroundImagePath: activePath,
+      backgroundLoaded: Boolean(activePath),
+      backgroundLabel,
+      fallbackImagePath: String(state.fallbackImagePath || LIVE_MAP_FALLBACK_PATH),
+      tokens,
+      backgroundStates: normalizedBackgroundStates,
+      updatedAt: Number(state.updatedAt) || Date.now(),
+    };
+  }, []);
 
   const mergeLiveMapSceneForSave = useCallback((state) => {
       const normalized = normalizeLiveMapState(state);
@@ -3212,6 +3236,7 @@ const DmPanel = () => {
       const backgroundStates = { ...normalized.backgroundStates };
       if (activePath) {
         backgroundStates[activePath] = normalizeLiveMapScene({
+          backgroundLabel: normalized.backgroundLabel,
           tokens: normalized.tokens,
           updatedAt: normalized.updatedAt,
         });
@@ -3220,12 +3245,13 @@ const DmPanel = () => {
         ...normalized,
         backgroundLoaded: Boolean(activePath),
         backgroundImagePath: activePath,
+        backgroundLabel: activePath ? normalized.backgroundLabel : '',
         tokens: activePath ? normalized.tokens : [],
         backgroundStates,
       };
   }, [normalizeLiveMapState]);
 
-  const pickLiveMapScene = useCallback((state, path) => {
+  const pickLiveMapScene = useCallback((state, path, backgroundLabel = '') => {
     const normalized = normalizeLiveMapState(state);
     const activePath = String(path || '').trim();
     if (!activePath || activePath === LIVE_MAP_FALLBACK_PATH) {
@@ -3233,19 +3259,32 @@ const DmPanel = () => {
         ...normalized,
         backgroundLoaded: false,
         backgroundImagePath: '',
+        backgroundLabel: '',
         tokens: [],
       };
     }
     const scene = normalized.backgroundStates?.[activePath] || null;
     const tokens = scene ? scene.tokens : [];
+    const nextBackgroundLabel = String(
+      backgroundLabel || scene?.backgroundLabel || deriveLiveMapBackgroundLabel(activePath)
+    ).trim();
     const nextBackgroundStates = {
       ...normalized.backgroundStates,
-      [activePath]: scene || normalizeLiveMapScene({ tokens: [] }),
+      [activePath]: scene
+        ? {
+            ...scene,
+            backgroundLabel: scene.backgroundLabel || nextBackgroundLabel,
+          }
+        : normalizeLiveMapScene({
+            backgroundLabel: nextBackgroundLabel,
+            tokens: [],
+          }),
     };
     return {
       ...normalized,
       backgroundLoaded: true,
       backgroundImagePath: activePath,
+      backgroundLabel: nextBackgroundLabel,
       tokens,
       backgroundStates: nextBackgroundStates,
     };
@@ -3315,8 +3354,8 @@ const DmPanel = () => {
   );
 
   const switchLiveMapBackground = useCallback(
-    async (path) => {
-      const nextState = pickLiveMapScene(liveMapState, path);
+    async (path, backgroundLabel = '') => {
+      const nextState = pickLiveMapScene(liveMapState, path, backgroundLabel);
       setLiveMapSelectedTokenId('');
       await saveLiveMapState(nextState);
     },
@@ -3972,16 +4011,34 @@ const DmPanel = () => {
   const handleLiveMapBackgroundChange = useCallback(
     async (event) => {
       const backgroundImagePath = event.target.value;
-      await switchLiveMapBackground(backgroundImagePath);
+      await switchLiveMapBackground(
+        backgroundImagePath,
+        deriveLiveMapBackgroundLabel(backgroundImagePath)
+      );
     },
     [switchLiveMapBackground]
+  );
+
+  const handleLiveMapBackgroundLabelChange = useCallback(
+    async (event) => {
+      const backgroundLabel = event.target.value.trim();
+      const nextState = {
+        ...liveMapState,
+        backgroundLabel,
+      };
+      await saveLiveMapState(nextState);
+    },
+    [liveMapState, saveLiveMapState]
   );
 
   const handleLiveMapTokenCreate = useCallback(
     async (event) => {
       event.preventDefault();
-      const label = liveMapTokenForm.label.trim();
-      if (!label) {
+      const agentLabelInput = liveMapTokenForm.agentLabel.trim();
+      const dmLabelInput = liveMapTokenForm.dmLabel.trim();
+      const agentLabel = agentLabelInput || dmLabelInput;
+      const dmLabel = dmLabelInput || agentLabelInput;
+      if (!agentLabel && !dmLabel) {
         setLiveMapMessage('Etiqueta obligatoria para crear token.');
         return;
       }
@@ -3989,7 +4046,9 @@ const DmPanel = () => {
         id: `token-${
           window.crypto?.randomUUID ? window.crypto.randomUUID() : Date.now()
         }`,
-        label,
+        label: agentLabel || dmLabel,
+        agentLabel: agentLabel || dmLabel,
+        dmLabel: dmLabel || agentLabel,
         kind: normalizeLiveMapTokenKind(liveMapTokenForm.kind),
         visible: liveMapTokenForm.visible !== false,
         x: 50,
@@ -4040,6 +4099,33 @@ const DmPanel = () => {
           ? { ...token, kind: normalizeLiveMapTokenKind(kind), updatedAt: Date.now() }
           : token
       );
+      await saveLiveMapState({ ...liveMapState, tokens: nextTokens });
+    },
+    [liveMapState, saveLiveMapState]
+  );
+
+  const handleLiveMapTokenLabel = useCallback(
+    async (id, field, value) => {
+      const nextTokens = liveMapState.tokens.map((token) => {
+        if (token.id !== id) return token;
+        const nextAgentLabel =
+          field === 'agentLabel'
+            ? value
+            : String(token.agentLabel || token.label || token.dmLabel || '');
+        const nextDmLabel =
+          field === 'dmLabel'
+            ? value
+            : String(token.dmLabel || token.label || token.agentLabel || '');
+        const nextPublicLabel = String(nextAgentLabel || nextDmLabel).trim();
+        const nextPrivateLabel = String(nextDmLabel || nextAgentLabel).trim();
+        return {
+          ...token,
+          label: nextPublicLabel,
+          agentLabel: nextPublicLabel,
+          dmLabel: nextPrivateLabel,
+          updatedAt: Date.now(),
+        };
+      });
       await saveLiveMapState({ ...liveMapState, tokens: nextTokens });
     },
     [liveMapState, saveLiveMapState]
@@ -4169,6 +4255,10 @@ const DmPanel = () => {
         : ''
     );
   }, [liveMapState.backgroundImagePath, liveMapState.backgroundLoaded]);
+
+  useEffect(() => {
+    setLiveMapBackgroundLabelDraft(liveMapState.backgroundLabel || '');
+  }, [liveMapState.backgroundLabel]);
 
   useEffect(() => {
     if (!authorized || !sessionToken || activeView !== 'liveMap') return undefined;
@@ -6605,11 +6695,19 @@ const DmPanel = () => {
       liveMapState.tokens.find((token) => token.id === liveMapSelectedTokenId) ||
       liveMapState.tokens[0] ||
       null;
+    const selectedTokenAgentLabel =
+      selectedToken?.agentLabel || selectedToken?.label || selectedToken?.dmLabel || '';
+    const selectedTokenDmLabel =
+      selectedToken?.dmLabel || selectedToken?.agentLabel || selectedToken?.label || '';
     const activeBackground =
       liveMapBackgrounds.find((background) => background.path === liveMapState.backgroundImagePath) ||
       null;
     const canDeleteActiveBackground =
       Boolean(activeBackground) && liveMapState.backgroundLoaded === true;
+    const activeBackgroundLabel =
+      liveMapState.backgroundLabel ||
+      activeBackground?.label ||
+      deriveLiveMapBackgroundLabel(liveMapState.backgroundImagePath);
     const activeLiveMapBackground =
       liveMapState.backgroundLoaded && liveMapState.backgroundImagePath
         ? liveMapState.backgroundImagePath
@@ -6628,6 +6726,16 @@ const DmPanel = () => {
               Mapa tactico
               <span className="dm-panel__status-pill">WS {liveMapWsState}</span>
             </div>
+            <label className="live-map-control__background live-map-control__background--label">
+              Etiqueta mapa
+              <input
+                type="text"
+                value={liveMapBackgroundLabelDraft}
+                onChange={(event) => setLiveMapBackgroundLabelDraft(event.target.value)}
+                onBlur={handleLiveMapBackgroundLabelChange}
+                placeholder="Botanical Garden / Ace Chemical / Midtown"
+              />
+            </label>
             <label className="live-map-control__background">
               Fondo
               <input
@@ -6667,7 +6775,7 @@ const DmPanel = () => {
                 </button>
                 <p className="dm-panel__hint live-map-backgrounds__action-hint">
                   {canDeleteActiveBackground
-                    ? `Activo: ${activeBackground?.label || activeBackground?.originalName || activeBackground?.path || 'plano'}.`
+                    ? `Activo: ${activeBackgroundLabel || activeBackground?.originalName || activeBackground?.path || 'plano'}.`
                     : 'Fallback no borrable. Selecciona un plano subido para poder eliminarlo.'}
                 </p>
               </div>
@@ -6683,7 +6791,13 @@ const DmPanel = () => {
                       }
                       onClick={() => {
                         setLiveMapBackgroundDraft(background.path);
-                        switchLiveMapBackground(background.path);
+                        setLiveMapBackgroundLabelDraft(
+                          background.label || background.originalName || ''
+                        );
+                        switchLiveMapBackground(
+                          background.path,
+                          background.label || background.originalName || background.path
+                        );
                       }}
                       >
                       <span>{background.label || background.originalName || background.path}</span>
@@ -6699,6 +6813,7 @@ const DmPanel = () => {
                   }
                   onClick={() => {
                     setLiveMapBackgroundDraft('');
+                    setLiveMapBackgroundLabelDraft('');
                     switchLiveMapBackground('');
                   }}
                 >
@@ -6729,9 +6844,9 @@ const DmPanel = () => {
                   style={{ left: `${token.x}%`, top: `${token.y}%` }}
                   onPointerDown={(event) => handleLiveMapTokenPointerDown(event, token.id)}
                   onClick={() => setLiveMapSelectedTokenId(token.id)}
-                  title={token.label}
+                  title={`${token.dmLabel || token.label || token.agentLabel || token.id}`}
                 >
-                  {token.label}
+                  {token.dmLabel || token.label || token.agentLabel}
                 </div>
               ))}
             </div>
@@ -6739,16 +6854,30 @@ const DmPanel = () => {
 
           <div className="dm-panel__card">
             <div className="dm-panel__panel-title">Tokens</div>
-            <form onSubmit={handleLiveMapTokenCreate} className="dm-panel__form dm-panel__form--compact">
+            <form
+              onSubmit={handleLiveMapTokenCreate}
+              className="dm-panel__form dm-panel__form--compact live-map-token-form"
+            >
               <label>
-                Etiqueta
+                Etiqueta agente
                 <input
                   type="text"
-                  value={liveMapTokenForm.label}
+                  value={liveMapTokenForm.agentLabel}
                   onChange={(event) =>
-                    setLiveMapTokenForm((prev) => ({ ...prev, label: event.target.value }))
+                    setLiveMapTokenForm((prev) => ({ ...prev, agentLabel: event.target.value }))
                   }
                   placeholder="Unidad GCPD"
+                />
+              </label>
+              <label>
+                Etiqueta DM
+                <input
+                  type="text"
+                  value={liveMapTokenForm.dmLabel}
+                  onChange={(event) =>
+                    setLiveMapTokenForm((prev) => ({ ...prev, dmLabel: event.target.value }))
+                  }
+                  placeholder="Unidad GCPD / alias privado"
                 />
               </label>
               <label>
@@ -6785,10 +6914,12 @@ const DmPanel = () => {
                   type="button"
                   className={liveMapSelectedTokenId === token.id ? 'active' : ''}
                   onClick={() => setLiveMapSelectedTokenId(token.id)}
-                  title={`${token.label} · X ${token.x.toFixed(1)} / Y ${token.y.toFixed(1)}`}
+                  title={`${token.dmLabel || token.label || token.agentLabel} · ${token.agentLabel || token.label || token.dmLabel} · X ${token.x.toFixed(1)} / Y ${token.y.toFixed(1)}`}
                 >
-                  <strong>{token.label}</strong>
+                  <strong>{token.dmLabel || token.label || token.agentLabel}</strong>
                   <span>
+                    {token.agentLabel || token.label || token.dmLabel}
+                    {' · '}
                     {token.kind === 'enemy' ? 'ENEMIGO' : 'ALIADO'} · {token.visible ? 'VISIBLE' : 'OCULTO'}
                   </span>
                 </button>
@@ -6798,7 +6929,32 @@ const DmPanel = () => {
             {selectedToken && (
               <div className="dm-panel__form dm-panel__form--compact live-map-token-editor">
                 <div className="dm-panel__panel-title">Token seleccionado</div>
-                <p className="dm-panel__hint">{selectedToken.label}</p>
+                <p className="dm-panel__hint live-map-token-editor__labels">
+                  <span>AGENTE: {selectedTokenAgentLabel || 'SIN DATOS'}</span>
+                  <span>DM: {selectedTokenDmLabel || 'SIN DATOS'}</span>
+                </p>
+                <label>
+                  Etiqueta agente
+                  <input
+                    type="text"
+                    value={selectedTokenAgentLabel}
+                    onChange={(event) =>
+                      handleLiveMapTokenLabel(selectedToken.id, 'agentLabel', event.target.value)
+                    }
+                    placeholder="Visible para agentes"
+                  />
+                </label>
+                <label>
+                  Etiqueta DM
+                  <input
+                    type="text"
+                    value={selectedTokenDmLabel}
+                    onChange={(event) =>
+                      handleLiveMapTokenLabel(selectedToken.id, 'dmLabel', event.target.value)
+                    }
+                    placeholder="Alias privado"
+                  />
+                </label>
                 <label>
                   Tipo
                   <select
