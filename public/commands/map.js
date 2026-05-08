@@ -891,11 +891,14 @@ function ensureMapStyles() {
       display: grid;
       gap: 6px;
       padding: 6px;
-      grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.82fr);
+      grid-template-columns: minmax(0, 1.26fr) minmax(0, 0.74fr);
       align-items: start;
       align-content: start;
       grid-auto-rows: min-content;
       min-width: 0;
+    }
+    .terminal-map-popup__card--no-resources .terminal-map-popup__body {
+      grid-template-columns: minmax(0, 1fr);
     }
     .terminal-map-popup__media {
       display: grid;
@@ -940,15 +943,15 @@ function ensureMapStyles() {
     }
     .terminal-map-popup__summary {
       grid-column: 1 / -1;
-      font-size: 12px;
-      line-height: 1.54;
-      color: rgba(228, 255, 243, 0.88);
+      font-size: 13px;
+      line-height: 1.56;
+      color: rgba(228, 255, 243, 0.9);
       letter-spacing: 0.04em;
-      padding: 8px 10px;
+      padding: 9px 10px;
       border: 1px solid rgba(124, 255, 178, 0.18);
       border-radius: 10px;
       background: rgba(4, 12, 10, 0.74);
-      max-height: clamp(140px, 24vh, 260px);
+      max-height: clamp(150px, 26vh, 290px);
       overflow-y: auto;
       overflow-wrap: anywhere;
       word-break: break-word;
@@ -957,13 +960,16 @@ function ensureMapStyles() {
     }
     .terminal-map-popup__details {
       display: grid;
-      gap: 5px;
+      gap: 4px;
       align-content: start;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1fr);
       grid-auto-rows: min-content;
       min-height: 0;
       min-width: 0;
       align-self: start;
+    }
+    .terminal-map-popup__card--no-resources .terminal-map-popup__details {
+      grid-column: 1 / -1;
     }
     .terminal-map-popup__section {
       display: grid;
@@ -1429,7 +1435,8 @@ async function showMapOverlay({ pois, hotspotsData }) {
     const intel = Array.isArray(content.intel) ? content.intel : [];
     const brief = Array.isArray(content.brief) ? content.brief : [];
     const resources = collectPoiResources(poi);
-    const resourceMarkup = resources.length
+    const hasResources = resources.length > 0;
+    const resourceMarkup = hasResources
       ? `
         <div class="terminal-map-popup__section">
           <div class="terminal-map-popup__section-title">RECURSOS</div>
@@ -1454,12 +1461,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
           </div>
         </div>
       `
-      : `
-        <div class="terminal-map-popup__section">
-          <div class="terminal-map-popup__section-title">RECURSOS</div>
-          <div class="terminal-map-popup__lines"><div>SIN DATOS.</div></div>
-        </div>
-      `;
+      : "";
     const sectionBlocks = [];
     if (brief.length) {
       sectionBlocks.push(`
@@ -1516,7 +1518,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
     poiPopup.className = "terminal-map-popup";
     poiPopup.innerHTML = `
       <div class="terminal-map-popup__backdrop"></div>
-      <div class="terminal-map-popup__card" role="dialog" aria-modal="true" aria-label="Ficha del POI">
+      <div class="terminal-map-popup__card${hasResources ? "" : " terminal-map-popup__card--no-resources"}" role="dialog" aria-modal="true" aria-label="Ficha del POI">
         <div class="terminal-map-popup__head">
           <div>
             <div class="terminal-map-popup__eyebrow">POI DETALLE${clusterContext?.label ? ` :: CLUSTER ${escapeHtml(clusterContext.label)}` : ""}</div>
@@ -1526,21 +1528,12 @@ async function showMapOverlay({ pois, hotspotsData }) {
         </div>
         <div class="terminal-map-popup__body">
           <div class="terminal-map-popup__media">
-            <div class="terminal-map-popup__image">
+          <div class="terminal-map-popup__image">
               <img alt="Evidencia POI" />
               <div class="terminal-map-popup__image-placeholder">SIN IMAGEN ASOCIADA</div>
             </div>
           </div>
           <div class="terminal-map-popup__details">
-            <div class="terminal-map-popup__section">
-              <div class="terminal-map-popup__section-title">METADATOS</div>
-              <div class="terminal-map-popup__lines">
-                <div>ID: ${escapeHtml(poi.id || "--")}</div>
-                <div>STATUS: ${escapeHtml(status)}</div>
-                <div>ACCESS: ${escapeHtml(access)}</div>
-                <div>DISTRICT: ${escapeHtml(poi.district || "--")}</div>
-              </div>
-            </div>
             ${sectionBlocks.join("")}
             ${resourceMarkup}
           </div>
