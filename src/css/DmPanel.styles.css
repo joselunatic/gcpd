@@ -2760,6 +2760,23 @@
   margin-bottom: 0.25rem;
 }
 
+.live-map-control__background-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: end;
+}
+
+.live-map-control__background-row input {
+  min-width: 0;
+}
+
+.live-map-control__background-save {
+  min-height: 0;
+  padding: 0.4rem 0.75rem;
+  white-space: nowrap;
+}
+
 .live-map-backgrounds {
   display: grid;
   gap: 0.55rem;

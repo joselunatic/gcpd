@@ -4031,6 +4031,15 @@ const DmPanel = () => {
     [liveMapState, saveLiveMapState]
   );
 
+  const handleLiveMapBackgroundLabelSave = useCallback(async () => {
+    const backgroundLabel = liveMapBackgroundLabelDraft.trim();
+    const nextState = {
+      ...liveMapState,
+      backgroundLabel,
+    };
+    await saveLiveMapState(nextState);
+  }, [liveMapBackgroundLabelDraft, liveMapState, saveLiveMapState]);
+
   const handleLiveMapTokenCreate = useCallback(
     async (event) => {
       event.preventDefault();
@@ -6728,13 +6737,23 @@ const DmPanel = () => {
             </div>
             <label className="live-map-control__background live-map-control__background--label">
               Etiqueta mapa
-              <input
-                type="text"
-                value={liveMapBackgroundLabelDraft}
-                onChange={(event) => setLiveMapBackgroundLabelDraft(event.target.value)}
-                onBlur={handleLiveMapBackgroundLabelChange}
-                placeholder="Botanical Garden / Ace Chemical / Midtown"
-              />
+              <div className="live-map-control__background-row">
+                <input
+                  type="text"
+                  value={liveMapBackgroundLabelDraft}
+                  onChange={(event) => setLiveMapBackgroundLabelDraft(event.target.value)}
+                  onBlur={handleLiveMapBackgroundLabelChange}
+                  placeholder="Botanical Garden / Ace Chemical / Midtown"
+                />
+                <button
+                  type="button"
+                  className="dm-panel__button live-map-control__background-save"
+                  onClick={handleLiveMapBackgroundLabelSave}
+                  disabled={liveMapLoading || liveMapBackgroundLabelDraft.trim() === activeBackgroundLabel}
+                >
+                  Guardar etiqueta
+                </button>
+              </div>
             </label>
             <label className="live-map-control__background">
               Fondo
