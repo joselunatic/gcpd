@@ -6726,6 +6726,18 @@ const DmPanel = () => {
       null;
     const canDeleteActiveBackground =
       Boolean(activeBackground) && liveMapState.backgroundLoaded === true;
+    const getBackgroundLabel = (background) => {
+      const path = String(background?.path || '').trim();
+      const sceneLabel = String(liveMapState.backgroundStates?.[path]?.backgroundLabel || '').trim();
+      return (
+        sceneLabel ||
+        (path === liveMapState.backgroundImagePath ? liveMapState.backgroundLabel : '') ||
+        background?.label ||
+        background?.originalName ||
+        path ||
+        'plano'
+      );
+    };
     const activeBackgroundLabel =
       liveMapState.backgroundLabel ||
       activeBackground?.label ||
@@ -6813,13 +6825,7 @@ const DmPanel = () => {
               </div>
               <div className="live-map-backgrounds__list">
                 {liveMapBackgrounds.map((background) => {
-                  const displayLabel =
-                    liveMapState.backgroundImagePath === background.path
-                      ? liveMapState.backgroundLabel ||
-                        background.label ||
-                        background.originalName ||
-                        background.path
-                      : background.label || background.originalName || background.path;
+                  const displayLabel = getBackgroundLabel(background);
                   return (
                     <div key={background.id || background.path} className="live-map-backgrounds__item">
                       <button
@@ -6831,15 +6837,8 @@ const DmPanel = () => {
                         }
                         onClick={() => {
                           setLiveMapBackgroundDraft(background.path);
-                          setLiveMapBackgroundLabelDraft(
-                            liveMapState.backgroundImagePath === background.path
-                              ? liveMapState.backgroundLabel ||
-                                  background.label ||
-                                  background.originalName ||
-                                  ''
-                              : background.label || background.originalName || ''
-                          );
-                          switchLiveMapBackground(background.path, displayLabel);
+                          setLiveMapBackgroundLabelDraft(getBackgroundLabel(background));
+                          switchLiveMapBackground(background.path, getBackgroundLabel(background));
                         }}
                       >
                         <span>{displayLabel}</span>
