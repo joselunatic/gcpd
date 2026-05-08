@@ -447,7 +447,7 @@ function ensureMapStyles() {
       inset: 0;
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: fill;
       filter: saturate(1.05) blur(0.2px);
       opacity: 0.92;
     }
@@ -1597,40 +1597,11 @@ async function showMapOverlay({ pois, hotspotsData }) {
     }
   };
 
-  const getMapContainLayout = () => {
-    const rect = frame.getBoundingClientRect();
-    const imageWidth = baseImage.naturalWidth || MAP4X_WIDTH;
-    const imageHeight = baseImage.naturalHeight || MAP4X_HEIGHT;
-    if (!rect.width || !rect.height || !imageWidth || !imageHeight) {
-      return {
-        rect,
-        offsetX: 0,
-        offsetY: 0,
-        width: rect.width,
-        height: rect.height,
-      };
-    }
-    const scale = Math.min(rect.width / imageWidth, rect.height / imageHeight);
-    const width = imageWidth * scale;
-    const height = imageHeight * scale;
-    return {
-      rect,
-      offsetX: (rect.width - width) / 2,
-      offsetY: (rect.height - height) / 2,
-      width,
-      height,
-    };
-  };
-
   const getTargetFromPointer = (event) => {
     const rect = frame.getBoundingClientRect();
-    const layout = getMapContainLayout();
     if (!rect.width || !rect.height) return null;
-    const localX = event.clientX - rect.left - layout.offsetX;
-    const localY = event.clientY - rect.top - layout.offsetY;
-    if (localX < 0 || localY < 0 || localX > layout.width || localY > layout.height) return null;
-    const x = (localX / layout.width) * 100;
-    const y = (localY / layout.height) * 100;
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
     return {
       kind: "cursor",
       x: clamp(x, 0, 100),
@@ -1894,13 +1865,12 @@ async function showMapOverlay({ pois, hotspotsData }) {
 
   const renderLayout = () => {
     const shellBounds = shell.getBoundingClientRect();
-    const layout = getMapContainLayout();
     const dense = overlay.classList.contains("is-dense");
     hotspotNodes.forEach((node) => {
       const x = Number(node.dataset.x || 0);
       const y = Number(node.dataset.y || 0);
-      node.style.left = `${Math.max(12, Math.min(layout.rect.width - 12, layout.offsetX + (x / 100) * layout.width))}px`;
-      node.style.top = `${Math.max(12, Math.min(layout.rect.height - 12, layout.offsetY + (y / 100) * layout.height))}px`;
+      node.style.left = `${x}%`;
+      node.style.top = `${y}%`;
       node.style.maxWidth = `${Math.max(44, Math.min(dense ? 118 : 150, Math.floor(shellBounds.width * 0.3)))}px`;
     });
     syncLoupeVisiblePosition();
