@@ -2804,8 +2804,8 @@
 .live-map-control__surface {
   position: relative;
   width: 100%;
-  min-height: min(52vh, 560px);
-  aspect-ratio: 1.42 / 1;
+  min-height: 0;
+  aspect-ratio: 1.428 / 1;
   border: 1px solid rgba(124, 255, 178, 0.28);
   background-color: rgba(1, 10, 12, 0.88);
   background-image:
