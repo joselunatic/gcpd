@@ -837,9 +837,19 @@ function ensureMapStyles() {
       letter-spacing: 0.16em;
       text-transform: uppercase;
       color: #dfffee;
+      min-width: 0;
+    }
+    .terminal-map-popup__head > div:first-child {
+      min-width: 0;
+    }
+    .terminal-map-popup__head > div:first-child > div:last-child {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      white-space: pre-wrap;
     }
     .terminal-map-popup__eyebrow {
       color: rgba(191, 255, 220, 0.7);
+      min-width: 0;
     }
     .terminal-map-popup__close {
       background: transparent;
@@ -918,6 +928,7 @@ function ensureMapStyles() {
       overflow-wrap: anywhere;
       word-break: break-word;
       white-space: pre-wrap;
+      min-width: 0;
     }
     .terminal-map-popup__details {
       display: grid;
@@ -951,6 +962,12 @@ function ensureMapStyles() {
       overflow-wrap: anywhere;
       word-break: break-word;
       min-width: 0;
+    }
+    .terminal-map-popup__lines > div {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      white-space: pre-wrap;
     }
     .terminal-map-popup__resource-list {
       display: grid;
@@ -993,6 +1010,7 @@ function ensureMapStyles() {
       font-size: 10px;
       overflow-wrap: anywhere;
       word-break: break-word;
+      min-width: 0;
     }
     @media (max-width: 639px) {
       .terminal-map-shell {
@@ -1770,7 +1788,11 @@ async function showMapOverlay({ pois, hotspotsData }) {
     renderLoupe(hoverTarget);
   };
 
-  const onPointerLeave = () => {
+  const onPointerLeave = (event) => {
+    if (event?.relatedTarget && event.relatedTarget.closest(".terminal-map-loupe")) {
+      return;
+    }
+    if (loupeDrag) return;
     if (lockedTarget) return;
     hoverTarget = null;
     hideLoupe();
@@ -1778,6 +1800,10 @@ async function showMapOverlay({ pois, hotspotsData }) {
 
   frame.addEventListener("pointermove", onPointerMove);
   frame.addEventListener("pointerleave", onPointerLeave);
+  loupe.addEventListener("pointerenter", () => {
+    if (lockedTarget || loupeDrag) return;
+    syncLoupeVisiblePosition();
+  });
   frame.addEventListener("click", (event) => {
     if (event.target && event.target.closest(".terminal-map-hotspot")) return;
     if (event.target && event.target.closest(".terminal-map-loupe")) return;
