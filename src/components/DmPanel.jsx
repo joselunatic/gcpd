@@ -457,7 +457,7 @@ const LIVE_MAP_DEFAULT_TOKEN = {
   kind: 'ally',
   visible: true,
 };
-const LIVE_MAP_TRAIL_TTL_MS = 2200;
+const LIVE_MAP_TRAIL_TTL_MS = 10000;
 
 const normalizeLiveMapTokenKind = (kind = '') => {
   const normalized = String(kind || '').trim().toLowerCase();

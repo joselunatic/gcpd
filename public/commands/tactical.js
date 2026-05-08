@@ -1,6 +1,6 @@
 const API_URL = "/api/live-map";
 const FALLBACK_MAP_PATH = "/assets/livemap/gcpd_live_map_fallback_unavailable.png";
-const TRAIL_TTL_MS = 2200;
+const TRAIL_TTL_MS = 10000;
 
 const clampPercent = (value) => {
   const numeric = Number(value);
@@ -195,6 +195,8 @@ function injectStyles() {
     }
     .tactical-map {
       position: relative;
+      aspect-ratio: 1.428 / 1;
+      width: 100%;
       border: 1px solid rgba(124,255,178,0.28);
       background-color: rgba(1,10,12,0.92);
       background-image:
@@ -215,8 +217,9 @@ function injectStyles() {
     }
     .tactical-trails line {
       filter: drop-shadow(0 0 6px rgba(124,255,178,0.25));
-      opacity: 0.8;
+      opacity: 0.92;
       stroke-dasharray: 1.15 0.7;
+      stroke-width: 0.85;
       vector-effect: non-scaling-stroke;
       animation-name: tacticalTrailFade;
       animation-timing-function: linear;
