@@ -1,7 +1,6 @@
 const API_URL = "/api/live-map";
 const FALLBACK_MAP_PATH = "/assets/livemap/gcpd_live_map_fallback_unavailable.png";
 const TRAIL_TTL_MS = 10000;
-const mapAspectRatioCache = new Map();
 
 const clampPercent = (value) => {
   const numeric = Number(value);
@@ -49,34 +48,6 @@ const normalizeState = (state = {}) => ({
     : [],
   updatedAt: Number(state.updatedAt) || 0,
 });
-
-function applyMapAspectRatio(map, imagePath) {
-  if (!map) return;
-  const targetPath = String(imagePath || "").trim();
-  if (!targetPath) return;
-
-  map.dataset.backgroundPath = targetPath;
-  const cached = mapAspectRatioCache.get(targetPath);
-  if (cached && cached.width > 0 && cached.height > 0) {
-    map.style.aspectRatio = `${cached.width} / ${cached.height}`;
-    return;
-  }
-
-  const img = new Image();
-  img.onload = () => {
-    const width = Number(img.naturalWidth) || 0;
-    const height = Number(img.naturalHeight) || 0;
-    if (!width || !height) return;
-    mapAspectRatioCache.set(targetPath, { width, height });
-    if (map.dataset.backgroundPath === targetPath) {
-      map.style.aspectRatio = `${width} / ${height}`;
-    }
-  };
-  img.onerror = () => {
-    mapAspectRatioCache.set(targetPath, { width: 1, height: 1 });
-  };
-  img.src = targetPath;
-}
 
 function applyTokenMove(state, token = {}) {
   const normalized = normalizeState(state);
@@ -188,7 +159,7 @@ function renderState({ overlay, state }) {
       ? state.backgroundImagePath
       : state.fallbackImagePath || FALLBACK_MAP_PATH;
   map.style.backgroundImage = `url(${backgroundImagePath})`;
-  applyMapAspectRatio(map, backgroundImagePath);
+  map.dataset.backgroundPath = backgroundImagePath;
   map.dataset.fallback = state.backgroundLoaded ? "false" : "true";
   sync.textContent = "SYNC: LIVE";
 
@@ -240,7 +211,7 @@ function injectStyles() {
   style.textContent = `
     .terminal-tactical-active .terminal { visibility: hidden; }
     .tactical-overlay {
-      position: fixed;
+      position: absolute;
       inset: 0;
       z-index: 75;
       display: grid;
@@ -265,7 +236,7 @@ function injectStyles() {
     }
     .tactical-map {
       position: relative;
-      aspect-ratio: 1.5 / 1;
+      aspect-ratio: 1.428 / 1;
       width: 100%;
       border: 1px solid rgba(124,255,178,0.28);
       background-color: rgba(1,10,12,0.92);
@@ -286,10 +257,10 @@ function injectStyles() {
       pointer-events: none;
     }
     .tactical-trails line {
-      filter: drop-shadow(0 0 8px rgba(124,255,178,0.42));
-      opacity: 0.98;
+      filter: drop-shadow(0 0 10px rgba(124,255,178,0.52));
+      opacity: 1;
       stroke-dasharray: 1.15 0.7;
-      stroke-width: 1.2;
+      stroke-width: 2.3;
       vector-effect: non-scaling-stroke;
       animation-name: tacticalTrailFade;
       animation-timing-function: linear;
@@ -388,7 +359,13 @@ function injectStyles() {
 
 export async function startTactical() {
   injectStyles();
-  const screenHost = document.body;
+  const screenHost =
+    document.querySelector("#monitor") || document.querySelector(".imsai") || document.body;
+  const restorePosition =
+    screenHost && screenHost !== document.body ? screenHost.style.position : "";
+  if (screenHost && screenHost !== document.body && getComputedStyle(screenHost).position === "static") {
+    screenHost.style.position = "relative";
+  }
 
   const overlay = document.createElement("div");
   overlay.className = "tactical-overlay";
@@ -417,6 +394,9 @@ export async function startTactical() {
     document.removeEventListener("keydown", keyHandler, { capture: true });
     if (socket) socket.close();
     overlay.remove();
+    if (screenHost && screenHost !== document.body && getComputedStyle(screenHost).position === "relative") {
+      screenHost.style.position = restorePosition;
+    }
     document.body.classList.remove("terminal-tactical-active");
     const input = document.querySelector("#input[contenteditable='true']");
     if (input) input.focus();
