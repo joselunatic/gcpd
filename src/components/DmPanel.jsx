@@ -31,6 +31,7 @@ const TRACER_CONFIG_ENDPOINT = '/api/tracer-config';
 const LIVE_MAP_ENDPOINT = '/api/live-map';
 const LIVE_MAP_BACKGROUNDS_ENDPOINT = '/api/live-map-backgrounds';
 const LIVE_MAP_BACKGROUND_UPLOAD_ENDPOINT = '/api/live-map-background-upload';
+const LIVE_MAP_BACKGROUND_DELETE_ENDPOINT = '/api/live-map-backgrounds';
 
 const initialCaseForm = {
   id: '',
@@ -3178,16 +3179,17 @@ const DmPanel = () => {
 
   const normalizeLiveMapState = useCallback((state = {}) => ({
     backgroundImagePath:
-      state.backgroundLoaded === true && String(state.backgroundImagePath || '') !== LIVE_MAP_FALLBACK_PATH
+      String(state.backgroundImagePath || '') &&
+      String(state.backgroundImagePath || '') !== LIVE_MAP_FALLBACK_PATH
         ? String(state.backgroundImagePath || '')
         : '',
     backgroundLoaded:
-      state.backgroundLoaded === true && String(state.backgroundImagePath || '') !== LIVE_MAP_FALLBACK_PATH,
+      Boolean(String(state.backgroundImagePath || '')) &&
+      String(state.backgroundImagePath || '') !== LIVE_MAP_FALLBACK_PATH,
     fallbackImagePath: String(state.fallbackImagePath || LIVE_MAP_FALLBACK_PATH),
     tokens: (() => {
       const normalizedBackgroundStates = normalizeLiveMapSceneMap(state.backgroundStates || {});
       const activePath =
-        state.backgroundLoaded === true &&
         String(state.backgroundImagePath || '') &&
         String(state.backgroundImagePath || '') !== LIVE_MAP_FALLBACK_PATH
           ? String(state.backgroundImagePath || '')
@@ -3380,6 +3382,43 @@ const DmPanel = () => {
     saveLiveMapState,
     sessionToken,
   ]);
+
+  const handleLiveMapBackgroundDelete = useCallback(
+    async (background) => {
+      const backgroundId = String(background?.id || '').trim();
+      if (!backgroundId) return;
+      if (!authorized || !sessionToken) {
+        setLiveMapMessage('Necesitas sesion activa para borrar planos.');
+        return;
+      }
+      setLiveMapLoading(true);
+      setLiveMapMessage('');
+      try {
+        const res = await fetch(`${LIVE_MAP_BACKGROUND_DELETE_ENDPOINT}/${encodeURIComponent(backgroundId)}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${sessionToken}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message || 'No se pudo borrar el plano.');
+        }
+        setLiveMapBackgrounds(Array.isArray(data.backgrounds) ? data.backgrounds : []);
+        if (data?.state) {
+          setLiveMapState(normalizeLiveMapState(data.state));
+        }
+        if (data?.state?.backgroundLoaded !== true) {
+          setLiveMapSelectedTokenId('');
+          setLiveMapBackgroundDraft('');
+        }
+        setLiveMapMessage('Plano eliminado.');
+      } catch (error) {
+        setLiveMapMessage(error.message || 'No se pudo borrar el plano.');
+      } finally {
+        setLiveMapLoading(false);
+      }
+    },
+    [authorized, normalizeLiveMapState, sessionToken]
+  );
 
   const saveAudioModels = useCallback(
     async (payload = []) => {
@@ -3960,6 +3999,7 @@ const DmPanel = () => {
         ...liveMapState,
         tokens: [...liveMapState.tokens, token],
       };
+      setLiveMapState(nextState);
       await saveLiveMapState(nextState);
       setLiveMapTokenForm(LIVE_MAP_DEFAULT_TOKEN);
       setLiveMapSelectedTokenId(token.id);
@@ -6612,21 +6652,29 @@ const DmPanel = () => {
               </div>
               <div className="live-map-backgrounds__list">
                 {liveMapBackgrounds.map((background) => (
-                  <button
-                    key={background.id || background.path}
-                    type="button"
-                  className={
-                    liveMapState.backgroundImagePath === background.path
-                      ? 'dm-panel__button is-active'
-                      : 'dm-panel__button'
-                    }
-                    onClick={() => {
-                      setLiveMapBackgroundDraft(background.path);
-                      switchLiveMapBackground(background.path);
-                    }}
-                  >
-                    <span>{background.label || background.originalName || background.path}</span>
-                  </button>
+                  <div key={background.id || background.path} className="live-map-backgrounds__item">
+                    <button
+                      type="button"
+                      className={
+                        liveMapState.backgroundImagePath === background.path
+                          ? 'dm-panel__button is-active'
+                          : 'dm-panel__button'
+                      }
+                      onClick={() => {
+                        setLiveMapBackgroundDraft(background.path);
+                        switchLiveMapBackground(background.path);
+                      }}
+                    >
+                      <span>{background.label || background.originalName || background.path}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="dm-panel__button danger live-map-backgrounds__delete"
+                      onClick={() => handleLiveMapBackgroundDelete(background)}
+                    >
+                      Borrar
+                    </button>
+                  </div>
                 ))}
                 <button
                   type="button"

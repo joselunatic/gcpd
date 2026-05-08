@@ -2772,6 +2772,11 @@
   gap: 0.45rem;
 }
 
+.live-map-backgrounds__item {
+  display: grid;
+  gap: 0.3rem;
+}
+
 .live-map-backgrounds__list .dm-panel__button {
   max-width: 190px;
   min-height: 0;
@@ -2788,6 +2793,12 @@
   background: rgba(30, 132, 96, 0.38);
   color: #c7ffe7;
   box-shadow: 0 0 14px rgba(124, 255, 178, 0.18);
+}
+
+.live-map-backgrounds__delete {
+  min-height: 0;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.7rem;
 }
 
 .live-map-control__surface {

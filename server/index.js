@@ -694,10 +694,11 @@ function normalizeLiveMapState(input = {}) {
   const backgroundStates = normalizeLiveMapSceneMap(
     state.backgroundStates || state.scenes || state.mapStates || {}
   );
-  const backgroundImagePath = backgroundLoaded ? String(state.backgroundImagePath || '').trim() : '';
-  const activeBackgroundPath = backgroundImagePath && backgroundImagePath !== LIVE_MAP_FALLBACK_PATH
-    ? backgroundImagePath
-    : '';
+  const backgroundImagePath = String(state.backgroundImagePath || '').trim();
+  const activeBackgroundPath =
+    backgroundImagePath && backgroundImagePath !== LIVE_MAP_FALLBACK_PATH
+      ? backgroundImagePath
+      : '';
   const activeScene = activeBackgroundPath
     ? normalizeLiveMapScene({
         ...(backgroundStates[activeBackgroundPath] || {}),
@@ -775,6 +776,28 @@ function addLiveMapBackground(background = {}) {
     normalized,
     ...getLiveMapBackgrounds().filter((entry) => entry.path !== normalized.path),
   ]);
+}
+
+function removeLiveMapBackground(backgroundId = '') {
+  const id = String(backgroundId || '').trim();
+  if (!id) return { removed: null, backgrounds: getLiveMapBackgrounds() };
+  const backgrounds = getLiveMapBackgrounds();
+  const target = backgrounds.find((entry) => entry.id === id) || null;
+  if (!target) {
+    return { removed: null, backgrounds };
+  }
+  try {
+    const filename = path.basename(target.path);
+    const resolved = path.join(liveMapDir, filename);
+    if (fs.existsSync(resolved)) {
+      fs.unlinkSync(resolved);
+    }
+  } catch (error) {
+    console.warn('[LIVE_MAP_BG_DELETE] file delete failed', { id: target.id, error: error.message });
+  }
+  const nextBackgrounds = backgrounds.filter((entry) => entry.id !== id);
+  setLiveMapBackgrounds(nextBackgrounds);
+  return { removed: target, backgrounds: nextBackgrounds };
 }
 
 function getPoiLocatorById(poiId = '') {
@@ -2449,6 +2472,36 @@ app.post('/api/live-map-background-upload', authMiddleware, (req, res) => {
       backgrounds: getLiveMapBackgrounds(),
     });
   });
+});
+
+app.delete('/api/live-map-backgrounds/:id', authMiddleware, (req, res) => {
+  const backgroundId = String(req.params.id || '').trim();
+  if (!backgroundId) {
+    return res.status(400).json({ message: 'Falta el id del plano.' });
+  }
+  const { removed, backgrounds } = removeLiveMapBackground(backgroundId);
+  if (!removed) {
+    return res.status(404).json({ message: 'Plano no encontrado.' });
+  }
+  const currentState = getLiveMapState();
+  const nextBackgroundStates = { ...(currentState.backgroundStates || {}) };
+  delete nextBackgroundStates[removed.path];
+  const nextState =
+    currentState.backgroundImagePath === removed.path
+      ? {
+          ...currentState,
+          backgroundImagePath: '',
+          backgroundLoaded: false,
+          tokens: [],
+          backgroundStates: nextBackgroundStates,
+        }
+      : {
+          ...currentState,
+          backgroundStates: nextBackgroundStates,
+        };
+  const saved = setLiveMapState(nextState);
+  broadcastLiveMapState(saved);
+  res.json({ removed, backgrounds, state: saved });
 });
 
 app.post('/api/phone-lines-called', (req, res) => {
