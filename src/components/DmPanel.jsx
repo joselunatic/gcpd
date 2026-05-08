@@ -6605,6 +6605,11 @@ const DmPanel = () => {
       liveMapState.tokens.find((token) => token.id === liveMapSelectedTokenId) ||
       liveMapState.tokens[0] ||
       null;
+    const activeBackground =
+      liveMapBackgrounds.find((background) => background.path === liveMapState.backgroundImagePath) ||
+      null;
+    const canDeleteActiveBackground =
+      Boolean(activeBackground) && liveMapState.backgroundLoaded === true;
     const activeLiveMapBackground =
       liveMapState.backgroundLoaded && liveMapState.backgroundImagePath
         ? liveMapState.backgroundImagePath
@@ -6651,6 +6656,21 @@ const DmPanel = () => {
                   {liveMapBackgroundUploading ? 'Subiendo...' : 'Subir plano'}
                 </button>
               </div>
+              <div className="live-map-backgrounds__actions">
+                <button
+                  type="button"
+                  className="dm-panel__button danger live-map-backgrounds__delete"
+                  onClick={() => handleLiveMapBackgroundDelete(activeBackground)}
+                  disabled={!canDeleteActiveBackground || liveMapLoading}
+                >
+                  Borrar plano activo
+                </button>
+                <p className="dm-panel__hint live-map-backgrounds__action-hint">
+                  {canDeleteActiveBackground
+                    ? `Activo: ${activeBackground?.label || activeBackground?.originalName || activeBackground?.path || 'plano'}.`
+                    : 'Fallback no borrable. Selecciona un plano subido para poder eliminarlo.'}
+                </p>
+              </div>
               <div className="live-map-backgrounds__list">
                 {liveMapBackgrounds.map((background) => (
                   <div key={background.id || background.path} className="live-map-backgrounds__item">
@@ -6665,15 +6685,8 @@ const DmPanel = () => {
                         setLiveMapBackgroundDraft(background.path);
                         switchLiveMapBackground(background.path);
                       }}
-                    >
+                      >
                       <span>{background.label || background.originalName || background.path}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="dm-panel__button danger live-map-backgrounds__delete"
-                      onClick={() => handleLiveMapBackgroundDelete(background)}
-                    >
-                      Borrar
                     </button>
                   </div>
                 ))}

@@ -2770,6 +2770,11 @@
   align-items: center;
 }
 
+.live-map-backgrounds__actions {
+  display: grid;
+  gap: 0.35rem;
+}
+
 .live-map-backgrounds__upload input[type='file'] {
   min-width: 220px;
   flex: 1 1 260px;
@@ -2777,8 +2782,8 @@
 }
 
 .live-map-backgrounds__list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.45rem;
 }
 
@@ -2788,7 +2793,8 @@
 }
 
 .live-map-backgrounds__list .dm-panel__button {
-  max-width: 190px;
+  width: 100%;
+  max-width: none;
   min-height: 0;
   padding: 0.28rem 0.5rem;
   overflow: hidden;
@@ -2807,8 +2813,14 @@
 
 .live-map-backgrounds__delete {
   min-height: 0;
-  padding: 0.18rem 0.45rem;
-  font-size: 0.7rem;
+  width: min(100%, 240px);
+  padding: 0.28rem 0.55rem;
+  font-size: 0.72rem;
+}
+
+.live-map-backgrounds__action-hint {
+  margin-top: 0;
+  max-width: 100%;
 }
 
 .live-map-control__surface {
@@ -2887,11 +2899,15 @@
 }
 
 .live-map-token-list button {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   align-items: flex-start;
   min-height: 0;
-  padding: 0.48rem 0.65rem;
-  line-height: 1.22;
+  padding: 0.42rem 0.55rem;
+  line-height: 1.15;
   text-align: left;
+  overflow: hidden;
 }
 
 .live-map-token-list button strong {
@@ -2903,15 +2919,55 @@
 }
 
 .live-map-token-list button span {
+  display: block;
   font-size: 0.68rem;
   opacity: 0.78;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .live-map-token-editor {
   margin-top: 1rem;
   border-top: 1px solid rgba(124, 255, 178, 0.15);
   padding-top: 1rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: start;
+}
+
+.live-map-token-editor > * {
+  min-width: 0;
+}
+
+.live-map-token-editor .dm-panel__panel-title {
+  grid-column: 1 / -1;
+}
+
+.live-map-token-editor .dm-panel__hint {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  grid-column: 1 / -1;
+}
+
+.live-map-token-editor button {
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+  grid-column: 1 / -1;
+}
+
+.live-map-token-editor .dm-panel__checkbox {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
+  line-height: 1.2;
+  grid-column: 1 / -1;
+}
+
+.live-map-token-editor .dm-panel__checkbox input {
+  flex: 0 0 auto;
+  width: auto;
 }
 
 @media (max-width: 1100px) {
