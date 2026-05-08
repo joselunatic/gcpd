@@ -49,6 +49,7 @@ const HOTSPOTS_URL = "/data/map/hotspots.json";
 const MAP4X_IMAGE = "/mapa4x.png";
 const MAP4X_WIDTH = 3200;
 const MAP4X_HEIGHT = 4300;
+const MAP_LOUPE_POSITION_KEY = "terminalMapLoupePosition";
 let cache;
 let dataSource = "api";
 
@@ -59,6 +60,85 @@ async function fetchJson(url) {
   }
   return response.json();
 }
+
+const safeJsonParse = (value, fallback = null) => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+const basename = (value = "") => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const clean = raw.split("?")[0].split("#")[0];
+  const parts = clean.split("/").filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : clean;
+};
+
+const inferPoiResourceType = (resource = {}) => {
+  const explicit = String(resource.type || resource.kind || resource.mime || "").toLowerCase();
+  const src = String(resource.src || resource.url || resource.path || resource.href || "").toLowerCase();
+  if (explicit.includes("image") || /\.(png|jpe?g|gif|webp|avif|svg)$/.test(src)) return "image";
+  if (explicit.includes("video") || /\.(mp4|webm|mov|m4v)$/.test(src)) return "video";
+  if (explicit.includes("audio") || /\.(mp3|wav|ogg|m4a)$/.test(src)) return "audio";
+  if (explicit.includes("pdf") || /\.pdf$/.test(src)) return "pdf";
+  return explicit || "document";
+};
+
+const collectPoiResources = (poi = {}) => {
+  const sources = [
+    poi.resources,
+    poi.media,
+    poi.attachments,
+    poi.assets,
+    poi.commands?.resources,
+    poi.commands?.media,
+    poi.poiV2?.resources,
+    poi.poiV2?.media,
+  ];
+  const items = sources.flatMap((source) => (Array.isArray(source) ? source : source ? [source] : []));
+  return items
+    .map((entry, index) => {
+      const value = typeof entry === "string" ? { src: entry } : entry || {};
+      const src = String(value.src || value.url || value.path || value.href || "").trim();
+      const label = String(value.label || value.title || value.name || value.caption || basename(src) || `RECURSO ${index + 1}`).trim();
+      if (!src && !label) return null;
+      return {
+        id: String(value.id || value.resourceId || value.assetId || src || `${poi.id || "poi"}-resource-${index + 1}`).trim(),
+        label,
+        type: inferPoiResourceType(value),
+        src,
+        visible: value.visible !== false,
+        visibility: String(value.visibility || value.access || (value.visible === false ? "hidden" : "listed")).trim() || "listed",
+        description: String(value.description || value.notes || "").trim(),
+      };
+    })
+    .filter(Boolean)
+    .filter((entry, index, list) => list.findIndex((item) => item.id === entry.id) === index);
+};
+
+const getSessionStorageJson = (key, fallback = null) => {
+  try {
+    if (typeof window === "undefined" || !window.sessionStorage) return fallback;
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = safeJsonParse(raw, null);
+    return parsed && typeof parsed === "object" ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const setSessionStorageJson = (key, value) => {
+  try {
+    if (typeof window === "undefined" || !window.sessionStorage) return;
+    window.sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* ignore storage failures */
+  }
+};
 
 const wrapLine = (text = "", limit = 80) => {
   const adjustedLimit = getWrapLimit(limit);
@@ -500,6 +580,12 @@ function ensureMapStyles() {
       text-transform: uppercase;
       color: #dfffee;
       background: rgba(4, 12, 10, 0.94);
+      cursor: move;
+      user-select: none;
+      touch-action: none;
+    }
+    .terminal-map-loupe.is-dragging {
+      box-shadow: 0 0 30px rgba(124, 255, 178, 0.28);
     }
     .terminal-map-loupe__meta {
       color: rgba(191, 255, 220, 0.72);
@@ -715,9 +801,10 @@ function ensureMapStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 0;
+      padding: 14px;
       background: rgba(1, 6, 5, 0.78);
       backdrop-filter: blur(1px);
+      overflow: hidden;
     }
     .terminal-map-popup__backdrop {
       position: absolute;
@@ -726,8 +813,8 @@ function ensureMapStyles() {
     .terminal-map-popup__card {
       position: relative;
       z-index: 1;
-      width: 100%;
-      height: 100%;
+      width: min(1180px, calc(100vw - 28px));
+      height: min(88vh, calc(100vh - 28px));
       overflow: hidden;
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
@@ -770,12 +857,14 @@ function ensureMapStyles() {
     }
     .terminal-map-popup__body {
       min-height: 0;
-      overflow: auto;
+      overflow-y: auto;
+      overflow-x: hidden;
       display: grid;
       gap: 12px;
       padding: 10px;
-      grid-template-columns: minmax(300px, 1fr) minmax(0, 1.1fr);
+      grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
       align-items: stretch;
+      min-width: 0;
     }
     .terminal-map-popup__media {
       display: grid;
@@ -783,11 +872,13 @@ function ensureMapStyles() {
       align-content: stretch;
       grid-template-rows: minmax(0, 1fr) auto;
       min-height: 0;
+      min-width: 0;
     }
     .terminal-map-popup__image {
       position: relative;
       min-height: 0;
-      height: 100%;
+      aspect-ratio: 16 / 10;
+      max-height: 48vh;
       border: 1px solid rgba(124, 255, 178, 0.24);
       border-radius: 10px;
       overflow: hidden;
@@ -800,7 +891,7 @@ function ensureMapStyles() {
       inset: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       display: block;
     }
     .terminal-map-popup__image-placeholder {
@@ -824,12 +915,16 @@ function ensureMapStyles() {
       border: 1px solid rgba(124, 255, 178, 0.18);
       border-radius: 10px;
       background: rgba(4, 12, 10, 0.74);
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      white-space: pre-wrap;
     }
     .terminal-map-popup__details {
       display: grid;
       gap: 8px;
       align-content: stretch;
       min-height: 0;
+      min-width: 0;
     }
     .terminal-map-popup__section {
       display: grid;
@@ -838,6 +933,7 @@ function ensureMapStyles() {
       border: 1px solid rgba(124, 255, 178, 0.16);
       border-radius: 10px;
       background: rgba(4, 12, 10, 0.7);
+      min-width: 0;
     }
     .terminal-map-popup__section-title {
       color: rgba(191, 255, 220, 0.66);
@@ -852,6 +948,51 @@ function ensureMapStyles() {
       color: rgba(228, 255, 243, 0.82);
       line-height: 1.5;
       white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      min-width: 0;
+    }
+    .terminal-map-popup__resource-list {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+    .terminal-map-popup__resource-item {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+      padding: 6px 8px;
+      border: 1px solid rgba(124, 255, 178, 0.12);
+      border-radius: 8px;
+      background: rgba(2, 10, 8, 0.4);
+    }
+    .terminal-map-popup__resource-head {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .terminal-map-popup__resource-badge {
+      flex: 0 0 auto;
+      padding: 2px 6px;
+      border: 1px solid rgba(124, 255, 178, 0.24);
+      border-radius: 999px;
+      color: rgba(191, 255, 220, 0.84);
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .terminal-map-popup__resource-label {
+      min-width: 0;
+      color: rgba(228, 255, 243, 0.92);
+    }
+    .terminal-map-popup__resource-meta {
+      color: rgba(191, 255, 220, 0.68);
+      font-size: 10px;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     @media (max-width: 639px) {
       .terminal-map-shell {
@@ -871,6 +1012,10 @@ function ensureMapStyles() {
       }
       .terminal-map-popup__body {
         grid-template-columns: 1fr;
+      }
+      .terminal-map-popup__card {
+        width: 100%;
+        height: 100%;
       }
       .terminal-map-lightbox {
         padding: 14px;
@@ -955,6 +1100,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
   const loupeFoot = loupe.querySelector("[data-role='foot']");
   const loupeEmpty = loupe.querySelector("[data-role='empty']");
   const loupeSurface = loupe.querySelector(".terminal-map-loupe__surface");
+  const loupeHead = loupe.querySelector(".terminal-map-loupe__head");
 
   const hotspotNodes = [];
   const campaignState = loadCampaignState();
@@ -964,6 +1110,8 @@ async function showMapOverlay({ pois, hotspotsData }) {
   let lockedTarget = null;
   let exitResolver = null;
   let disposed = false;
+  let loupeDrag = null;
+  let loupePositionReady = false;
 
   const visibleEntries = (Array.isArray(hotspotsData?.hotspots) ? hotspotsData.hotspots : [])
     .map((spot) => {
@@ -1026,6 +1174,112 @@ async function showMapOverlay({ pois, hotspotsData }) {
     }
   };
 
+  const endLoupeDrag = () => {
+    if (!loupeDrag) return;
+    const rect = loupe.getBoundingClientRect();
+    setSessionStorageJson(MAP_LOUPE_POSITION_KEY, {
+      left: rect.left,
+      top: rect.top,
+    });
+    loupeDrag = null;
+    loupe.classList.remove("is-dragging");
+    window.removeEventListener("pointermove", onLoupeDragMove);
+    window.removeEventListener("pointerup", endLoupeDrag);
+    window.removeEventListener("pointercancel", endLoupeDrag);
+  };
+
+  const onLoupeDragMove = (event) => {
+    if (!loupeDrag) return;
+    const left = event.clientX - loupeDrag.offsetX;
+    const top = event.clientY - loupeDrag.offsetY;
+    applyLoupePosition(left, top, false);
+  };
+
+  const startLoupeDrag = (event) => {
+    if (event.button !== 0) return;
+    if (event.target && event.target.closest("button")) return;
+    const rect = loupe.getBoundingClientRect();
+    loupeDrag = {
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+    };
+    loupe.classList.add("is-dragging");
+    event.preventDefault();
+    window.addEventListener("pointermove", onLoupeDragMove);
+    window.addEventListener("pointerup", endLoupeDrag);
+    window.addEventListener("pointercancel", endLoupeDrag);
+  };
+
+  const clampLoupePosition = (left, top) => {
+    const rect = loupe.getBoundingClientRect();
+    const width = rect.width || loupe.offsetWidth || 440;
+    const height = rect.height || loupe.offsetHeight || 320;
+    const margin = 12;
+    const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - height - margin);
+    return {
+      left: clamp(Number(left) || 0, margin, maxLeft),
+      top: clamp(Number(top) || 0, margin, maxTop),
+    };
+  };
+
+  const applyLoupePosition = (left, top, persist = false) => {
+    const pos = clampLoupePosition(left, top);
+    loupe.style.left = `${Math.round(pos.left)}px`;
+    loupe.style.top = `${Math.round(pos.top)}px`;
+    loupe.style.right = "auto";
+    loupe.style.bottom = "auto";
+    loupe.dataset.position = "custom";
+    if (persist) {
+      setSessionStorageJson(MAP_LOUPE_POSITION_KEY, pos);
+    }
+    return pos;
+  };
+
+  const restoreLoupePosition = () => {
+    const saved = getSessionStorageJson(MAP_LOUPE_POSITION_KEY, null);
+    if (saved && Number.isFinite(Number(saved.left)) && Number.isFinite(Number(saved.top))) {
+      return applyLoupePosition(saved.left, saved.top, false);
+    }
+    const terminalRect = terminal.getBoundingClientRect();
+    const loupeRect = loupe.getBoundingClientRect();
+    const margin = 16;
+    const rightSide = terminalRect.right + 18;
+    const topSide = Math.max(terminalRect.top + 28, margin);
+    if (rightSide + loupeRect.width + margin <= window.innerWidth) {
+      return applyLoupePosition(rightSide, topSide, false);
+    }
+    const bottomSide = Math.min(
+      window.innerHeight - loupeRect.height - margin,
+      Math.max(terminalRect.bottom - loupeRect.height - 12, margin)
+    );
+    return applyLoupePosition(
+      Math.max(margin, window.innerWidth - loupeRect.width - margin),
+      bottomSide,
+      false
+    );
+  };
+
+  const syncLoupeVisiblePosition = () => {
+    if (loupe.classList.contains("is-hidden")) return;
+    if (!loupePositionReady) {
+      restoreLoupePosition();
+      loupePositionReady = true;
+      return;
+    }
+    const currentLeft = Number.parseFloat(loupe.style.left || "0");
+    const currentTop = Number.parseFloat(loupe.style.top || "0");
+    if (Number.isFinite(currentLeft) && Number.isFinite(currentTop) && loupe.dataset.position === "custom") {
+      applyLoupePosition(currentLeft, currentTop, false);
+    } else {
+      restoreLoupePosition();
+    }
+  };
+
+  if (loupeHead) {
+    loupeHead.addEventListener("pointerdown", startLoupeDrag);
+  }
+
   const openPoiPopup = (poi, evaluation, clusterContext = null) => {
     if (!poi || !evaluation) return;
     closePoiPopup();
@@ -1038,11 +1292,65 @@ async function showMapOverlay({ pois, hotspotsData }) {
     const details = Array.isArray(content.details) ? content.details : [];
     const contacts = Array.isArray(content.contacts) ? content.contacts : [];
     const notes = Array.isArray(content.notes) ? content.notes : [];
+    const intel = Array.isArray(content.intel) ? content.intel : [];
+    const brief = Array.isArray(content.brief) ? content.brief : [];
+    const resources = collectPoiResources(poi);
+    const resourceMarkup = resources.length
+      ? `
+        <div class="terminal-map-popup__section">
+          <div class="terminal-map-popup__section-title">RECURSOS</div>
+          <div class="terminal-map-popup__resource-list">
+            ${resources
+              .map((resource) => {
+                const metaBits = [resource.type, resource.visibility, resource.description]
+                  .filter(Boolean)
+                  .map((entry) => escapeHtml(entry))
+                  .join(" · ");
+                return `
+                  <div class="terminal-map-popup__resource-item">
+                    <div class="terminal-map-popup__resource-head">
+                      <span class="terminal-map-popup__resource-badge">${escapeHtml(resource.type || "RECURSO")}</span>
+                      <span class="terminal-map-popup__resource-label">${escapeHtml(resource.label || resource.id || "RECURSO")}</span>
+                    </div>
+                    ${metaBits ? `<div class="terminal-map-popup__resource-meta">${metaBits}</div>` : ""}
+                  </div>
+                `;
+              })
+              .join("")}
+          </div>
+        </div>
+      `
+      : `
+        <div class="terminal-map-popup__section">
+          <div class="terminal-map-popup__section-title">RECURSOS</div>
+          <div class="terminal-map-popup__lines"><div>SIN DATOS.</div></div>
+        </div>
+      `;
     const sectionBlocks = [];
-    if (details.length) {
+    if (brief.length) {
+      sectionBlocks.push(`
+        <div class="terminal-map-popup__section">
+          <div class="terminal-map-popup__section-title">BRIEF</div>
+          <div class="terminal-map-popup__lines">${brief
+            .map((entry) => `<div>${escapeHtml(entry)}</div>`)
+            .join("")}</div>
+        </div>
+      `);
+    }
+    if (intel.length) {
       sectionBlocks.push(`
         <div class="terminal-map-popup__section">
           <div class="terminal-map-popup__section-title">INTEL</div>
+          <div class="terminal-map-popup__lines">${intel
+            .map((entry) => `<div>${escapeHtml(entry)}</div>`)
+            .join("")}</div>
+        </div>
+      `);
+    }
+    if (details.length) {
+      sectionBlocks.push(`
+        <div class="terminal-map-popup__section">
+          <div class="terminal-map-popup__section-title">DETALLES</div>
           <div class="terminal-map-popup__lines">${details
             .map((entry) => `<div>${escapeHtml(entry)}</div>`)
             .join("")}</div>
@@ -1077,9 +1385,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
       <div class="terminal-map-popup__card" role="dialog" aria-modal="true" aria-label="Ficha del POI">
         <div class="terminal-map-popup__head">
           <div>
-            <div class="terminal-map-popup__eyebrow">${escapeHtml(
-              clusterContext?.label ? `CLUSTER ${clusterContext.label}` : "POI DETALLE"
-            )}</div>
+            <div class="terminal-map-popup__eyebrow">POI DETALLE${clusterContext?.label ? ` :: CLUSTER ${escapeHtml(clusterContext.label)}` : ""}</div>
             <div>${escapeHtml((poi.name || poi.id || "POI").toUpperCase())}</div>
           </div>
           <button class="terminal-map-popup__close" type="button">CERRAR</button>
@@ -1088,6 +1394,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
           <div class="terminal-map-popup__media">
             <div class="terminal-map-popup__image">
               <img alt="Evidencia POI" />
+              <div class="terminal-map-popup__image-placeholder">SIN IMAGEN ASOCIADA</div>
             </div>
             ${summary ? `<div class="terminal-map-popup__summary">${escapeHtml(summary)}</div>` : ""}
           </div>
@@ -1102,13 +1409,32 @@ async function showMapOverlay({ pois, hotspotsData }) {
               </div>
             </div>
             ${sectionBlocks.join("")}
+            ${resourceMarkup}
           </div>
         </div>
       </div>
     `;
     const popupImage = poiPopup.querySelector(".terminal-map-popup__image img");
+    const imagePlaceholder = poiPopup.querySelector(".terminal-map-popup__image-placeholder");
     if (popupImage && imageSrc) {
       popupImage.src = imageSrc.startsWith("/uploads/") ? `/api${imageSrc}` : imageSrc;
+    }
+    const imageContainer = poiPopup.querySelector(".terminal-map-popup__image");
+    if (popupImage && imageContainer && imagePlaceholder) {
+      const syncPlaceholder = () => {
+        const hasSrc = Boolean(popupImage.getAttribute("src"));
+        const complete = popupImage.complete && popupImage.naturalWidth > 0;
+        imagePlaceholder.style.display = hasSrc && complete ? "none" : "grid";
+      };
+      popupImage.addEventListener("load", () => {
+        imageContainer.dataset.loaded = "true";
+        syncPlaceholder();
+      });
+      popupImage.addEventListener("error", () => {
+        imageContainer.dataset.loaded = "false";
+        syncPlaceholder();
+      });
+      syncPlaceholder();
     }
     const closeButton = poiPopup.querySelector(".terminal-map-popup__close");
     const backdrop = poiPopup.querySelector(".terminal-map-popup__backdrop");
@@ -1176,6 +1502,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
     }
     loupe.classList.remove("is-hidden");
     void loupe.offsetWidth;
+    syncLoupeVisiblePosition();
     const bodyRect = loupe.querySelector(".terminal-map-loupe__body").getBoundingClientRect();
     const stageWidth = Math.max(260, Math.floor(bodyRect.width || 360));
     const stageHeight = Math.max(200, Math.floor(bodyRect.height || 260));
@@ -1417,6 +1744,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
       node.style.top = `${y}%`;
       node.style.maxWidth = `${Math.max(44, Math.min(dense ? 118 : 150, Math.floor(shellBounds.width * 0.3)))}px`;
     });
+    syncLoupeVisiblePosition();
     if (lockedTarget) {
       renderLoupe(lockedTarget);
     } else if (hoverTarget) {
@@ -1474,6 +1802,8 @@ async function showMapOverlay({ pois, hotspotsData }) {
     frame.removeEventListener("pointermove", onPointerMove);
     frame.removeEventListener("pointerleave", onPointerLeave);
     document.removeEventListener("dblclick", onGlobalDoubleClick, true);
+    if (loupeHead) loupeHead.removeEventListener("pointerdown", startLoupeDrag);
+    endLoupeDrag();
     closePoiPopup();
     terminal.classList.remove("terminal-viewer-active");
     document.body.classList.remove("terminal-viewer-active");
