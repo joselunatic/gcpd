@@ -845,11 +845,14 @@ function ensureMapStyles() {
       box-shadow: 0 0 30px rgba(124, 255, 178, 0.18);
     }
     .terminal-map-popup__head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
       display: flex;
       justify-content: space-between;
       gap: 12px;
       align-items: center;
-      padding: 10px 12px;
+      padding: 12px 14px 11px;
       border-bottom: 1px solid rgba(124, 255, 178, 0.3);
       background: rgba(4, 12, 10, 0.96);
       font: 600 11px/1.2 "Courier New", monospace;
@@ -951,8 +954,8 @@ function ensureMapStyles() {
       border: 1px solid rgba(124, 255, 178, 0.18);
       border-radius: 10px;
       background: rgba(4, 12, 10, 0.74);
-      max-height: clamp(150px, 26vh, 290px);
-      overflow-y: auto;
+      max-height: none;
+      overflow: visible;
       overflow-wrap: anywhere;
       word-break: break-word;
       white-space: pre-wrap;
