@@ -2746,6 +2746,7 @@
 }
 
 .live-map-control {
+  --output-font-family: 'monofont';
   gap: 0.85rem;
 }
 
@@ -2840,24 +2841,21 @@
 
 .live-map-control__surface .live-map-token {
   position: absolute;
-  transform: translate(-50%, -50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
+  transform: translate(-50%, -50%) scale(0.932);
+  transform-origin: center;
   min-height: 0;
   min-width: 0;
-  max-width: 116px;
+  max-width: 124px;
   padding: 3px 6px;
   border: 1px solid rgba(92, 181, 255, 0.76);
   background: rgba(5, 19, 35, 0.82);
   color: #bde5ff;
-  font-family: 'WOPR', 'Share Tech Mono', monospace;
+  font-family: var(--output-font-family), monospace;
   font-size: 10px;
   line-height: 1.1;
   letter-spacing: 0;
-  text-align: center;
   text-transform: uppercase;
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

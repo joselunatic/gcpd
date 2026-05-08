@@ -6707,9 +6707,8 @@ const DmPanel = () => {
                 <div className="live-map-control__empty">FALLBACK MAP</div>
               )}
               {liveMapState.tokens.map((token) => (
-                <button
+                <div
                   key={token.id}
-                  type="button"
                   className={`live-map-token${
                     liveMapSelectedTokenId === token.id ? ' is-selected' : ''
                   }${token.visible ? '' : ' is-hidden'}`}
@@ -6720,7 +6719,7 @@ const DmPanel = () => {
                   title={token.label}
                 >
                   {token.label}
-                </button>
+                </div>
               ))}
             </div>
           </div>
