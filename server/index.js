@@ -664,20 +664,57 @@ function normalizeLiveMapToken(entry = {}) {
   };
 }
 
-function normalizeLiveMapState(input = {}) {
-  const state = input && typeof input === 'object' ? input : {};
-  const backgroundLoaded = state.backgroundLoaded === true;
-  const tokens = Array.isArray(state.tokens)
-    ? state.tokens
-        .map((entry) => normalizeLiveMapToken(entry))
+function normalizeLiveMapScene(entry = {}) {
+  if (!entry || typeof entry !== 'object') return { tokens: [], updatedAt: Date.now() };
+  const tokens = Array.isArray(entry.tokens)
+    ? entry.tokens
+        .map((token) => normalizeLiveMapToken(token))
         .filter(Boolean)
         .filter((entry, index, list) => list.findIndex((item) => item.id === entry.id) === index)
     : [];
   return {
-    backgroundImagePath: backgroundLoaded ? String(state.backgroundImagePath || '').trim() : '',
-    backgroundLoaded,
-    fallbackImagePath: LIVE_MAP_FALLBACK_PATH,
     tokens,
+    updatedAt: Number(entry.updatedAt) || Date.now(),
+  };
+}
+
+function normalizeLiveMapSceneMap(input = {}) {
+  const source = input && typeof input === 'object' ? input : {};
+  return Object.entries(source).reduce((acc, [rawPath, scene]) => {
+    const pathValue = String(rawPath || '').trim();
+    if (!pathValue || pathValue === LIVE_MAP_FALLBACK_PATH) return acc;
+    acc[pathValue] = normalizeLiveMapScene(scene);
+    return acc;
+  }, {});
+}
+
+function normalizeLiveMapState(input = {}) {
+  const state = input && typeof input === 'object' ? input : {};
+  const backgroundLoaded = state.backgroundLoaded === true;
+  const backgroundStates = normalizeLiveMapSceneMap(
+    state.backgroundStates || state.scenes || state.mapStates || {}
+  );
+  const backgroundImagePath = backgroundLoaded ? String(state.backgroundImagePath || '').trim() : '';
+  const activeBackgroundPath = backgroundImagePath && backgroundImagePath !== LIVE_MAP_FALLBACK_PATH
+    ? backgroundImagePath
+    : '';
+  const activeScene = activeBackgroundPath
+    ? normalizeLiveMapScene({
+        ...(backgroundStates[activeBackgroundPath] || {}),
+        tokens: Array.isArray(state.tokens) && state.tokens.length
+          ? state.tokens
+          : backgroundStates[activeBackgroundPath]?.tokens || [],
+      })
+    : { tokens: [], updatedAt: Number(state.updatedAt) || Date.now() };
+  if (activeBackgroundPath) {
+    backgroundStates[activeBackgroundPath] = activeScene;
+  }
+  return {
+    backgroundImagePath: activeBackgroundPath,
+    backgroundLoaded: Boolean(activeBackgroundPath),
+    fallbackImagePath: LIVE_MAP_FALLBACK_PATH,
+    tokens: activeBackgroundPath ? activeScene.tokens : [],
+    backgroundStates,
     updatedAt: Number(state.updatedAt) || Date.now(),
   };
 }

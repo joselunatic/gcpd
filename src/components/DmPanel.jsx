@@ -446,6 +446,7 @@ const LIVE_MAP_DEFAULT_STATE = {
   backgroundLoaded: false,
   fallbackImagePath: LIVE_MAP_FALLBACK_PATH,
   tokens: [],
+  backgroundStates: {},
   updatedAt: 0,
 };
 const LIVE_MAP_DEFAULT_TOKEN = {
@@ -461,6 +462,36 @@ const normalizeLiveMapTokenKind = (kind = '') => {
   }
   return 'ally';
 };
+
+const normalizeLiveMapScene = (scene = {}) => {
+  const source = scene && typeof scene === 'object' ? scene : {};
+  const tokens = Array.isArray(source.tokens)
+    ? source.tokens
+        .map((token) => ({
+          id: String(token.id || ''),
+          label: String(token.label || ''),
+          x: Math.max(0, Math.min(100, Number(token.x) || 0)),
+          y: Math.max(0, Math.min(100, Number(token.y) || 0)),
+          visible: token.visible !== false,
+          kind: normalizeLiveMapTokenKind(token.kind),
+          updatedAt: Number(token.updatedAt) || Date.now(),
+        }))
+        .filter((token) => token.id && token.label)
+        .filter((token, index, list) => list.findIndex((item) => item.id === token.id) === index)
+    : [];
+  return {
+    tokens,
+    updatedAt: Number(source.updatedAt) || Date.now(),
+  };
+};
+
+const normalizeLiveMapSceneMap = (scenes = {}) =>
+  Object.entries(scenes && typeof scenes === 'object' ? scenes : {}).reduce((acc, [rawPath, scene]) => {
+    const pathValue = String(rawPath || '').trim();
+    if (!pathValue || pathValue === LIVE_MAP_FALLBACK_PATH) return acc;
+    acc[pathValue] = normalizeLiveMapScene(scene);
+    return acc;
+  }, {});
 
 const clampNumber = (value) => {
   const num = Number(value);
@@ -1024,6 +1055,7 @@ const DmPanel = () => {
   const [liveMapBackgrounds, setLiveMapBackgrounds] = useState([]);
   const [liveMapBackgroundFile, setLiveMapBackgroundFile] = useState(null);
   const [liveMapBackgroundUploading, setLiveMapBackgroundUploading] = useState(false);
+  const [liveMapBackgroundDraft, setLiveMapBackgroundDraft] = useState('');
   const evidencePreviewRef = useRef(null);
   const evidenceViewerRef = useRef(null);
   const evidenceMeshRef = useRef(null);
@@ -3145,24 +3177,85 @@ const DmPanel = () => {
   );
 
   const normalizeLiveMapState = useCallback((state = {}) => ({
-    backgroundImagePath: state.backgroundLoaded === true ? String(state.backgroundImagePath || '') : '',
-    backgroundLoaded: state.backgroundLoaded === true,
+    backgroundImagePath:
+      state.backgroundLoaded === true && String(state.backgroundImagePath || '') !== LIVE_MAP_FALLBACK_PATH
+        ? String(state.backgroundImagePath || '')
+        : '',
+    backgroundLoaded:
+      state.backgroundLoaded === true && String(state.backgroundImagePath || '') !== LIVE_MAP_FALLBACK_PATH,
     fallbackImagePath: String(state.fallbackImagePath || LIVE_MAP_FALLBACK_PATH),
-    tokens: Array.isArray(state.tokens)
-      ? state.tokens
-          .map((token) => ({
-            id: String(token.id || ''),
-            label: String(token.label || ''),
-            x: Math.max(0, Math.min(100, Number(token.x) || 0)),
-            y: Math.max(0, Math.min(100, Number(token.y) || 0)),
-            visible: token.visible !== false,
-            kind: normalizeLiveMapTokenKind(token.kind),
-            updatedAt: Number(token.updatedAt) || Date.now(),
-          }))
-          .filter((token) => token.id && token.label)
-      : [],
+    tokens: (() => {
+      const normalizedBackgroundStates = normalizeLiveMapSceneMap(state.backgroundStates || {});
+      const activePath =
+        state.backgroundLoaded === true &&
+        String(state.backgroundImagePath || '') &&
+        String(state.backgroundImagePath || '') !== LIVE_MAP_FALLBACK_PATH
+          ? String(state.backgroundImagePath || '')
+          : '';
+      if (activePath && normalizedBackgroundStates[activePath]) {
+        return normalizedBackgroundStates[activePath].tokens;
+      }
+      return Array.isArray(state.tokens)
+        ? normalizeLiveMapScene({ tokens: state.tokens }).tokens
+        : [];
+    })(),
+    backgroundStates: normalizeLiveMapSceneMap(state.backgroundStates || {}),
     updatedAt: Number(state.updatedAt) || Date.now(),
   }), []);
+
+  const mergeLiveMapSceneForSave = useCallback((state) => {
+      const normalized = normalizeLiveMapState(state);
+      const activePath = normalized.backgroundLoaded ? normalized.backgroundImagePath : '';
+      const backgroundStates = { ...normalized.backgroundStates };
+      if (activePath) {
+        backgroundStates[activePath] = normalizeLiveMapScene({
+          tokens: normalized.tokens,
+          updatedAt: normalized.updatedAt,
+        });
+      }
+      return {
+        ...normalized,
+        backgroundLoaded: Boolean(activePath),
+        backgroundImagePath: activePath,
+        tokens: activePath ? normalized.tokens : [],
+        backgroundStates,
+      };
+  }, [normalizeLiveMapState]);
+
+  const pickLiveMapScene = useCallback((state, path) => {
+    const normalized = normalizeLiveMapState(state);
+    const activePath = String(path || '').trim();
+    if (!activePath || activePath === LIVE_MAP_FALLBACK_PATH) {
+      return {
+        ...normalized,
+        backgroundLoaded: false,
+        backgroundImagePath: '',
+        tokens: [],
+      };
+    }
+    const scene = normalized.backgroundStates?.[activePath] || null;
+    const tokens = scene ? scene.tokens : [];
+    const nextBackgroundStates = {
+      ...normalized.backgroundStates,
+      [activePath]: scene || normalizeLiveMapScene({ tokens: [] }),
+    };
+    return {
+      ...normalized,
+      backgroundLoaded: true,
+      backgroundImagePath: activePath,
+      tokens,
+      backgroundStates: nextBackgroundStates,
+    };
+  }, [normalizeLiveMapState]);
+
+  const switchLiveMapBackground = useCallback(
+    async (path) => {
+      const nextState = pickLiveMapScene(liveMapState, path);
+      setLiveMapSelectedTokenId('');
+      await saveLiveMapState(nextState);
+    },
+    [liveMapState, pickLiveMapScene, saveLiveMapState]
+  );
 
   const loadLiveMapState = useCallback(async () => {
     setLiveMapLoading(true);
@@ -3191,7 +3284,7 @@ const DmPanel = () => {
         setLiveMapMessage('Necesitas sesion activa para guardar Mapa Live.');
         return null;
       }
-      const nextState = normalizeLiveMapState(state);
+      const nextState = mergeLiveMapSceneForSave(state);
       setLiveMapState(nextState);
       setLiveMapLoading(true);
       setLiveMapMessage('');
@@ -3224,7 +3317,7 @@ const DmPanel = () => {
         setLiveMapLoading(false);
       }
     },
-    [authorized, normalizeLiveMapState, sendLiveMapSocket, sessionToken]
+    [authorized, mergeLiveMapSceneForSave, sendLiveMapSocket, sessionToken]
   );
 
   const loadLiveMapBackgrounds = useCallback(async () => {
@@ -3839,13 +3932,9 @@ const DmPanel = () => {
   const handleLiveMapBackgroundChange = useCallback(
     async (event) => {
       const backgroundImagePath = event.target.value;
-      await saveLiveMapState({
-        ...liveMapState,
-        backgroundImagePath,
-        backgroundLoaded: Boolean(backgroundImagePath),
-      });
+      await switchLiveMapBackground(backgroundImagePath);
     },
-    [liveMapState, saveLiveMapState]
+    [switchLiveMapBackground]
   );
 
   const handleLiveMapTokenCreate = useCallback(
@@ -4031,6 +4120,14 @@ const DmPanel = () => {
     loadLiveMapState();
     loadLiveMapBackgrounds();
   }, [authorized, activeView, loadLiveMapBackgrounds, loadLiveMapState]);
+
+  useEffect(() => {
+    setLiveMapBackgroundDraft(
+      liveMapState.backgroundLoaded && liveMapState.backgroundImagePath
+        ? liveMapState.backgroundImagePath
+        : ''
+    );
+  }, [liveMapState.backgroundImagePath, liveMapState.backgroundLoaded]);
 
   useEffect(() => {
     if (!authorized || !sessionToken || activeView !== 'liveMap') return undefined;
@@ -6489,14 +6586,8 @@ const DmPanel = () => {
               Fondo
               <input
                 type="text"
-                value={liveMapState.backgroundImagePath || ''}
-                onChange={(event) =>
-                  setLiveMapState((prev) => ({
-                    ...prev,
-                    backgroundImagePath: event.target.value,
-                    backgroundLoaded: Boolean(event.target.value),
-                  }))
-                }
+                value={liveMapBackgroundDraft}
+                onChange={(event) => setLiveMapBackgroundDraft(event.target.value)}
                 onBlur={handleLiveMapBackgroundChange}
                 placeholder="/mapa.png o /uploads/..."
               />
@@ -6524,18 +6615,15 @@ const DmPanel = () => {
                   <button
                     key={background.id || background.path}
                     type="button"
-                    className={
-                      liveMapState.backgroundImagePath === background.path
-                        ? 'dm-panel__button is-active'
-                        : 'dm-panel__button'
+                  className={
+                    liveMapState.backgroundImagePath === background.path
+                      ? 'dm-panel__button is-active'
+                      : 'dm-panel__button'
                     }
-                    onClick={() =>
-                      saveLiveMapState({
-                        ...liveMapState,
-                        backgroundImagePath: background.path,
-                        backgroundLoaded: true,
-                      })
-                    }
+                    onClick={() => {
+                      setLiveMapBackgroundDraft(background.path);
+                      switchLiveMapBackground(background.path);
+                    }}
                   >
                     <span>{background.label || background.originalName || background.path}</span>
                   </button>
@@ -6547,13 +6635,10 @@ const DmPanel = () => {
                       ? 'dm-panel__button'
                       : 'dm-panel__button is-active'
                   }
-                  onClick={() =>
-                    saveLiveMapState({
-                      ...liveMapState,
-                      backgroundImagePath: '',
-                      backgroundLoaded: false,
-                    })
-                  }
+                  onClick={() => {
+                    setLiveMapBackgroundDraft('');
+                    switchLiveMapBackground('');
+                  }}
                 >
                   <span>Fallback / sin plano cargado</span>
                 </button>
