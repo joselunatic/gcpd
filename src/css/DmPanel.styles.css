@@ -2870,10 +2870,10 @@
 }
 
 .live-map-control__trails line {
-  filter: drop-shadow(0 0 6px rgba(124, 255, 178, 0.25));
-  opacity: 0.92;
+  filter: drop-shadow(0 0 8px rgba(124, 255, 178, 0.42));
+  opacity: 0.98;
   stroke-dasharray: 1.15 0.7;
-  stroke-width: 0.85;
+  stroke-width: 1.2;
   animation-name: liveMapTrailFade;
   animation-timing-function: linear;
   animation-fill-mode: forwards;

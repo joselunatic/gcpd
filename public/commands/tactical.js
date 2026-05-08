@@ -1,6 +1,7 @@
 const API_URL = "/api/live-map";
 const FALLBACK_MAP_PATH = "/assets/livemap/gcpd_live_map_fallback_unavailable.png";
 const TRAIL_TTL_MS = 10000;
+const mapAspectRatioCache = new Map();
 
 const clampPercent = (value) => {
   const numeric = Number(value);
@@ -49,12 +50,42 @@ const normalizeState = (state = {}) => ({
   updatedAt: Number(state.updatedAt) || 0,
 });
 
+function applyMapAspectRatio(map, imagePath) {
+  if (!map) return;
+  const targetPath = String(imagePath || "").trim();
+  if (!targetPath) return;
+
+  map.dataset.backgroundPath = targetPath;
+  const cached = mapAspectRatioCache.get(targetPath);
+  if (cached && cached.width > 0 && cached.height > 0) {
+    map.style.aspectRatio = `${cached.width} / ${cached.height}`;
+    return;
+  }
+
+  const img = new Image();
+  img.onload = () => {
+    const width = Number(img.naturalWidth) || 0;
+    const height = Number(img.naturalHeight) || 0;
+    if (!width || !height) return;
+    mapAspectRatioCache.set(targetPath, { width, height });
+    if (map.dataset.backgroundPath === targetPath) {
+      map.style.aspectRatio = `${width} / ${height}`;
+    }
+  };
+  img.onerror = () => {
+    mapAspectRatioCache.set(targetPath, { width: 1, height: 1 });
+  };
+  img.src = targetPath;
+}
+
 function applyTokenMove(state, token = {}) {
   const normalized = normalizeState(state);
   const tokenId = String(token.id || "").trim();
   if (!tokenId) return normalized;
   const targetX = clampPercent(token.x);
   const targetY = clampPercent(token.y);
+  const sourceToken =
+    normalized.tokens.find((entry) => entry.id === tokenId) || normalizeToken(token) || null;
   const explicitTrail =
     token.trail && typeof token.trail === "object"
       ? {
@@ -65,27 +96,65 @@ function applyTokenMove(state, token = {}) {
           updatedAt: Number(token.trail.updatedAt) || Number(token.updatedAt) || Date.now(),
         }
       : null;
-  const nextTokens = normalized.tokens.map((entry) => {
-    if (entry.id !== tokenId) return entry;
-    const moved = entry.x !== targetX || entry.y !== targetY;
-    return {
-      ...entry,
-      x: targetX,
-      y: targetY,
-      trail: explicitTrail
-        ? explicitTrail
-        : moved
-        ? {
-            fromX: entry.x,
-            fromY: entry.y,
-            toX: targetX,
-            toY: targetY,
-            updatedAt: Number(token.updatedAt) || Date.now(),
-          }
-        : entry.trail || null,
-      updatedAt: Number(token.updatedAt) || Date.now(),
-    };
-  });
+  const nextTokens = normalized.tokens.some((entry) => entry.id === tokenId)
+    ? normalized.tokens.map((entry) => {
+        if (entry.id !== tokenId) return entry;
+        const moved = entry.x !== targetX || entry.y !== targetY;
+        return {
+          ...entry,
+          x: targetX,
+          y: targetY,
+          trail: explicitTrail
+            ? explicitTrail
+            : moved
+            ? {
+                fromX: entry.x,
+                fromY: entry.y,
+                toX: targetX,
+                toY: targetY,
+                updatedAt: Number(token.updatedAt) || Date.now(),
+              }
+            : entry.trail || null,
+          updatedAt: Number(token.updatedAt) || Date.now(),
+        };
+      })
+    : [
+        ...normalized.tokens,
+        {
+          ...(sourceToken || {}),
+          id: tokenId,
+          x: targetX,
+          y: targetY,
+          visible: token.visible !== false,
+          kind: normalizeTokenKind(token.kind || sourceToken?.kind || ""),
+          agentLabel: String(
+            token.agentLabel ||
+              token.label ||
+              sourceToken?.agentLabel ||
+              sourceToken?.label ||
+              sourceToken?.dmLabel ||
+              tokenId
+          ).trim(),
+          dmLabel: String(
+            token.dmLabel ||
+              sourceToken?.dmLabel ||
+              sourceToken?.label ||
+              sourceToken?.agentLabel ||
+              token.label ||
+              tokenId
+          ).trim(),
+          label: String(
+            token.agentLabel ||
+              token.label ||
+              sourceToken?.agentLabel ||
+              sourceToken?.label ||
+              sourceToken?.dmLabel ||
+              tokenId
+          ).trim(),
+          trail: explicitTrail || null,
+          updatedAt: Number(token.updatedAt) || Date.now(),
+        },
+      ];
   return { ...normalized, tokens: nextTokens };
 }
 
@@ -119,6 +188,7 @@ function renderState({ overlay, state }) {
       ? state.backgroundImagePath
       : state.fallbackImagePath || FALLBACK_MAP_PATH;
   map.style.backgroundImage = `url(${backgroundImagePath})`;
+  applyMapAspectRatio(map, backgroundImagePath);
   map.dataset.fallback = state.backgroundLoaded ? "false" : "true";
   sync.textContent = "SYNC: LIVE";
 
@@ -139,8 +209,8 @@ function renderState({ overlay, state }) {
     line.setAttribute("y1", `${token.trail.fromY}`);
     line.setAttribute("x2", `${token.x}`);
     line.setAttribute("y2", `${token.y}`);
-    line.setAttribute("stroke", token.kind === "enemy" ? "rgba(255,90,90,0.84)" : "rgba(92,181,255,0.84)");
-    line.setAttribute("stroke-width", "0.5");
+    line.setAttribute("stroke", token.kind === "enemy" ? "rgba(255,90,90,0.92)" : "rgba(92,181,255,0.92)");
+    line.setAttribute("stroke-width", "0.85");
     line.setAttribute("stroke-linecap", "round");
     line.style.animationDuration = `${TRAIL_TTL_MS}ms`;
     line.style.animationDelay = `-${Math.min(age, TRAIL_TTL_MS)}ms`;
@@ -170,7 +240,7 @@ function injectStyles() {
   style.textContent = `
     .terminal-tactical-active .terminal { visibility: hidden; }
     .tactical-overlay {
-      position: absolute;
+      position: fixed;
       inset: 0;
       z-index: 75;
       display: grid;
@@ -195,7 +265,7 @@ function injectStyles() {
     }
     .tactical-map {
       position: relative;
-      aspect-ratio: 1.428 / 1;
+      aspect-ratio: 1.5 / 1;
       width: 100%;
       border: 1px solid rgba(124,255,178,0.28);
       background-color: rgba(1,10,12,0.92);
@@ -212,14 +282,14 @@ function injectStyles() {
     .tactical-trails {
       position: absolute;
       inset: 0;
-      z-index: 1;
+      z-index: 2;
       pointer-events: none;
     }
     .tactical-trails line {
-      filter: drop-shadow(0 0 6px rgba(124,255,178,0.25));
-      opacity: 0.92;
+      filter: drop-shadow(0 0 8px rgba(124,255,178,0.42));
+      opacity: 0.98;
       stroke-dasharray: 1.15 0.7;
-      stroke-width: 0.85;
+      stroke-width: 1.2;
       vector-effect: non-scaling-stroke;
       animation-name: tacticalTrailFade;
       animation-timing-function: linear;
@@ -232,6 +302,7 @@ function injectStyles() {
       content: "";
       position: absolute;
       inset: 0;
+      z-index: 1;
       pointer-events: none;
       background: repeating-linear-gradient(
         0deg,
@@ -277,7 +348,7 @@ function injectStyles() {
       white-space: nowrap;
       box-shadow: 0 0 12px rgba(92,181,255,0.24);
       transition: left 160ms linear, top 160ms linear, box-shadow 160ms ease;
-      z-index: 2;
+      z-index: 3;
     }
     .tactical-token[data-kind="enemy"] {
       border-color: rgba(255,90,90,0.88);
@@ -317,9 +388,7 @@ function injectStyles() {
 
 export async function startTactical() {
   injectStyles();
-  const screenHost =
-    document.getElementById("screen-container") || document.querySelector(".terminal");
-  if (!screenHost) return;
+  const screenHost = document.body;
 
   const overlay = document.createElement("div");
   overlay.className = "tactical-overlay";

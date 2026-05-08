@@ -26,10 +26,11 @@ Important behavior
 - Trail mode is v1 only:
   - only the last segment is stored and rendered
   - no full path history
-  - trail TTL is short, around 2.2s
+  - trail TTL is around 10s with a fade-out
 - `live-map:token-move` now persists movement plus a single `trail` object:
   - `fromX`, `fromY`, `toX`, `toY`, `updatedAt`
 - The DM and agent map both draw the trail as an SVG line layer underneath tokens.
+- The agent also receives a full `live-map:state` snapshot after token moves so it does not depend only on the incremental move event.
 - The tactical agent view uses `agentLabel` for token text.
 - The DM view uses `dmLabel` as primary text.
 

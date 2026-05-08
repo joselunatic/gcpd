@@ -961,6 +961,10 @@ function broadcastLiveMapTokenMove(token) {
       id: token.id,
       x: token.x,
       y: token.y,
+      visible: token.visible !== false,
+      kind: token.kind || 'ally',
+      label: token.label || token.agentLabel || '',
+      agentLabel: token.agentLabel || token.label || '',
       updatedAt: token.updatedAt,
       trail: token.trail || null,
     },
@@ -3351,9 +3355,10 @@ liveMapWss.on('connection', (ws, request, url) => {
       if (!tokenId) return;
       const current = getLiveMapState();
       const previousToken = current.tokens.find((entry) => entry.id === tokenId) || null;
-      if (!previousToken) return;
       const targetX = clampPercent(payload.token?.x);
       const targetY = clampPercent(payload.token?.y);
+      const sourceToken = previousToken || normalizeLiveMapToken(payload.token || {});
+      if (!sourceToken) return;
       const trail = payload.token?.trail && typeof payload.token.trail === 'object'
         ? {
             fromX: clampPercent(payload.token.trail.fromX),
@@ -3365,7 +3370,7 @@ liveMapWss.on('connection', (ws, request, url) => {
               Number(payload.token.updatedAt) ||
               Date.now(),
           }
-        : previousToken.x !== targetX || previousToken.y !== targetY
+        : previousToken && (previousToken.x !== targetX || previousToken.y !== targetY)
           ? {
               fromX: previousToken.x,
               fromY: previousToken.y,
@@ -3373,9 +3378,9 @@ liveMapWss.on('connection', (ws, request, url) => {
               toY: targetY,
               updatedAt: Date.now(),
             }
-          : previousToken.trail || null;
+          : previousToken?.trail || null;
       const updatedToken = {
-        ...previousToken,
+        ...sourceToken,
         id: tokenId,
         x: targetX,
         y: targetY,
@@ -3387,6 +3392,7 @@ liveMapWss.on('connection', (ws, request, url) => {
       );
       const saved = setLiveMapState({ ...current, tokens });
       broadcastLiveMapTokenMove(updatedToken);
+      broadcastLiveMapToAgents({ type: 'live-map:state', state: saved });
       liveMapDmSockets.forEach((socket) =>
         wsSend(socket, { type: 'live-map:state', state: saved })
       );
