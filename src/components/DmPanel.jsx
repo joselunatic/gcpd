@@ -457,6 +457,7 @@ const LIVE_MAP_DEFAULT_TOKEN = {
   kind: 'ally',
   visible: true,
 };
+const LIVE_MAP_TRAIL_TTL_MS = 2200;
 
 const normalizeLiveMapTokenKind = (kind = '') => {
   const normalized = String(kind || '').trim().toLowerCase();
@@ -479,6 +480,15 @@ const normalizeLiveMapScene = (scene = {}) => {
           y: Math.max(0, Math.min(100, Number(token.y) || 0)),
           visible: token.visible !== false,
           kind: normalizeLiveMapTokenKind(token.kind),
+          trail: token.trail
+            ? {
+                fromX: Math.max(0, Math.min(100, Number(token.trail.fromX) || 0)),
+                fromY: Math.max(0, Math.min(100, Number(token.trail.fromY) || 0)),
+                toX: Math.max(0, Math.min(100, Number(token.trail.toX) || Number(token.x) || 0)),
+                toY: Math.max(0, Math.min(100, Number(token.trail.toY) || Number(token.y) || 0)),
+                updatedAt: Number(token.trail.updatedAt) || Number(token.updatedAt) || Date.now(),
+              }
+            : null,
           updatedAt: Number(token.updatedAt) || Date.now(),
         }))
         .filter((token) => token.id && (token.label || token.dmLabel))
@@ -4155,8 +4165,27 @@ const DmPanel = () => {
 
   const updateLiveMapTokenPosition = useCallback(
     async (id, x, y) => {
+      const now = Date.now();
+      const previous = liveMapState.tokens.find((token) => token.id === id) || null;
+      const moved = previous ? previous.x !== x || previous.y !== y : false;
       const nextTokens = liveMapState.tokens.map((token) =>
-        token.id === id ? { ...token, x, y, updatedAt: Date.now() } : token
+        token.id === id
+          ? {
+              ...token,
+              x,
+              y,
+              trail: moved
+                ? {
+                    fromX: token.x,
+                    fromY: token.y,
+                    toX: x,
+                    toY: y,
+                    updatedAt: now,
+                  }
+                : token.trail || null,
+              updatedAt: now,
+            }
+          : token
       );
       const tokenMove = nextTokens.find((token) => token.id === id);
       await saveLiveMapState(
@@ -6876,6 +6905,39 @@ const DmPanel = () => {
               {!liveMapState.backgroundLoaded && (
                 <div className="live-map-control__empty">FALLBACK MAP</div>
               )}
+              <svg
+                className="live-map-control__trails"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                {liveMapState.tokens
+                  .filter((token) => token.visible && token.trail)
+                  .map((token) => {
+                    const age = Math.max(
+                      0,
+                      Date.now() - Number(token.trail?.updatedAt || token.updatedAt || 0)
+                    );
+                    if (age > LIVE_MAP_TRAIL_TTL_MS) return null;
+                    const color = token.kind === 'enemy' ? 'rgba(255, 90, 90, 0.84)' : 'rgba(92, 181, 255, 0.84)';
+                    return (
+                      <line
+                        key={`${token.id}-${token.trail.updatedAt}`}
+                        x1={token.trail.fromX}
+                        y1={token.trail.fromY}
+                        x2={token.x}
+                        y2={token.y}
+                        stroke={color}
+                        strokeWidth="0.5"
+                        strokeLinecap="round"
+                        style={{
+                          animationDuration: `${LIVE_MAP_TRAIL_TTL_MS}ms`,
+                          animationDelay: `-${Math.min(age, LIVE_MAP_TRAIL_TTL_MS)}ms`,
+                        }}
+                      />
+                    );
+                  })}
+              </svg>
               {liveMapState.tokens.map((token) => (
                 <div
                   key={token.id}

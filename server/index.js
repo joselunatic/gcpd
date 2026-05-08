@@ -648,6 +648,17 @@ function normalizeLiveMapTokenKind(kind = '') {
   return 'ally';
 }
 
+function normalizeLiveMapTrail(entry = {}) {
+  if (!entry || typeof entry !== 'object') return null;
+  const fromX = clampPercent(entry.fromX);
+  const fromY = clampPercent(entry.fromY);
+  const toX = clampPercent(entry.toX);
+  const toY = clampPercent(entry.toY);
+  const updatedAt = Number(entry.updatedAt) || Date.now();
+  if (![fromX, fromY, toX, toY].every((value) => Number.isFinite(value))) return null;
+  return { fromX, fromY, toX, toY, updatedAt };
+}
+
 function normalizeLiveMapToken(entry = {}) {
   if (!entry || typeof entry !== 'object') return null;
   const agentLabel = String(entry.agentLabel || entry.label || entry.dmLabel || '').trim();
@@ -664,6 +675,7 @@ function normalizeLiveMapToken(entry = {}) {
     y: clampPercent(entry.y),
     visible: entry.visible !== false,
     kind: normalizeLiveMapTokenKind(entry.kind),
+    trail: normalizeLiveMapTrail(entry.trail),
     updatedAt: Number(entry.updatedAt) || Date.now(),
   };
 }
@@ -3337,11 +3349,26 @@ liveMapWss.on('connection', (ws, request, url) => {
       const tokenId = String(payload.token?.id || '').trim();
       if (!tokenId) return;
       const current = getLiveMapState();
+      const previousToken = current.tokens.find((entry) => entry.id === tokenId) || null;
+      if (!previousToken) return;
+      const targetX = clampPercent(payload.token?.x);
+      const targetY = clampPercent(payload.token?.y);
+      const moved = previousToken.x !== targetX || previousToken.y !== targetY;
+      const trail = moved
+        ? {
+            fromX: previousToken.x,
+            fromY: previousToken.y,
+            toX: targetX,
+            toY: targetY,
+            updatedAt: Date.now(),
+          }
+        : previousToken.trail || null;
       const updatedToken = {
-        ...current.tokens.find((entry) => entry.id === tokenId),
+        ...previousToken,
         id: tokenId,
-        x: clampPercent(payload.token?.x),
-        y: clampPercent(payload.token?.y),
+        x: targetX,
+        y: targetY,
+        trail,
         updatedAt: Date.now(),
       };
       const tokens = current.tokens.map((entry) =>

@@ -1,5 +1,6 @@
 const API_URL = "/api/live-map";
 const FALLBACK_MAP_PATH = "/assets/livemap/gcpd_live_map_fallback_unavailable.png";
+const TRAIL_TTL_MS = 2200;
 
 const clampPercent = (value) => {
   const numeric = Number(value);
@@ -16,6 +17,15 @@ const normalizeToken = (token = {}) => ({
   y: clampPercent(token.y),
   visible: token.visible !== false,
   kind: normalizeTokenKind(token.kind),
+  trail: token.trail
+    ? {
+        fromX: clampPercent(token.trail.fromX),
+        fromY: clampPercent(token.trail.fromY),
+        toX: clampPercent(token.trail.toX ?? token.x),
+        toY: clampPercent(token.trail.toY ?? token.y),
+        updatedAt: Number(token.trail.updatedAt) || Number(token.updatedAt) || 0,
+      }
+    : null,
   updatedAt: Number(token.updatedAt) || 0,
 });
 
@@ -39,6 +49,34 @@ const normalizeState = (state = {}) => ({
   updatedAt: Number(state.updatedAt) || 0,
 });
 
+function applyTokenMove(state, token = {}) {
+  const normalized = normalizeState(state);
+  const tokenId = String(token.id || "").trim();
+  if (!tokenId) return normalized;
+  const targetX = clampPercent(token.x);
+  const targetY = clampPercent(token.y);
+  const nextTokens = normalized.tokens.map((entry) => {
+    if (entry.id !== tokenId) return entry;
+    const moved = entry.x !== targetX || entry.y !== targetY;
+    return {
+      ...entry,
+      x: targetX,
+      y: targetY,
+      trail: moved
+        ? {
+            fromX: entry.x,
+            fromY: entry.y,
+            toX: targetX,
+            toY: targetY,
+            updatedAt: Number(token.updatedAt) || Date.now(),
+          }
+        : entry.trail || null,
+      updatedAt: Number(token.updatedAt) || Date.now(),
+    };
+  });
+  return { ...normalized, tokens: nextTokens };
+}
+
 async function fetchLiveMapState() {
   const response = await fetch(API_URL, { cache: "no-store" });
   if (!response.ok) throw new Error("LIVE MAP UNAVAILABLE");
@@ -54,6 +92,16 @@ function renderState({ overlay, state }) {
   const map = overlay.querySelector(".tactical-map");
   const sync = overlay.querySelector(".tactical-sync");
   if (!map || !sync) return;
+  let trails = map.querySelector(".tactical-trails");
+  if (!trails) {
+    trails = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    trails.classList.add("tactical-trails");
+    trails.setAttribute("viewBox", "0 0 100 100");
+    trails.setAttribute("preserveAspectRatio", "none");
+    trails.setAttribute("aria-hidden", "true");
+    map.insertBefore(trails, map.firstChild);
+  }
+  trails.innerHTML = "";
   const backgroundImagePath =
     state.backgroundLoaded && state.backgroundImagePath
       ? state.backgroundImagePath
@@ -69,6 +117,23 @@ function renderState({ overlay, state }) {
     ])
   );
   const visibleTokens = state.tokens.filter((token) => token.visible);
+  const now = Date.now();
+  visibleTokens.forEach((token) => {
+    if (!token.trail) return;
+    const age = Math.max(0, now - Number(token.trail.updatedAt || token.updatedAt || 0));
+    if (age > TRAIL_TTL_MS) return;
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", `${token.trail.fromX}`);
+    line.setAttribute("y1", `${token.trail.fromY}`);
+    line.setAttribute("x2", `${token.x}`);
+    line.setAttribute("y2", `${token.y}`);
+    line.setAttribute("stroke", token.kind === "enemy" ? "rgba(255,90,90,0.84)" : "rgba(92,181,255,0.84)");
+    line.setAttribute("stroke-width", "0.5");
+    line.setAttribute("stroke-linecap", "round");
+    line.style.animationDuration = `${TRAIL_TTL_MS}ms`;
+    line.style.animationDelay = `-${Math.min(age, TRAIL_TTL_MS)}ms`;
+    trails.appendChild(line);
+  });
   visibleTokens.forEach((token) => {
     let node = existing.get(token.id);
     if (!node) {
@@ -84,20 +149,6 @@ function renderState({ overlay, state }) {
     existing.delete(token.id);
   });
   existing.forEach((node) => node.remove());
-}
-
-function renderTokenMove({ overlay, token }) {
-  const map = overlay.querySelector(".tactical-map");
-  if (!map || !token?.id) return;
-  const node = Array.from(map.querySelectorAll(".tactical-token")).find(
-    (entry) => entry.dataset.tokenId === token.id
-  );
-  if (!node) return;
-  node.style.left = `${clampPercent(token.x)}%`;
-  node.style.top = `${clampPercent(token.y)}%`;
-  node.classList.remove("is-moving");
-  void node.offsetWidth;
-  node.classList.add("is-moving");
 }
 
 function injectStyles() {
@@ -143,6 +194,24 @@ function injectStyles() {
       background-size: contain, 32px 32px, 32px 32px;
       overflow: hidden;
       box-shadow: inset 0 0 36px rgba(0,0,0,0.95);
+    }
+    .tactical-trails {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+    .tactical-trails line {
+      filter: drop-shadow(0 0 6px rgba(124,255,178,0.25));
+      opacity: 0.8;
+      stroke-dasharray: 1.15 0.7;
+      vector-effect: non-scaling-stroke;
+      animation-name: tacticalTrailFade;
+      animation-timing-function: linear;
+      animation-fill-mode: forwards;
+    }
+    .tactical-trails line[stroke*="255,90,90"] {
+      filter: drop-shadow(0 0 6px rgba(255,90,90,0.25));
     }
     .tactical-map::after {
       content: "";
@@ -223,6 +292,10 @@ function injectStyles() {
       0%, 100% { opacity: 0.25; transform: scale(1); }
       50% { opacity: 0.7; transform: scale(1.08); }
     }
+    @keyframes tacticalTrailFade {
+      0% { opacity: 0.8; stroke-dashoffset: 0; }
+      100% { opacity: 0; stroke-dashoffset: -4; }
+    }
   `;
   document.head.appendChild(style);
 }
@@ -252,6 +325,7 @@ export async function startTactical() {
 
   let socket = null;
   let closed = false;
+  let currentState = null;
 
   const cleanup = () => {
     if (closed) return;
@@ -275,7 +349,8 @@ export async function startTactical() {
   document.addEventListener("keydown", keyHandler, { capture: true });
 
   try {
-    renderState({ overlay, state: await fetchLiveMapState() });
+    currentState = await fetchLiveMapState();
+    renderState({ overlay, state: currentState });
   } catch (error) {
     const sync = overlay.querySelector(".tactical-sync");
     if (sync) sync.textContent = "SYNC: CACHE UNAVAILABLE";
@@ -302,11 +377,13 @@ export async function startTactical() {
       return;
     }
     if (payload.type === "live-map:state") {
-      renderState({ overlay, state: normalizeState(payload.state) });
+      currentState = normalizeState(payload.state);
+      renderState({ overlay, state: currentState });
       return;
     }
     if (payload.type === "live-map:token-move") {
-      renderTokenMove({ overlay, token: payload.token });
+      currentState = applyTokenMove(currentState, payload.token);
+      renderState({ overlay, state: currentState });
     }
   };
 
