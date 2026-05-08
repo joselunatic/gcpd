@@ -547,6 +547,9 @@ function ensureMapStyles() {
       height: min(56vh, 460px);
       min-width: 320px;
       min-height: 260px;
+      max-width: calc(100vw - 24px);
+      max-height: calc(100vh - 24px);
+      resize: none;
       z-index: 120;
       display: grid;
       grid-template-rows: auto 1fr auto;
@@ -667,6 +670,22 @@ function ensureMapStyles() {
       text-transform: uppercase;
       color: rgba(191, 255, 220, 0.62);
       background: rgba(4, 12, 10, 0.94);
+    }
+    .terminal-map-loupe__resize {
+      position: absolute;
+      right: 3px;
+      bottom: 3px;
+      width: 18px;
+      height: 18px;
+      border-right: 2px solid rgba(124, 255, 178, 0.4);
+      border-bottom: 2px solid rgba(124, 255, 178, 0.4);
+      border-radius: 0 0 10px 0;
+      cursor: nwse-resize;
+      opacity: 0.8;
+      pointer-events: auto;
+      z-index: 2;
+      background:
+        linear-gradient(135deg, transparent 44%, rgba(124, 255, 178, 0.5) 44%, rgba(124, 255, 178, 0.5) 56%, transparent 56%);
     }
     .terminal-map-panel__poi-button {
       width: 100% !important;
@@ -870,25 +889,27 @@ function ensureMapStyles() {
       overflow-y: auto;
       overflow-x: hidden;
       display: grid;
-      gap: 12px;
-      padding: 10px;
-      grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
-      align-items: stretch;
+      gap: 8px;
+      padding: 8px;
+      grid-template-columns: minmax(0, 1.16fr) minmax(0, 0.84fr);
+      align-items: start;
+      align-content: start;
+      grid-auto-rows: min-content;
       min-width: 0;
     }
     .terminal-map-popup__media {
       display: grid;
-      gap: 8px;
-      align-content: stretch;
-      grid-template-rows: minmax(0, 1fr) auto;
+      gap: 6px;
+      align-content: start;
+      grid-template-rows: auto auto;
       min-height: 0;
       min-width: 0;
     }
     .terminal-map-popup__image {
       position: relative;
       min-height: 0;
-      aspect-ratio: 16 / 10;
-      max-height: 48vh;
+      aspect-ratio: 16 / 9;
+      max-height: 46vh;
       border: 1px solid rgba(124, 255, 178, 0.24);
       border-radius: 10px;
       overflow: hidden;
@@ -917,14 +938,16 @@ function ensureMapStyles() {
       padding: 0 12px;
     }
     .terminal-map-popup__summary {
-      font-size: 11px;
-      line-height: 1.55;
+      font-size: 10px;
+      line-height: 1.46;
       color: rgba(228, 255, 243, 0.84);
       letter-spacing: 0.04em;
-      padding: 8px 10px;
+      padding: 6px 8px;
       border: 1px solid rgba(124, 255, 178, 0.18);
       border-radius: 10px;
       background: rgba(4, 12, 10, 0.74);
+      max-height: clamp(120px, 18vh, 200px);
+      overflow-y: auto;
       overflow-wrap: anywhere;
       word-break: break-word;
       white-space: pre-wrap;
@@ -932,15 +955,17 @@ function ensureMapStyles() {
     }
     .terminal-map-popup__details {
       display: grid;
-      gap: 8px;
-      align-content: stretch;
+      gap: 6px;
+      align-content: start;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-auto-rows: min-content;
       min-height: 0;
       min-width: 0;
     }
     .terminal-map-popup__section {
       display: grid;
-      gap: 6px;
-      padding: 8px 10px;
+      gap: 4px;
+      padding: 6px 8px;
       border: 1px solid rgba(124, 255, 178, 0.16);
       border-radius: 10px;
       background: rgba(4, 12, 10, 0.7);
@@ -948,16 +973,16 @@ function ensureMapStyles() {
     }
     .terminal-map-popup__section-title {
       color: rgba(191, 255, 220, 0.66);
-      font-size: 10px;
+      font-size: 9px;
       letter-spacing: 0.14em;
       text-transform: uppercase;
     }
     .terminal-map-popup__lines {
       display: grid;
-      gap: 4px;
-      font-size: 11px;
+      gap: 3px;
+      font-size: 10px;
       color: rgba(228, 255, 243, 0.82);
-      line-height: 1.5;
+      line-height: 1.42;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
       word-break: break-word;
@@ -971,22 +996,23 @@ function ensureMapStyles() {
     }
     .terminal-map-popup__resource-list {
       display: grid;
-      gap: 6px;
+      gap: 4px;
       min-width: 0;
     }
     .terminal-map-popup__resource-item {
       display: grid;
-      gap: 4px;
+      gap: 3px;
       min-width: 0;
-      padding: 6px 8px;
+      padding: 5px 7px;
       border: 1px solid rgba(124, 255, 178, 0.12);
       border-radius: 8px;
       background: rgba(2, 10, 8, 0.4);
     }
     .terminal-map-popup__resource-head {
-      display: flex;
-      gap: 8px;
-      align-items: baseline;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 6px;
+      align-items: center;
       min-width: 0;
       overflow-wrap: anywhere;
       word-break: break-word;
@@ -1007,7 +1033,7 @@ function ensureMapStyles() {
     }
     .terminal-map-popup__resource-meta {
       color: rgba(191, 255, 220, 0.68);
-      font-size: 10px;
+      font-size: 9px;
       overflow-wrap: anywhere;
       word-break: break-word;
       min-width: 0;
@@ -1029,6 +1055,9 @@ function ensureMapStyles() {
         padding: 0;
       }
       .terminal-map-popup__body {
+        grid-template-columns: 1fr;
+      }
+      .terminal-map-popup__details {
         grid-template-columns: 1fr;
       }
       .terminal-map-popup__card {
@@ -1100,6 +1129,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
       <div class="terminal-map-loupe__empty" data-role="empty">SIN DATOS</div>
     </div>
     <div class="terminal-map-loupe__foot" data-role="foot">HOVER PARA DESPLEGAR POIS EN ZOOM REAL</div>
+    <div class="terminal-map-loupe__resize" aria-hidden="true"></div>
   `;
   document.body.appendChild(loupe);
 
@@ -1119,6 +1149,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
   const loupeEmpty = loupe.querySelector("[data-role='empty']");
   const loupeSurface = loupe.querySelector(".terminal-map-loupe__surface");
   const loupeHead = loupe.querySelector(".terminal-map-loupe__head");
+  const loupeResizeHandle = loupe.querySelector(".terminal-map-loupe__resize");
 
   const hotspotNodes = [];
   const campaignState = loadCampaignState();
@@ -1129,6 +1160,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
   let exitResolver = null;
   let disposed = false;
   let loupeDrag = null;
+  let loupeResize = null;
   let loupePositionReady = false;
 
   const visibleEntries = (Array.isArray(hotspotsData?.hotspots) ? hotspotsData.hotspots : [])
@@ -1198,6 +1230,8 @@ async function showMapOverlay({ pois, hotspotsData }) {
     setSessionStorageJson(MAP_LOUPE_POSITION_KEY, {
       left: rect.left,
       top: rect.top,
+      width: rect.width,
+      height: rect.height,
     });
     loupeDrag = null;
     loupe.classList.remove("is-dragging");
@@ -1228,6 +1262,56 @@ async function showMapOverlay({ pois, hotspotsData }) {
     window.addEventListener("pointercancel", endLoupeDrag);
   };
 
+  const endLoupeResize = () => {
+    if (!loupeResize) return;
+    const rect = loupe.getBoundingClientRect();
+    setSessionStorageJson(MAP_LOUPE_POSITION_KEY, {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    });
+    loupeResize = null;
+    loupe.classList.remove("is-resizing");
+    window.removeEventListener("pointermove", onLoupeResizeMove);
+    window.removeEventListener("pointerup", endLoupeResize);
+    window.removeEventListener("pointercancel", endLoupeResize);
+  };
+
+  const onLoupeResizeMove = (event) => {
+    if (!loupeResize) return;
+    const width = loupeResize.startWidth + (event.clientX - loupeResize.startX);
+    const height = loupeResize.startHeight + (event.clientY - loupeResize.startY);
+    applyLoupeBounds(
+      {
+        left: loupeResize.startLeft,
+        top: loupeResize.startTop,
+        width,
+        height,
+      },
+      false
+    );
+  };
+
+  const startLoupeResize = (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = loupe.getBoundingClientRect();
+    loupeResize = {
+      startX: event.clientX,
+      startY: event.clientY,
+      startLeft: rect.left,
+      startTop: rect.top,
+      startWidth: rect.width,
+      startHeight: rect.height,
+    };
+    loupe.classList.add("is-resizing");
+    window.addEventListener("pointermove", onLoupeResizeMove);
+    window.addEventListener("pointerup", endLoupeResize);
+    window.addEventListener("pointercancel", endLoupeResize);
+  };
+
   const clampLoupePosition = (left, top) => {
     const rect = loupe.getBoundingClientRect();
     const width = rect.width || loupe.offsetWidth || 440;
@@ -1241,23 +1325,49 @@ async function showMapOverlay({ pois, hotspotsData }) {
     };
   };
 
-  const applyLoupePosition = (left, top, persist = false) => {
-    const pos = clampLoupePosition(left, top);
-    loupe.style.left = `${Math.round(pos.left)}px`;
-    loupe.style.top = `${Math.round(pos.top)}px`;
+  const clampLoupeSize = (width, height) => {
+    const margin = 12;
+    const minWidth = 320;
+    const minHeight = 220;
+    const maxWidth = Math.max(minWidth, window.innerWidth - margin * 2);
+    const maxHeight = Math.max(minHeight, window.innerHeight - margin * 2);
+    return {
+      width: clamp(Number(width) || minWidth, minWidth, maxWidth),
+      height: clamp(Number(height) || minHeight, minHeight, maxHeight),
+    };
+  };
+
+  const applyLoupeBounds = (bounds = {}, persist = false) => {
+    const current = loupe.getBoundingClientRect();
+    const size = clampLoupeSize(bounds.width ?? current.width, bounds.height ?? current.height);
+    const position = clampLoupePosition(bounds.left ?? current.left, bounds.top ?? current.top);
+    loupe.style.left = `${Math.round(position.left)}px`;
+    loupe.style.top = `${Math.round(position.top)}px`;
+    loupe.style.width = `${Math.round(size.width)}px`;
+    loupe.style.height = `${Math.round(size.height)}px`;
     loupe.style.right = "auto";
     loupe.style.bottom = "auto";
     loupe.dataset.position = "custom";
     if (persist) {
-      setSessionStorageJson(MAP_LOUPE_POSITION_KEY, pos);
+      setSessionStorageJson(MAP_LOUPE_POSITION_KEY, {
+        left: position.left,
+        top: position.top,
+        width: size.width,
+        height: size.height,
+      });
     }
-    return pos;
+    return { ...position, ...size };
+  };
+
+  const applyLoupePosition = (left, top, persist = false) => {
+    const pos = clampLoupePosition(left, top);
+    return applyLoupeBounds({ left: pos.left, top: pos.top }, persist);
   };
 
   const restoreLoupePosition = () => {
     const saved = getSessionStorageJson(MAP_LOUPE_POSITION_KEY, null);
     if (saved && Number.isFinite(Number(saved.left)) && Number.isFinite(Number(saved.top))) {
-      return applyLoupePosition(saved.left, saved.top, false);
+      return applyLoupeBounds(saved, false);
     }
     const terminalRect = terminal.getBoundingClientRect();
     const loupeRect = loupe.getBoundingClientRect();
@@ -1296,6 +1406,9 @@ async function showMapOverlay({ pois, hotspotsData }) {
 
   if (loupeHead) {
     loupeHead.addEventListener("pointerdown", startLoupeDrag);
+  }
+  if (loupeResizeHandle) {
+    loupeResizeHandle.addEventListener("pointerdown", startLoupeResize);
   }
 
   const openPoiPopup = (poi, evaluation, clusterContext = null) => {
@@ -1829,7 +1942,9 @@ async function showMapOverlay({ pois, hotspotsData }) {
     frame.removeEventListener("pointerleave", onPointerLeave);
     document.removeEventListener("dblclick", onGlobalDoubleClick, true);
     if (loupeHead) loupeHead.removeEventListener("pointerdown", startLoupeDrag);
+    if (loupeResizeHandle) loupeResizeHandle.removeEventListener("pointerdown", startLoupeResize);
     endLoupeDrag();
+    endLoupeResize();
     closePoiPopup();
     terminal.classList.remove("terminal-viewer-active");
     document.body.classList.remove("terminal-viewer-active");
