@@ -962,6 +962,7 @@ function broadcastLiveMapTokenMove(token) {
       x: token.x,
       y: token.y,
       updatedAt: token.updatedAt,
+      trail: token.trail || null,
     },
   });
 }
@@ -3353,16 +3354,26 @@ liveMapWss.on('connection', (ws, request, url) => {
       if (!previousToken) return;
       const targetX = clampPercent(payload.token?.x);
       const targetY = clampPercent(payload.token?.y);
-      const moved = previousToken.x !== targetX || previousToken.y !== targetY;
-      const trail = moved
+      const trail = payload.token?.trail && typeof payload.token.trail === 'object'
         ? {
-            fromX: previousToken.x,
-            fromY: previousToken.y,
-            toX: targetX,
-            toY: targetY,
-            updatedAt: Date.now(),
+            fromX: clampPercent(payload.token.trail.fromX),
+            fromY: clampPercent(payload.token.trail.fromY),
+            toX: clampPercent(payload.token.trail.toX ?? targetX),
+            toY: clampPercent(payload.token.trail.toY ?? targetY),
+            updatedAt:
+              Number(payload.token.trail.updatedAt) ||
+              Number(payload.token.updatedAt) ||
+              Date.now(),
           }
-        : previousToken.trail || null;
+        : previousToken.x !== targetX || previousToken.y !== targetY
+          ? {
+              fromX: previousToken.x,
+              fromY: previousToken.y,
+              toX: targetX,
+              toY: targetY,
+              updatedAt: Date.now(),
+            }
+          : previousToken.trail || null;
       const updatedToken = {
         ...previousToken,
         id: tokenId,

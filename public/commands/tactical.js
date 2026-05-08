@@ -55,6 +55,16 @@ function applyTokenMove(state, token = {}) {
   if (!tokenId) return normalized;
   const targetX = clampPercent(token.x);
   const targetY = clampPercent(token.y);
+  const explicitTrail =
+    token.trail && typeof token.trail === "object"
+      ? {
+          fromX: clampPercent(token.trail.fromX),
+          fromY: clampPercent(token.trail.fromY),
+          toX: clampPercent(token.trail.toX ?? targetX),
+          toY: clampPercent(token.trail.toY ?? targetY),
+          updatedAt: Number(token.trail.updatedAt) || Number(token.updatedAt) || Date.now(),
+        }
+      : null;
   const nextTokens = normalized.tokens.map((entry) => {
     if (entry.id !== tokenId) return entry;
     const moved = entry.x !== targetX || entry.y !== targetY;
@@ -62,7 +72,9 @@ function applyTokenMove(state, token = {}) {
       ...entry,
       x: targetX,
       y: targetY,
-      trail: moved
+      trail: explicitTrail
+        ? explicitTrail
+        : moved
         ? {
             fromX: entry.x,
             fromY: entry.y,

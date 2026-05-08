@@ -4164,25 +4164,15 @@ const DmPanel = () => {
   );
 
   const updateLiveMapTokenPosition = useCallback(
-    async (id, x, y) => {
+    async (id, x, y, trail = null) => {
       const now = Date.now();
-      const previous = liveMapState.tokens.find((token) => token.id === id) || null;
-      const moved = previous ? previous.x !== x || previous.y !== y : false;
       const nextTokens = liveMapState.tokens.map((token) =>
         token.id === id
           ? {
               ...token,
               x,
               y,
-              trail: moved
-                ? {
-                    fromX: token.x,
-                    fromY: token.y,
-                    toX: x,
-                    toY: y,
-                    updatedAt: now,
-                  }
-                : token.trail || null,
+              trail: trail || token.trail || null,
               updatedAt: now,
             }
           : token
@@ -4207,12 +4197,17 @@ const DmPanel = () => {
   }, []);
 
   const handleLiveMapTokenPointerDown = useCallback(
-    (event, tokenId) => {
+    (event, token) => {
       event.preventDefault();
       const surface = event.currentTarget.closest('.live-map-control__surface');
       if (!surface) return;
-      setLiveMapSelectedTokenId(tokenId);
-      liveMapDragRef.current = { tokenId, surface };
+      setLiveMapSelectedTokenId(token.id);
+      liveMapDragRef.current = {
+        tokenId: token.id,
+        surface,
+        startX: token.x,
+        startY: token.y,
+      };
       event.currentTarget.setPointerCapture?.(event.pointerId);
     },
     []
@@ -4240,8 +4235,18 @@ const DmPanel = () => {
       const drag = liveMapDragRef.current;
       if (!drag) return;
       const point = getLiveMapPointerPosition(event, drag.surface);
+      const moved = drag.startX !== point.x || drag.startY !== point.y;
+      const trail = moved
+        ? {
+            fromX: drag.startX,
+            fromY: drag.startY,
+            toX: point.x,
+            toY: point.y,
+            updatedAt: Date.now(),
+          }
+        : null;
       liveMapDragRef.current = null;
-      await updateLiveMapTokenPosition(drag.tokenId, point.x, point.y);
+      await updateLiveMapTokenPosition(drag.tokenId, point.x, point.y, trail);
     },
     [getLiveMapPointerPosition, updateLiveMapTokenPosition]
   );
@@ -6946,7 +6951,7 @@ const DmPanel = () => {
                   }${token.visible ? '' : ' is-hidden'}`}
                   data-kind={token.kind}
                   style={{ left: `${token.x}%`, top: `${token.y}%` }}
-                  onPointerDown={(event) => handleLiveMapTokenPointerDown(event, token.id)}
+                  onPointerDown={(event) => handleLiveMapTokenPointerDown(event, token)}
                   onClick={() => setLiveMapSelectedTokenId(token.id)}
                   title={`${token.dmLabel || token.label || token.agentLabel || token.id}`}
                 >
