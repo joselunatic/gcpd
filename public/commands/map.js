@@ -889,9 +889,9 @@ function ensureMapStyles() {
       overflow-y: auto;
       overflow-x: hidden;
       display: grid;
-      gap: 8px;
-      padding: 8px;
-      grid-template-columns: minmax(0, 1.16fr) minmax(0, 0.84fr);
+      gap: 6px;
+      padding: 6px;
+      grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.82fr);
       align-items: start;
       align-content: start;
       grid-auto-rows: min-content;
@@ -899,11 +899,12 @@ function ensureMapStyles() {
     }
     .terminal-map-popup__media {
       display: grid;
-      gap: 6px;
+      gap: 4px;
       align-content: start;
-      grid-template-rows: auto auto;
+      grid-template-rows: auto;
       min-height: 0;
       min-width: 0;
+      align-self: start;
     }
     .terminal-map-popup__image {
       position: relative;
@@ -938,15 +939,16 @@ function ensureMapStyles() {
       padding: 0 12px;
     }
     .terminal-map-popup__summary {
-      font-size: 10px;
-      line-height: 1.46;
-      color: rgba(228, 255, 243, 0.84);
+      grid-column: 1 / -1;
+      font-size: 12px;
+      line-height: 1.54;
+      color: rgba(228, 255, 243, 0.88);
       letter-spacing: 0.04em;
-      padding: 6px 8px;
+      padding: 8px 10px;
       border: 1px solid rgba(124, 255, 178, 0.18);
       border-radius: 10px;
       background: rgba(4, 12, 10, 0.74);
-      max-height: clamp(120px, 18vh, 200px);
+      max-height: clamp(140px, 24vh, 260px);
       overflow-y: auto;
       overflow-wrap: anywhere;
       word-break: break-word;
@@ -955,17 +957,18 @@ function ensureMapStyles() {
     }
     .terminal-map-popup__details {
       display: grid;
-      gap: 6px;
+      gap: 5px;
       align-content: start;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       grid-auto-rows: min-content;
       min-height: 0;
       min-width: 0;
+      align-self: start;
     }
     .terminal-map-popup__section {
       display: grid;
-      gap: 4px;
-      padding: 6px 8px;
+      gap: 3px;
+      padding: 5px 7px;
       border: 1px solid rgba(124, 255, 178, 0.16);
       border-radius: 10px;
       background: rgba(4, 12, 10, 0.7);
@@ -996,14 +999,14 @@ function ensureMapStyles() {
     }
     .terminal-map-popup__resource-list {
       display: grid;
-      gap: 4px;
+      gap: 3px;
       min-width: 0;
     }
     .terminal-map-popup__resource-item {
       display: grid;
-      gap: 3px;
+      gap: 2px;
       min-width: 0;
-      padding: 5px 7px;
+      padding: 4px 6px;
       border: 1px solid rgba(124, 255, 178, 0.12);
       border-radius: 8px;
       background: rgba(2, 10, 8, 0.4);
@@ -1019,11 +1022,11 @@ function ensureMapStyles() {
     }
     .terminal-map-popup__resource-badge {
       flex: 0 0 auto;
-      padding: 2px 6px;
+      padding: 2px 5px;
       border: 1px solid rgba(124, 255, 178, 0.24);
       border-radius: 999px;
       color: rgba(191, 255, 220, 0.84);
-      font-size: 9px;
+      font-size: 8px;
       letter-spacing: 0.12em;
       text-transform: uppercase;
     }
@@ -1033,7 +1036,7 @@ function ensureMapStyles() {
     }
     .terminal-map-popup__resource-meta {
       color: rgba(191, 255, 220, 0.68);
-      font-size: 9px;
+      font-size: 8px;
       overflow-wrap: anywhere;
       word-break: break-word;
       min-width: 0;
@@ -1527,7 +1530,6 @@ async function showMapOverlay({ pois, hotspotsData }) {
               <img alt="Evidencia POI" />
               <div class="terminal-map-popup__image-placeholder">SIN IMAGEN ASOCIADA</div>
             </div>
-            ${summary ? `<div class="terminal-map-popup__summary">${escapeHtml(summary)}</div>` : ""}
           </div>
           <div class="terminal-map-popup__details">
             <div class="terminal-map-popup__section">
@@ -1542,6 +1544,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
             ${sectionBlocks.join("")}
             ${resourceMarkup}
           </div>
+          ${summary ? `<div class="terminal-map-popup__summary">${escapeHtml(summary)}</div>` : ""}
         </div>
       </div>
     `;
