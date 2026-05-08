@@ -4037,8 +4037,21 @@ const DmPanel = () => {
       ...liveMapState,
       backgroundLabel,
     };
-    await saveLiveMapState(nextState);
-  }, [liveMapBackgroundLabelDraft, liveMapState, saveLiveMapState]);
+    const saved = await saveLiveMapState(nextState);
+    if (saved && liveMapState.backgroundImagePath) {
+      setLiveMapBackgrounds((prev) =>
+        prev.map((background) =>
+          background.path === liveMapState.backgroundImagePath
+            ? {
+                ...background,
+                label: backgroundLabel || background.label || background.originalName || background.path,
+                updatedAt: Date.now(),
+              }
+            : background
+        )
+      );
+    }
+  }, [liveMapBackgroundLabelDraft, liveMapState.backgroundImagePath, saveLiveMapState]);
 
   const handleLiveMapTokenCreate = useCallback(
     async (event) => {
@@ -6799,30 +6812,41 @@ const DmPanel = () => {
                 </p>
               </div>
               <div className="live-map-backgrounds__list">
-                {liveMapBackgrounds.map((background) => (
-                  <div key={background.id || background.path} className="live-map-backgrounds__item">
-                    <button
-                      type="button"
-                      className={
-                        liveMapState.backgroundImagePath === background.path
-                          ? 'dm-panel__button is-active'
-                          : 'dm-panel__button'
-                      }
-                      onClick={() => {
-                        setLiveMapBackgroundDraft(background.path);
-                        setLiveMapBackgroundLabelDraft(
-                          background.label || background.originalName || ''
-                        );
-                        switchLiveMapBackground(
-                          background.path,
-                          background.label || background.originalName || background.path
-                        );
-                      }}
+                {liveMapBackgrounds.map((background) => {
+                  const displayLabel =
+                    liveMapState.backgroundImagePath === background.path
+                      ? liveMapState.backgroundLabel ||
+                        background.label ||
+                        background.originalName ||
+                        background.path
+                      : background.label || background.originalName || background.path;
+                  return (
+                    <div key={background.id || background.path} className="live-map-backgrounds__item">
+                      <button
+                        type="button"
+                        className={
+                          liveMapState.backgroundImagePath === background.path
+                            ? 'dm-panel__button is-active'
+                            : 'dm-panel__button'
+                        }
+                        onClick={() => {
+                          setLiveMapBackgroundDraft(background.path);
+                          setLiveMapBackgroundLabelDraft(
+                            liveMapState.backgroundImagePath === background.path
+                              ? liveMapState.backgroundLabel ||
+                                  background.label ||
+                                  background.originalName ||
+                                  ''
+                              : background.label || background.originalName || ''
+                          );
+                          switchLiveMapBackground(background.path, displayLabel);
+                        }}
                       >
-                      <span>{background.label || background.originalName || background.path}</span>
-                    </button>
-                  </div>
-                ))}
+                        <span>{displayLabel}</span>
+                      </button>
+                    </div>
+                  );
+                })}
                 <button
                   type="button"
                   className={
