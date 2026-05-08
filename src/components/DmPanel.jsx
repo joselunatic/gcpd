@@ -3194,12 +3194,13 @@ const DmPanel = () => {
         String(state.backgroundImagePath || '') !== LIVE_MAP_FALLBACK_PATH
           ? String(state.backgroundImagePath || '')
           : '';
+      if (Array.isArray(state.tokens)) {
+        return normalizeLiveMapScene({ tokens: state.tokens }).tokens;
+      }
       if (activePath && normalizedBackgroundStates[activePath]) {
         return normalizedBackgroundStates[activePath].tokens;
       }
-      return Array.isArray(state.tokens)
-        ? normalizeLiveMapScene({ tokens: state.tokens }).tokens
-        : [];
+      return [];
     })(),
     backgroundStates: normalizeLiveMapSceneMap(state.backgroundStates || {}),
     updatedAt: Number(state.updatedAt) || Date.now(),

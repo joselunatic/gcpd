@@ -702,7 +702,7 @@ function normalizeLiveMapState(input = {}) {
   const activeScene = activeBackgroundPath
     ? normalizeLiveMapScene({
         ...(backgroundStates[activeBackgroundPath] || {}),
-        tokens: Array.isArray(state.tokens) && state.tokens.length
+        tokens: Array.isArray(state.tokens)
           ? state.tokens
           : backgroundStates[activeBackgroundPath]?.tokens || [],
       })
