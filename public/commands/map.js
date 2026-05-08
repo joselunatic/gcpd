@@ -248,12 +248,14 @@ function ensureMapStyles() {
       height: 100%;
       display: block;
       position: relative;
-      padding: 12px;
+      padding: 0;
       box-sizing: border-box;
     }
     .terminal-map-panel {
       width: min(44vw, 560px);
-      height: calc(100% - 56px);
+      height: auto;
+      top: 56px;
+      bottom: 72px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -413,8 +415,8 @@ function ensureMapStyles() {
       border-radius: 10px;
       box-shadow: 0 0 0 1px rgba(124, 255, 178, 0.15), 0 0 30px rgba(124, 255, 178, 0.08);
       background: #040807;
-      width: 100%;
-      height: 100%;
+      position: absolute;
+      inset: 56px 0 72px 0;
     }
     .terminal-map-stage {
       position: absolute;
@@ -721,7 +723,7 @@ function ensureMapStyles() {
       left: 0;
       right: 0;
       top: 0;
-      padding: 10px 12px;
+      padding: 12px 14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -820,7 +822,7 @@ function ensureMapStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 14px;
+      padding: 14px 14px 92px;
       background: rgba(1, 6, 5, 0.78);
       backdrop-filter: blur(1px);
       overflow: hidden;
@@ -833,7 +835,7 @@ function ensureMapStyles() {
       position: relative;
       z-index: 1;
       width: min(1180px, calc(100vw - 28px));
-      height: min(88vh, calc(100vh - 28px));
+      height: min(74vh, calc(100vh - 120px));
       overflow: hidden;
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
@@ -899,6 +901,7 @@ function ensureMapStyles() {
       align-content: start;
       grid-auto-rows: min-content;
       min-width: 0;
+      scrollbar-gutter: stable;
     }
     .terminal-map-popup__card--no-resources .terminal-map-popup__body {
       grid-template-columns: minmax(0, 1fr);
@@ -1864,8 +1867,6 @@ async function showMapOverlay({ pois, hotspotsData }) {
 
   const renderLayout = () => {
     const shellBounds = shell.getBoundingClientRect();
-    frame.style.width = `${Math.floor(shellBounds.width)}px`;
-    frame.style.height = `${Math.floor(shellBounds.height)}px`;
     const dense = overlay.classList.contains("is-dense");
     hotspotNodes.forEach((node) => {
       const x = Number(node.dataset.x || 0);
