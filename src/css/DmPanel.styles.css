@@ -816,6 +816,10 @@
   align-items: flex-start;
 }
 
+.dm-panel__grid--two {
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.4fr);
+}
+
 .dm-panel__grid--split {
   grid-template-columns: 1fr;
   gap: 1.25rem;
