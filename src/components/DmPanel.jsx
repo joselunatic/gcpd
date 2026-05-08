@@ -3248,15 +3248,6 @@ const DmPanel = () => {
     };
   }, [normalizeLiveMapState]);
 
-  const switchLiveMapBackground = useCallback(
-    async (path) => {
-      const nextState = pickLiveMapScene(liveMapState, path);
-      setLiveMapSelectedTokenId('');
-      await saveLiveMapState(nextState);
-    },
-    [liveMapState, pickLiveMapScene, saveLiveMapState]
-  );
-
   const loadLiveMapState = useCallback(async () => {
     setLiveMapLoading(true);
     setLiveMapMessage('');
@@ -3318,6 +3309,15 @@ const DmPanel = () => {
       }
     },
     [authorized, mergeLiveMapSceneForSave, sendLiveMapSocket, sessionToken]
+  );
+
+  const switchLiveMapBackground = useCallback(
+    async (path) => {
+      const nextState = pickLiveMapScene(liveMapState, path);
+      setLiveMapSelectedTokenId('');
+      await saveLiveMapState(nextState);
+    },
+    [liveMapState, pickLiveMapScene, saveLiveMapState]
   );
 
   const loadLiveMapBackgrounds = useCallback(async () => {
