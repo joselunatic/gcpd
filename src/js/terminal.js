@@ -10,7 +10,21 @@ async function initTouch() {
   }
 }
 
+async function initEffects() {
+  try {
+    const module = await import(
+      `${import.meta.env.BASE_URL}utils/effectsRuntime.js` /* @vite-ignore */
+    );
+    if (module?.startEffectsRuntime) {
+      module.startEffectsRuntime();
+    }
+  } catch (e) {
+    // Effects are non-critical — terminal boots even if WS is unavailable
+  }
+}
+
 initTouch();
+initEffects();
 
 function setTuiPalette(palette = "") {
   const container = document.getElementById("terminal-container");

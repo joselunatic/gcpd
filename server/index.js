@@ -3262,6 +3262,90 @@ const server = app.listen(PORT, () => {
 
 const tracerWss = new WebSocketServer({ noServer: true });
 const liveMapWss = new WebSocketServer({ noServer: true });
+const effectsWss = new WebSocketServer({ noServer: true });
+
+const effectsDmSockets = new Set();
+const effectsAgentSockets = new Set();
+
+function broadcastEffectToDm(payload) {
+  const msg = JSON.stringify(payload);
+  effectsDmSockets.forEach((ws) => { if (ws.readyState === 1) ws.send(msg); });
+}
+
+function broadcastEffectToAgents(payload) {
+  const msg = JSON.stringify(payload);
+  effectsAgentSockets.forEach((ws) => { if (ws.readyState === 1) ws.send(msg); });
+}
+
+function sendEffectsStatus() {
+  broadcastEffectToDm({ type: 'effects:status', agents: effectsAgentSockets.size });
+}
+
+function validateEffectPayload(payload) {
+  if (!payload || typeof payload !== 'object') return false;
+  if (typeof payload.effect !== 'string') return false;
+  const allowed = ['alarm', 'hack', 'fog', 'flicker', 'critical', 'media'];
+  return allowed.includes(payload.effect);
+}
+
+effectsWss.on('connection', (ws, request, url) => {
+  const role = String(url.searchParams.get('role') || 'agent').toLowerCase();
+  const token = String(url.searchParams.get('token') || '');
+  const isDm = role === 'dm';
+
+  if (isDm) {
+    const session = validateToken(token);
+    if (!session) {
+      wsSend(ws, { type: 'effects:error', code: 'unauthorized', message: 'Sesion no valida.' });
+      ws.close(4401, 'unauthorized');
+      return;
+    }
+    effectsDmSockets.add(ws);
+    wsSend(ws, { type: 'effects:status', agents: effectsAgentSockets.size });
+  } else {
+    effectsAgentSockets.add(ws);
+    sendEffectsStatus();
+  }
+
+  ws.on('message', (raw) => {
+    if (!isDm) return;
+    let payload;
+    try {
+      payload = JSON.parse(String(raw || '{}'));
+    } catch {
+      wsSend(ws, { type: 'effects:error', code: 'invalid_payload', message: 'Payload invalido.' });
+      return;
+    }
+    if (payload.type === 'effects:trigger') {
+      if (!validateEffectPayload(payload)) return;
+      const options = payload.options && typeof payload.options === 'object' ? payload.options : {};
+      // Sanitize media URL if present
+      if (payload.effect === 'media' && options.url) {
+        const url = String(options.url);
+        const isRelative = url.startsWith('/');
+        const isSameOrigin = url.startsWith(
+          `${(request.headers['origin'] || '')}`.split('//')[1] || ''
+        );
+        if (!isRelative && !isSameOrigin) {
+          wsSend(ws, { type: 'effects:error', code: 'invalid_url', message: 'Solo URLs relativas del servidor.' });
+          return;
+        }
+        options.url = url.replace(/['"<>]/g, '');
+      }
+      broadcastEffectToAgents({ type: 'effects:trigger', effect: payload.effect, options });
+      return;
+    }
+    if (payload.type === 'effects:clear') {
+      broadcastEffectToAgents({ type: 'effects:clear' });
+    }
+  });
+
+  ws.on('close', () => {
+    effectsDmSockets.delete(ws);
+    effectsAgentSockets.delete(ws);
+    sendEffectsStatus();
+  });
+});
 
 server.on('upgrade', (request, socket, head) => {
   try {
@@ -3276,6 +3360,12 @@ server.on('upgrade', (request, socket, head) => {
     if (url.pathname === '/ws/live-map') {
       liveMapWss.handleUpgrade(request, socket, head, (ws) => {
         liveMapWss.emit('connection', ws, request, url);
+      });
+      return;
+    }
+    if (url.pathname === '/ws/effects') {
+      effectsWss.handleUpgrade(request, socket, head, (ws) => {
+        effectsWss.emit('connection', ws, request, url);
       });
       return;
     }

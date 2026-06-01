@@ -433,6 +433,7 @@ const VIEW_OPTIONS = [
   { id: 'evidence', label: 'Evidencias' },
   { id: 'tracer', label: 'Tracer' },
   { id: 'liveMap', label: 'Mapa Live' },
+  { id: 'rtEffects', label: 'Efectos RT' },
   { id: 'access', label: 'Accesos' },
   { id: 'campaign', label: 'Campaña' },
 ];
@@ -1090,6 +1091,14 @@ const DmPanel = () => {
   const ballisticsPreviewRightRef = useRef(null);
   const liveMapSocketRef = useRef(null);
   const liveMapDragRef = useRef(null);
+  const rtEffectsSocketRef = useRef(null);
+  const [rtEffectsWsState, setRtEffectsWsState] = useState('offline');
+  const [rtEffectsAgents, setRtEffectsAgents] = useState(0);
+  const [rtEffectsLog, setRtEffectsLog] = useState([]);
+  const [rtEffectsMediaUrl, setRtEffectsMediaUrl] = useState('');
+  const [rtEffectsMediaType, setRtEffectsMediaType] = useState('image');
+  const [rtEffectsMediaCaption, setRtEffectsMediaCaption] = useState('');
+  const [rtEffectsMediaDismissable, setRtEffectsMediaDismissable] = useState(true);
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -4351,6 +4360,163 @@ const DmPanel = () => {
       socket.close();
     };
   }, [activeView, authorized, normalizeLiveMapState, sessionToken]);
+
+  useEffect(() => {
+    if (!authorized || !sessionToken || activeView !== 'rtEffects') return undefined;
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const encodedToken = encodeURIComponent(sessionToken);
+    const socket = new WebSocket(
+      `${protocol}://${window.location.host}/ws/effects?role=dm&token=${encodedToken}`
+    );
+    rtEffectsSocketRef.current = socket;
+    setRtEffectsWsState('connecting');
+    socket.onopen = () => setRtEffectsWsState('online');
+    socket.onerror = () => setRtEffectsWsState('error');
+    socket.onclose = () => {
+      if (rtEffectsSocketRef.current === socket) rtEffectsSocketRef.current = null;
+      setRtEffectsWsState('offline');
+    };
+    socket.onmessage = (event) => {
+      let payload;
+      try { payload = JSON.parse(String(event.data || '{}')); } catch { return; }
+      if (payload.type === 'effects:status') {
+        setRtEffectsAgents(Number(payload.agents) || 0);
+      }
+    };
+    return () => {
+      if (rtEffectsSocketRef.current === socket) rtEffectsSocketRef.current = null;
+      socket.close();
+    };
+  }, [activeView, authorized, sessionToken]);
+
+  const sendEffect = useCallback((effect, options = {}) => {
+    const socket = rtEffectsSocketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify({ type: 'effects:trigger', effect, options }));
+    const ts = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setRtEffectsLog((prev) => [
+      { ts, effect, options },
+      ...prev.slice(0, 19),
+    ]);
+  }, []);
+
+  const sendEffectClear = useCallback(() => {
+    const socket = rtEffectsSocketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify({ type: 'effects:clear' }));
+    const ts = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setRtEffectsLog((prev) => [{ ts, effect: 'CLEAR', options: {} }, ...prev.slice(0, 19)]);
+  }, []);
+
+  const renderRtEffectsView = () => {
+    const wsOnline = rtEffectsWsState === 'online';
+    const wsIndicator = wsOnline ? '● ONLINE' : rtEffectsWsState === 'connecting' ? '◌ CONECTANDO' : '○ OFFLINE';
+    return (
+      <div className="dm-panel__section rt-effects-panel">
+        <div className="rt-effects-header">
+          <span className="rt-effects-title">EFECTOS RT — CONSOLA DM</span>
+          <span className={`rt-effects-status rt-effects-status--${rtEffectsWsState}`}>{wsIndicator}</span>
+          <span className="rt-effects-agents">{rtEffectsAgents} agente{rtEffectsAgents !== 1 ? 's' : ''} conectado{rtEffectsAgents !== 1 ? 's' : ''}</span>
+        </div>
+
+        <div className="rt-effects-group">
+          <div className="rt-effects-group-label">ALERTAS</div>
+          <div className="rt-effects-btn-row">
+            <button className="rt-effects-btn rt-effects-btn--alarm" disabled={!wsOnline} onClick={() => sendEffect('alarm', { duration: 5000 })}>🚨 ALARMA 5s</button>
+            <button className="rt-effects-btn rt-effects-btn--alarm" disabled={!wsOnline} onClick={() => sendEffect('alarm', { duration: 10000 })}>🚨 ALARMA 10s</button>
+            <button className="rt-effects-btn rt-effects-btn--alarm" disabled={!wsOnline} onClick={() => sendEffect('alarm', { duration: 0 })}>🚨 ALARMA ∞</button>
+            <button className="rt-effects-btn rt-effects-btn--critical" disabled={!wsOnline} onClick={() => sendEffect('critical', { duration: 6000 })}>⚡ NIVEL CRÍTICO</button>
+          </div>
+        </div>
+
+        <div className="rt-effects-group">
+          <div className="rt-effects-group-label">ATMÓSFERA</div>
+          <div className="rt-effects-btn-row">
+            <button className="rt-effects-btn rt-effects-btn--hack" disabled={!wsOnline} onClick={() => sendEffect('hack', { duration: 8000, intensity: 'light' })}>💀 GLITCH LEVE</button>
+            <button className="rt-effects-btn rt-effects-btn--hack" disabled={!wsOnline} onClick={() => sendEffect('hack', { duration: 8000, intensity: 'medium' })}>💀 HACKEO</button>
+            <button className="rt-effects-btn rt-effects-btn--hack" disabled={!wsOnline} onClick={() => sendEffect('hack', { duration: 8000, intensity: 'heavy' })}>💀 HACKEO SEVERO</button>
+            <button className="rt-effects-btn rt-effects-btn--fog" disabled={!wsOnline} onClick={() => sendEffect('fog', { duration: 12000 })}>🌫 NIEBLA</button>
+            <button className="rt-effects-btn rt-effects-btn--fog" disabled={!wsOnline} onClick={() => sendEffect('fog', { duration: 0 })}>🌫 NIEBLA ∞</button>
+            <button className="rt-effects-btn rt-effects-btn--flicker" disabled={!wsOnline} onClick={() => sendEffect('flicker', { count: 3 })}>📺 PARPADEO CRT</button>
+          </div>
+        </div>
+
+        <div className="rt-effects-group">
+          <div className="rt-effects-group-label">MEDIA</div>
+          <div className="rt-effects-media-form">
+            <label className="dm-panel__label">URL del recurso (relativa al servidor)</label>
+            <input
+              className="dm-panel__input"
+              type="text"
+              placeholder="/uploads/images/poi-xxxx.png"
+              value={rtEffectsMediaUrl}
+              onChange={(e) => setRtEffectsMediaUrl(e.target.value)}
+            />
+            <div className="rt-effects-media-row">
+              <label className="dm-panel__label">Tipo</label>
+              <label className="rt-effects-radio">
+                <input type="radio" name="rtMediaType" value="image" checked={rtEffectsMediaType === 'image'} onChange={() => setRtEffectsMediaType('image')} />
+                Imagen
+              </label>
+              <label className="rt-effects-radio">
+                <input type="radio" name="rtMediaType" value="video" checked={rtEffectsMediaType === 'video'} onChange={() => setRtEffectsMediaType('video')} />
+                Video
+              </label>
+            </div>
+            <label className="dm-panel__label">Título / pie de pantalla (opcional)</label>
+            <input
+              className="dm-panel__input"
+              type="text"
+              placeholder="Expediente #X — Clasificado"
+              value={rtEffectsMediaCaption}
+              onChange={(e) => setRtEffectsMediaCaption(e.target.value)}
+            />
+            <label className="rt-effects-checkbox">
+              <input
+                type="checkbox"
+                checked={rtEffectsMediaDismissable}
+                onChange={(e) => setRtEffectsMediaDismissable(e.target.checked)}
+              />
+              El agente puede cerrar con ESC
+            </label>
+            <button
+              className="rt-effects-btn rt-effects-btn--media"
+              disabled={!wsOnline || !rtEffectsMediaUrl.trim()}
+              onClick={() => sendEffect('media', {
+                url: rtEffectsMediaUrl.trim(),
+                mediaType: rtEffectsMediaType,
+                caption: rtEffectsMediaCaption.trim(),
+                dismissable: rtEffectsMediaDismissable,
+              })}
+            >
+              ▶ EMITIR MEDIA
+            </button>
+          </div>
+        </div>
+
+        <div className="rt-effects-clear-row">
+          <button className="rt-effects-btn rt-effects-btn--clear" disabled={!wsOnline} onClick={sendEffectClear}>
+            ⬛ LIMPIAR TODOS LOS EFECTOS
+          </button>
+        </div>
+
+        {rtEffectsLog.length > 0 && (
+          <div className="rt-effects-log">
+            <div className="rt-effects-group-label">LOG</div>
+            {rtEffectsLog.map((entry, i) => (
+              <div key={i} className="rt-effects-log-entry">
+                <span className="rt-effects-log-ts">[{entry.ts}]</span>
+                <span className="rt-effects-log-effect">{entry.effect}</span>
+                {entry.options?.duration > 0 && <span className="rt-effects-log-opt">{entry.options.duration / 1000}s</span>}
+                {entry.options?.intensity && <span className="rt-effects-log-opt">{entry.options.intensity}</span>}
+                {entry.options?.url && <span className="rt-effects-log-opt">{entry.options.url.slice(-28)}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   useEffect(() => {
     const leftCanvas = ballisticsPreviewLeftRef.current;
@@ -7739,6 +7905,7 @@ const DmPanel = () => {
             {activeView === 'evidence' && renderEvidenceView()}
             {activeView === 'tracer' && renderTracerView()}
             {activeView === 'liveMap' && renderLiveMapView()}
+            {activeView === 'rtEffects' && renderRtEffectsView()}
             {activeView === 'access' && renderAccessView()}
             {activeView === 'campaign' && renderCampaignView()}
             <PoiQuickCreateModal
