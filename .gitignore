@@ -29,11 +29,25 @@ server/batconsole.db
 .playwright-cli/
 .playwright-mcp/
 .iwsdk/
-tmp/iwsdk-runtime/
+tmp/
 output/
 .tmp/
 .claude/
 STATE.md
 vite.config.js.timestamp-*.mjs
+
+# Debug/transient screenshots in root (use docs/screenshots instead)
+.tmp-map-state.png
+cases-*.png
+cases.png
+dm-tracer-*.png
+playground-*.png
+playwright-*.png
+quest-*.png
+section1-*.png
+tui-*.png
+tmp_*.png
+spawn-test.log
+
 assets/consoles/uploads_files_2172566_sp_electricalboxes/sp_electricalboxes.spp
 /immersive-web-sdk
