@@ -9,6 +9,7 @@ import fs from 'fs';
 import multer from 'multer';
 import { spawn } from 'child_process';
 import { WebSocketServer } from 'ws';
+import { clampPercent, normalizeTokenKind, normalizeTrail } from '../public/utils/liveMapContract.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -634,31 +635,6 @@ function findHiddenImageByCode(code = '') {
   };
 }
 
-function clampPercent(value, fallback = 50) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return fallback;
-  return Math.max(0, Math.min(100, numeric));
-}
-
-function normalizeLiveMapTokenKind(kind = '') {
-  const normalized = String(kind || '').trim().toLowerCase();
-  if (['enemy', 'enemigo', 'hostile', 'target', 'objetivo'].includes(normalized)) {
-    return 'enemy';
-  }
-  return 'ally';
-}
-
-function normalizeLiveMapTrail(entry = {}) {
-  if (!entry || typeof entry !== 'object') return null;
-  const fromX = clampPercent(entry.fromX);
-  const fromY = clampPercent(entry.fromY);
-  const toX = clampPercent(entry.toX);
-  const toY = clampPercent(entry.toY);
-  const updatedAt = Number(entry.updatedAt) || Date.now();
-  if (![fromX, fromY, toX, toY].every((value) => Number.isFinite(value))) return null;
-  return { fromX, fromY, toX, toY, updatedAt };
-}
-
 function normalizeLiveMapToken(entry = {}) {
   if (!entry || typeof entry !== 'object') return null;
   const agentLabel = String(entry.agentLabel || entry.label || entry.dmLabel || '').trim();
@@ -674,8 +650,8 @@ function normalizeLiveMapToken(entry = {}) {
     x: clampPercent(entry.x),
     y: clampPercent(entry.y),
     visible: entry.visible !== false,
-    kind: normalizeLiveMapTokenKind(entry.kind),
-    trail: normalizeLiveMapTrail(entry.trail),
+    kind: normalizeTokenKind(entry.kind),
+    trail: normalizeTrail(entry.trail),
     updatedAt: Number(entry.updatedAt) || Date.now(),
   };
 }

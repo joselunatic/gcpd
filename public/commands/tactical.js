@@ -1,54 +1,15 @@
+import {
+  clampPercent,
+  normalizeTokenKind,
+  normalizeToken,
+  normalizeState,
+  applyTokenMove,
+} from '../utils/liveMapContract.js';
+
 const API_URL = "/api/live-map";
 const FALLBACK_MAP_PATH = "/assets/livemap/gcpd_live_map_fallback_unavailable.png";
 const TRAIL_TTL_MS = 10000;
 const MAP_SURFACE_RATIO = 1.428;
-
-const clampPercent = (value) => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return 0;
-  return Math.max(0, Math.min(100, numeric));
-};
-
-const normalizeToken = (token = {}) => ({
-  id: String(token.id || ""),
-  label: String(token.agentLabel || token.label || token.dmLabel || ""),
-  agentLabel: String(token.agentLabel || token.label || token.dmLabel || ""),
-  dmLabel: String(token.dmLabel || token.label || token.agentLabel || ""),
-  x: clampPercent(token.x),
-  y: clampPercent(token.y),
-  visible: token.visible !== false,
-  kind: normalizeTokenKind(token.kind),
-  trail: token.trail
-    ? {
-        fromX: clampPercent(token.trail.fromX),
-        fromY: clampPercent(token.trail.fromY),
-        toX: clampPercent(token.trail.toX ?? token.x),
-        toY: clampPercent(token.trail.toY ?? token.y),
-        updatedAt: Number(token.trail.updatedAt) || Number(token.updatedAt) || 0,
-      }
-    : null,
-  updatedAt: Number(token.updatedAt) || 0,
-});
-
-function normalizeTokenKind(kind = "") {
-  const normalized = String(kind || "").trim().toLowerCase();
-  if (["enemy", "enemigo", "hostile", "target", "objetivo"].includes(normalized)) {
-    return "enemy";
-  }
-  return "ally";
-}
-
-const normalizeState = (state = {}) => ({
-  backgroundImagePath:
-    state.backgroundLoaded === true ? String(state.backgroundImagePath || "") : "",
-  backgroundLoaded: state.backgroundLoaded === true,
-  backgroundLabel: String(state.backgroundLabel || ""),
-  fallbackImagePath: String(state.fallbackImagePath || FALLBACK_MAP_PATH),
-  tokens: Array.isArray(state.tokens)
-    ? state.tokens.map(normalizeToken).filter((token) => token.id && token.label)
-    : [],
-  updatedAt: Number(state.updatedAt) || 0,
-});
 
 function fitMapSurface(overlay) {
   const map = overlay?.querySelector(".tactical-map");
@@ -71,86 +32,6 @@ function fitMapSurface(overlay) {
   const width = Math.min(availableWidth, availableHeight * MAP_SURFACE_RATIO);
   map.style.width = `${width}px`;
   map.style.height = `${width / MAP_SURFACE_RATIO}px`;
-}
-
-function applyTokenMove(state, token = {}) {
-  const normalized = normalizeState(state);
-  const tokenId = String(token.id || "").trim();
-  if (!tokenId) return normalized;
-  const targetX = clampPercent(token.x);
-  const targetY = clampPercent(token.y);
-  const sourceToken =
-    normalized.tokens.find((entry) => entry.id === tokenId) || normalizeToken(token) || null;
-  const explicitTrail =
-    token.trail && typeof token.trail === "object"
-      ? {
-          fromX: clampPercent(token.trail.fromX),
-          fromY: clampPercent(token.trail.fromY),
-          toX: clampPercent(token.trail.toX ?? targetX),
-          toY: clampPercent(token.trail.toY ?? targetY),
-          updatedAt: Number(token.trail.updatedAt) || Number(token.updatedAt) || Date.now(),
-        }
-      : null;
-  const nextTokens = normalized.tokens.some((entry) => entry.id === tokenId)
-    ? normalized.tokens.map((entry) => {
-        if (entry.id !== tokenId) return entry;
-        const moved = entry.x !== targetX || entry.y !== targetY;
-        return {
-          ...entry,
-          x: targetX,
-          y: targetY,
-          trail: explicitTrail
-            ? explicitTrail
-            : moved
-            ? {
-                fromX: entry.x,
-                fromY: entry.y,
-                toX: targetX,
-                toY: targetY,
-                updatedAt: Number(token.updatedAt) || Date.now(),
-              }
-            : entry.trail || null,
-          updatedAt: Number(token.updatedAt) || Date.now(),
-        };
-      })
-    : [
-        ...normalized.tokens,
-        {
-          ...(sourceToken || {}),
-          id: tokenId,
-          x: targetX,
-          y: targetY,
-          visible: token.visible !== false,
-          kind: normalizeTokenKind(token.kind || sourceToken?.kind || ""),
-          agentLabel: String(
-            token.agentLabel ||
-              token.label ||
-              sourceToken?.agentLabel ||
-              sourceToken?.label ||
-              sourceToken?.dmLabel ||
-              tokenId
-          ).trim(),
-          dmLabel: String(
-            token.dmLabel ||
-              sourceToken?.dmLabel ||
-              sourceToken?.label ||
-              sourceToken?.agentLabel ||
-              token.label ||
-              tokenId
-          ).trim(),
-          label: String(
-            token.agentLabel ||
-              token.label ||
-              sourceToken?.agentLabel ||
-              sourceToken?.label ||
-              sourceToken?.dmLabel ||
-              tokenId
-          ).trim(),
-          trail: explicitTrail || null,
-          updatedAt: Number(token.updatedAt) || Date.now(),
-        },
-      ];
-  return { ...normalized, tokens: nextTokens };
 }
 
 async function fetchLiveMapState() {
