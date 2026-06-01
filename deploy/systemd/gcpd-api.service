@@ -1,0 +1,34 @@
+[Unit]
+Description=GCPD Brother Eye API
+After=network.target
+
+[Service]
+Type=simple
+User=gcpd
+Group=gcpd
+WorkingDirectory=/opt/gcpd
+Environment=PATH=/home/jose/.nvm/versions/node/v20.19.5/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PORT=4000
+Environment=DM_DEFAULT_PASSWORD=brother
+Environment=DM_BACKDOOR_PASSWORD=1234
+Environment=DM_SESSION_DURATION_MS=21600000
+ExecStart=/home/jose/.nvm/versions/node/v20.19.5/bin/npm run server
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gcpd-api
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/opt/gcpd/server /opt/gcpd/public/assets /opt/gcpd/public/uploads
+LockPersonality=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+[Install]
+WantedBy=multi-user.target

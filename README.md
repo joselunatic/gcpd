@@ -85,6 +85,93 @@ npm run build
 npm run lint
 ```
 
+## Systemd
+
+Para arrancar front y back por separado con `systemd`, usa las unidades de `deploy/systemd/`.
+
+Instalación típica:
+
+```bash
+sudo useradd --system --home /opt/gcpd --shell /usr/sbin/nologin gcpd
+sudo install -d -o gcpd -g gcpd /opt/gcpd
+sudo rsync -a --delete /home/jose/gcpdwopr/woprcrt-terminal/ /opt/gcpd/
+sudo chown -R gcpd:gcpd /opt/gcpd
+sudo ./scripts/sync-to-opt.sh --install --build
+sudo ./scripts/install-systemd.sh --enable --start
+```
+
+Operación básica:
+
+```bash
+sudo systemctl status gcpd-api
+sudo systemctl status gcpd-frontend
+sudo systemctl stop gcpd-api
+sudo systemctl restart gcpd-frontend
+```
+
+Logs en vivo:
+
+```bash
+sudo journalctl -u gcpd-api -f
+sudo journalctl -u gcpd-frontend -f
+```
+
+El frontend queda servido desde `vite preview` sobre `dist/`, así que conviene ejecutar `npm run build` antes si vas a levantarlo manualmente fuera de `systemd`.
+Las unidades están pensadas para ejecutarse como la cuenta de servicio `gcpd`, no como tu usuario personal.
+Si tu instalación de Node no deja `npm` en `/usr/bin/npm`, ajusta `ExecStart` y `ExecStartPre` a la ruta real del binario en la máquina de despliegue.
+
+Despliegue rápido a `/opt/gcpd`:
+
+```bash
+sudo ./scripts/sync-to-opt.sh --install --build --restart
+```
+
+Si solo quieres sincronizar sin reinstalar dependencias ni reiniciar servicios:
+
+```bash
+sudo ./scripts/sync-to-opt.sh
+```
+
+Instalar o actualizar unidades `systemd`:
+
+```bash
+sudo ./scripts/install-systemd.sh --enable --start
+```
+
+Si solo quieres recargar las unidades después de cambiar los archivos:
+
+```bash
+sudo ./scripts/install-systemd.sh
+```
+
+Reinicio limpio de ambos servicios:
+
+```bash
+sudo ./scripts/restart-gcpd.sh
+```
+
+Opciones útiles:
+
+```bash
+sudo ./scripts/restart-gcpd.sh --status
+sudo ./scripts/restart-gcpd.sh --stop-only
+sudo ./scripts/restart-gcpd.sh --start-only
+```
+
+Cambiar frontend entre desarrollo y produccion:
+
+```bash
+sudo ./scripts/frontend-mode.sh dev
+sudo ./scripts/frontend-mode.sh prod
+```
+
+Para ver estado tras el cambio:
+
+```bash
+sudo ./scripts/frontend-mode.sh dev --status
+sudo ./scripts/frontend-mode.sh prod --status
+```
+
 ## Variables de entorno útiles
 
 El backend usa estas variables:

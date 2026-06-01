@@ -1,0 +1,29 @@
+[Unit]
+Description=GCPD Brother Eye Frontend
+After=network.target gcpd-api.service
+
+[Service]
+Type=simple
+User=gcpd
+Group=gcpd
+WorkingDirectory=/opt/gcpd
+Environment=PATH=/home/jose/.nvm/versions/node/v20.19.5/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/jose/.nvm/versions/node/v20.19.5/bin/npm run preview -- --host 0.0.0.0 --port 5174
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gcpd-frontend
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+LockPersonality=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+[Install]
+WantedBy=multi-user.target
