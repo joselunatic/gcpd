@@ -2,6 +2,8 @@
 
 State snapshot for the next Codex session on `joselunatic/gcpd`.
 
+Last checked against code: 2026-06-01.
+
 Scope of work done
 - Only the TUI / DM panel / shared backend for `Mapa Live` and `TACTICAL`.
 - No Quest/XR changes in this branch of work.
@@ -30,9 +32,12 @@ Important behavior
 - `live-map:token-move` now persists movement plus a single `trail` object:
   - `fromX`, `fromY`, `toX`, `toY`, `updatedAt`
 - The DM and agent map both draw the trail as an SVG line layer underneath tokens.
+- Both SVG trail layers explicitly force `display: block`, `width: 100%`, `height: 100%`, and `overflow: visible` so the SVG viewport matches the token coordinate surface.
 - The agent also receives a full `live-map:state` snapshot after token moves so it does not depend only on the incremental move event.
 - The tactical agent view uses `agentLabel` for token text.
 - The DM view uses `dmLabel` as primary text.
+- The agent tactical overlay is mounted inside `#monitor pre`, not `document.body`, to avoid covering the IMSAI frame.
+- The agent tactical map keeps the same coordinate ratio used by the DM surface (`1.428:1`) through `MAP_SURFACE_RATIO` and `fitMapSurface()`.
 
 Files currently involved
 - `server/index.js`
@@ -49,10 +54,12 @@ Files currently involved
   - live map layout
   - token pill sizing
   - trail overlay styles / fade animation
+  - DM SVG trail viewport sizing fix
 - `public/commands/tactical.js`
   - agent-side tactical overlay
   - websocket sync
   - live rendering of tokens and trails
+  - TUI SVG trail viewport sizing and monitor-frame containment
 
 Live map data model
 - Top-level live state:
@@ -84,17 +91,23 @@ Implementation details worth knowing
 - Background pills show the persisted label, not just the file name.
 - Token creation in the DM form requires at least one label. Empty labels are normalized away.
 - The tactical overlay in `public/commands/tactical.js` now re-renders the whole state on each websocket update instead of trying to mutate only one token node. This is what keeps trails consistent.
+- The tactical overlay creates its own style tag `#tactical-live-map-styles`; stale browser/service-worker cache can make debugging confusing, so verify the runtime DOM/CSS before assuming the source file is active.
 
 Current verification status
-- `npm run lint` passes.
 - `npm run build` passes.
-- `node --check server/index.js` passes.
 - `node --check public/commands/tactical.js` passes.
-- Playwright package was not available in this environment for a real browser smoke test, so visual verification stopped at build/lint for the last step.
+- Local Playwright checks have been used to inspect tactical DOM geometry.
+- DM trail offset was user-confirmed fixed after adding explicit SVG sizing in `src/css/DmPanel.styles.css`.
+- TUI tactical trail offset was still being investigated in the conversation; the current code mirrors the DM SVG sizing fix in `public/commands/tactical.js`, but user confirmation on VPS is still pending.
 
 Known caveats / things to keep in mind
 - The trail is intentionally minimal: one movement segment only.
 - The DM side and agent side should stay visually aligned for token pills and map proportions.
+- If TUI offset persists while DM is fixed, inspect the live DOM in the agent browser:
+  - `.tactical-trails` should be an `svg`
+  - computed `display` should be `block`
+  - computed width/height should match the `.tactical-map` content box minus border
+  - there should be no old `.tactical-trail-segment` nodes from the discarded HTML-trail experiment
 - If you change token rendering, keep the DM and tactical label precedence aligned:
   - DM: `dmLabel || label || agentLabel`
   - Agent: `agentLabel || label || dmLabel`

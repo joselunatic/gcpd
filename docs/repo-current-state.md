@@ -1,6 +1,8 @@
 # Estado Actual Del Repo
 
-Fecha de revisión: 2026-04-20
+Fecha de revisión original: 2026-04-20
+
+Nota de vigencia: revisado superficialmente el 2026-06-01. Este documento sigue siendo util como auditoria de arquitectura/deuda, pero no refleja por completo el estado posterior de Quest/XR, mapa TUI ni Live Map tactico. Para el handoff actual usar `codex_to_claude.md` y `docs/live-map-handoff.md`.
 
 ## Resumen ejecutivo
 

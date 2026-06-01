@@ -1,6 +1,8 @@
 # Mapa Funcional Actual Del Repo
 
-Fecha de revision: 2026-04-20
+Fecha de revision original: 2026-04-20
+
+Nota de vigencia: revisado superficialmente el 2026-06-01. Este documento sigue siendo util para el flujo funcional base del terminal/DM, pero no cubre en detalle el trabajo posterior de Quest/XR ni el Live Map tactico. Para esos temas usar `codex_to_claude.md`, `docs/live-map-handoff.md` y los docs Quest especificos.
 
 Este documento resume el comportamiento real del repo tras integrar el bundle remoto con `TRACER`, `PHONE`, `AUDIO` y `BALLISTICA`.
 
