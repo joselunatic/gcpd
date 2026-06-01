@@ -1,0 +1,61 @@
+{
+  "villains": [
+    {
+      "id": "joker",
+      "alias": "El Joker",
+      "status": "alto riesgo",
+      "summary": "Actividad impredecible tras la caida de Batman; rumores de nuevos gases de la risa.",
+      "lastSeen": "Ace Chemical Ruins",
+      "threatLevel": "Maximo",
+      "patterns": [
+        "Utiliza emisiones pirata para sembrar el caos.",
+        "Busca convertir los homenajes a Batman en trampas mortales."
+      ],
+      "knownAssociates": [
+        "Harley Quinn (situacion inestable)",
+        "Payasos de la Calle 13"
+      ],
+      "notes": [
+        "No negociar. Coordinar con Gordon para evacuaciones masivas."
+      ]
+    },
+    {
+      "id": "penguin",
+      "alias": "El Pinguino",
+      "status": "activo",
+      "summary": "Controla la red de contrabando desde el Iceberg Lounge mientras tantea al GCPD.",
+      "lastSeen": "Iceberg Lounge",
+      "threatLevel": "Alto",
+      "patterns": [
+        "Compra funcionarios desmotivados.",
+        "Disfraza armamento pesado como antiguedades."
+      ],
+      "knownAssociates": [
+        "Gemelos Tweed",
+        "Tripulacion del 'Narval'"
+      ],
+      "notes": [
+        "Mantener vigilancia financiera; Wayne Enterprises puede detectar transferencias sospechosas."
+      ]
+    },
+    {
+      "id": "riddler",
+      "alias": "Enigma",
+      "status": "encubierto",
+      "summary": "Ha dejado acertijos cifrados en la Torre de Reloj. Posible colaboracion con hackers externos.",
+      "lastSeen": "Clocktower",
+      "threatLevel": "Variable",
+      "patterns": [
+        "Prefiere juegos de logica vinculados a Knightfall.",
+        "Puede intentar infiltrar Brother-MK0 para comprobar su seguridad."
+      ],
+      "knownAssociates": [
+        "Contractores anonimos en la Darknet",
+        "Catwoman (en terminos ambiguos)"
+      ],
+      "notes": [
+        "Responder a los acertijos con precision mejora la relacion; fallar puede activar trampas."
+      ]
+    }
+  ]
+}

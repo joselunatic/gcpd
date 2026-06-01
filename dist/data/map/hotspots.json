@@ -1,0 +1,27 @@
+{
+  "image": "/mapa.png",
+  "aspectRatio": 0.744,
+  "hotspots": [
+    {
+      "id": "narrows",
+      "label": "NARROWS",
+      "x": 52,
+      "y": 46,
+      "radius": 1.8
+    },
+    {
+      "id": "oldtown",
+      "label": "OLDTOWN",
+      "x": 55,
+      "y": 30,
+      "radius": 1.6
+    },
+    {
+      "id": "arkham",
+      "label": "ARKHAM",
+      "x": 67,
+      "y": 24,
+      "radius": 1.6
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "id": "case_lockdown_protocol",
+  "title": "Protocolo de Bloqueo",
+  "status": "active",
+  "summary": "Prueba del sistema para asegurar que los subsistemas WayneTech antiguos siguen accesibles.",
+  "unlockConditions": [],
+  "commands": {
+    "brief": [
+      "CASE ID: GCPD-LOCK-01",
+      "INCIDENTE: Bloqueo automatizado activado tras detectar un bio-scan no autorizado en un nodo WayneTech.",
+      "OBJETIVO: Verificar la integridad de los subsistemas y despejar la alarma para que los agentes de campo accedan al arsenal."
+    ],
+    "intel": [
+      "Los relevos de la torre Wayne reportan 31% de perdida de paquetes.",
+      "Vinculo Oracle: EN ESPERA (override manual requerido)."
+    ],
+    "puzzle": {
+      "type": "sudoku",
+      "config": {
+        "seed": 48219
+      }
+    }
+  },
+  "dm": {
+    "notes": "Usa esto como modulo de ensayo; sin spoilers.",
+    "spoilers": []
+  }
+}

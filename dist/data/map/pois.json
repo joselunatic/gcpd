@@ -1,0 +1,48 @@
+{
+  "pois": [
+    {
+      "id": "narrows",
+      "name": "The Narrows",
+      "district": "East End",
+      "status": "critical",
+      "summary": "Deriva de senal detectada cerca de enjambres microdron OMAC.",
+      "details": [
+        "Visibilidad a nivel de calle casi nula. Envia drones primero.",
+        "Las firmas termicas fluctuan con el vapor de las cloacas."
+      ],
+      "contacts": [
+        "CONTACT: DET. RENEE MONTOYA",
+        "SUPPORT: ORACLE (LIMITED RANGE)"
+      ]
+    },
+    {
+      "id": "oldtown",
+      "name": "Old Gotham Rail Hub",
+      "district": "Old Gotham",
+      "status": "secured",
+      "summary": "Hub logistico Wayne reconvertido en zona segura.",
+      "details": [
+        "Contiene garfios de repuesto, botiquines y cintas de archivo.",
+        "Superposiciones de tuneles disponibles via 'CASE oldtown'."
+      ],
+      "notes": [
+        "Manten las luces bajas; los susurros de la Corte de los Buhos persisten."
+      ]
+    },
+    {
+      "id": "arkham",
+      "name": "Arkham Asylum Perimeter",
+      "district": "North Gotham",
+      "status": "locked",
+      "summary": "Planos de seguridad censurados por Batman.",
+      "accessCode": "martha",
+      "details": [
+        "Usar solo cuando fallen las sirenas de Arkham.",
+        "Overrides manuales bajo la Torre de Vigilancia B."
+      ],
+      "contacts": [
+        "CONTACT: DR. LESLIE THOMPKINS (TRIAGE)"
+      ]
+    }
+  ]
+}

@@ -5,7 +5,7 @@ Last updated: 2026-06-01
 ## Current Repo State
 
 - Working tree was clean before this documentation pass.
-- This handoff adds/updates documentation only.
+- This handoff documents the current deployment preference and repo structure.
 - Main stack: React 18, Vite 4, Express 5, SQLite via `better-sqlite3`, WebSocket via `ws`, Three / React Three Fiber for Quest.
 - Useful commands:
   - `npm run dev` starts Vite on port `5174`.
@@ -13,6 +13,25 @@ Last updated: 2026-06-01
   - `npm run build` builds the frontend.
   - `npm run lint` lints `src`.
   - `node --check public/commands/tactical.js` is a quick syntax check for the TUI tactical command.
+
+## Deployment Preference
+
+- The VPS used for launch is lightweight and should not be required to build the frontend on every service restart.
+- Preferred workflow: build locally on the development machine, commit the generated `dist/`, push, then pull on the VPS.
+- `dist/` is intentionally versionable in this repo. Do not re-add it to `.gitignore` unless the deployment strategy changes.
+- Local release flow:
+  - Apply source changes.
+  - Run `npm run build` locally.
+  - Review generated `dist/` changes together with source changes.
+  - Stage source files plus `dist/`.
+  - Commit and push.
+- VPS release flow:
+  - `git pull`
+  - Restart only the process that serves the frontend/static bundle.
+  - Do not run `npm run build` on the VPS for normal frontend-only deploys.
+- Backend/API note:
+  - If only frontend/TUI/DM UI changed, the API process usually does not need a restart.
+  - If `server/index.js`, DB schema/migrations, env vars, uploads handling, or websocket server logic changed, restart the API process too.
 
 ## High-Level Surfaces
 
