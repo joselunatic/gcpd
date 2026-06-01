@@ -88,8 +88,19 @@ Last updated: 2026-06-01
   - Computed CSS for `.tactical-trails` should show `display: block`, nonzero `width`, and nonzero `height`.
 - If TUI still has offset, inspect runtime DOM/CSS first because the command injects styles dynamically and stale cached `public/commands/tactical.js` can mislead debugging.
 
+## RT Effects System (New as of 2026-06-01)
+
+- DM panel now has a dedicated **"Efectos RT"** tab for triggering immersive effects on agent browsers.
+- **Effects**: Alarm (siren + flash), Hack (canvas glitch + noise), Fog (overlay + blur), Flicker (CRT effect), Critical (combo alarm+hack), Media (image/video overlay).
+- **Architecture**: WebSocket `/ws/effects` with DM auth (session token) and agent read-only mode. Server broadcasts to all connected agents.
+- **Audio**: Web Audio API synthesis only (no external audio files) — siren LFO sweep, noise bursts, flicker thumps.
+- **Visual**: CSS animations + canvas 2D glitch rendering (horizontal displacement, chromatic aberration simulation).
+- All overlays mount in `#monitor pre` (same pattern as tactical overlay), non-blocking.
+- See `docs/rt-effects-handoff.md` for full technical details, usage guide, and extension instructions.
+
 ## Reference Docs
 
+- `docs/rt-effects-handoff.md`: Real-time effects system (DM panel immersion). New feature as of 2026-06-01.
 - `docs/live-map-handoff.md`: current reference for Live Map / Tactical state and caveats. Updated in this pass.
 - `docs/current-functional-map.md`: broader functional map of agent/DM features; older date but still useful for terminal flow.
 - `docs/repo-current-state.md`: older repo-state audit; useful for architecture/debt, but predates Quest/live-map details.
