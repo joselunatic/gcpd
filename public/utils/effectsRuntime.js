@@ -151,8 +151,7 @@ function injectStyles() {
       background: rgba(200, 0, 0, 0.07);
       animation: rtAlarmFlash 0.45s ease-in-out infinite;
     }
-    .rt-effect--alarm::after {
-      content: '⚠  ALERTA DE SEGURIDAD  ⚠';
+    .rt-effect--alarm .rt-alarm-message {
       position: absolute;
       top: 14px;
       left: 50%;
@@ -167,6 +166,9 @@ function injectStyles() {
       white-space: nowrap;
       border: 1px solid rgba(255,100,100,0.6);
       animation: rtAlarmText 0.45s steps(1) infinite;
+      max-width: calc(100% - 32px);
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     @keyframes rtAlarmBorder {
       0%, 100% { border-color: rgba(255,30,30,0.9); box-shadow: inset 0 0 40px rgba(200,0,0,0.18); }
@@ -263,34 +265,39 @@ function injectStyles() {
       z-index: 90;
       pointer-events: all;
       background: rgba(0, 0, 0, 0.92);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
+      overflow: hidden;
       cursor: default;
     }
     .rt-effect--media img,
     .rt-effect--media video {
-      max-width: 90%;
-      max-height: 80%;
-      border: 1px solid rgba(124, 255, 178, 0.35);
-      box-shadow: 0 0 40px rgba(0,0,0,0.8);
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      max-height: none;
+      object-fit: cover;
+      object-position: center center;
+      border: 0;
+      box-shadow: none;
+      background: #000;
     }
     .rt-effect--media .rt-media-caption {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      z-index: 2;
+      transform: translateX(-50%);
       font-family: 'Share Tech Mono', monospace;
       font-size: 12px;
       letter-spacing: 0.14em;
       color: rgba(196, 255, 226, 0.75);
       text-align: center;
-      max-width: 70%;
-    }
-    .rt-effect--media .rt-media-dismiss {
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 10px;
-      letter-spacing: 0.18em;
-      color: rgba(130, 200, 180, 0.5);
-      margin-top: 6px;
+      max-width: 84%;
+      padding: 4px 10px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(124, 255, 178, 0.18);
+      text-shadow: 0 0 8px rgba(0,0,0,0.9);
     }
     /* ── CRITICAL (alarma + hack combo) ── */
     .rt-effect--critical {
@@ -402,10 +409,14 @@ function autoRemove(id, ms) {
 }
 
 // ── Alarm ─────────────────────────────────────────────────────────────────────
-function triggerAlarm({ duration = 5000 } = {}) {
+function triggerAlarm({ duration = 5000, message = 'ALERTA DE SEGURIDAD' } = {}) {
   const host = getScreenHost();
   const restorePos = ensureRelative(host);
   const overlay = createOverlay('alarm', host);
+  const alarmMessage = document.createElement('div');
+  alarmMessage.className = 'rt-alarm-message';
+  alarmMessage.textContent = `⚠  ${String(message || 'ALERTA DE SEGURIDAD').trim().slice(0, 96)}  ⚠`;
+  overlay.appendChild(alarmMessage);
   const stopAudio = playSiren(duration);
   registerEffect('alarm', overlay, () => { stopAudio(); restorePos(); });
   if (duration > 0) autoRemove('alarm', duration);
@@ -504,14 +515,15 @@ function triggerFog({ duration = 12000 } = {}) {
 }
 
 // ── Flicker ───────────────────────────────────────────────────────────────────
-function triggerFlicker({ count = 3 } = {}) {
+function triggerFlicker({ count = 3, duration = 0 } = {}) {
   const host = getScreenHost();
   const restorePos = ensureRelative(host);
   const overlay = createOverlay('flicker', host);
   playFlickerSound();
-  const totalMs = 600 + (count - 1) * 200;
+  const shouldAutoRemove = Number(duration) > 0 || Number(count) > 0;
+  const totalMs = Number(duration) > 0 ? Number(duration) : 600 + (count - 1) * 200;
   registerEffect('flicker', overlay, restorePos);
-  autoRemove('flicker', totalMs);
+  if (shouldAutoRemove) autoRemove('flicker', totalMs);
 }
 
 // ── Critical ──────────────────────────────────────────────────────────────────
@@ -527,7 +539,7 @@ function triggerCritical({ duration = 6000 } = {}) {
 }
 
 // ── Media ─────────────────────────────────────────────────────────────────────
-function triggerMedia({ url, mediaType = 'image', caption = '', dismissable = true } = {}) {
+function triggerMedia({ url, mediaType = 'image', caption = '', loop = false, duration = 0 } = {}) {
   if (!url) return;
   const host = getScreenHost();
   const restorePos = ensureRelative(host);
@@ -535,8 +547,13 @@ function triggerMedia({ url, mediaType = 'image', caption = '', dismissable = tr
 
   const safeUrl = String(url).replace(/['"]/g, '');
   const mediaEl = mediaType === 'video'
-    ? Object.assign(document.createElement('video'), { src: safeUrl, autoplay: true, loop: false, controls: true })
+    ? Object.assign(document.createElement('video'), { src: safeUrl, autoplay: true, loop: Boolean(loop), controls: true })
     : Object.assign(document.createElement('img'), { src: safeUrl, alt: caption || 'GCPD MEDIA' });
+  if (mediaType === 'video') {
+    mediaEl.muted = false;
+    mediaEl.playsInline = true;
+    mediaEl.preload = 'auto';
+  }
   overlay.appendChild(mediaEl);
 
   if (caption) {
@@ -546,32 +563,10 @@ function triggerMedia({ url, mediaType = 'image', caption = '', dismissable = tr
     overlay.appendChild(cap);
   }
 
-  let removeDismissListeners = () => {};
-
-  if (dismissable) {
-    const hint = document.createElement('div');
-    hint.className = 'rt-media-dismiss';
-    hint.textContent = '[ PULSA ESC O CLICK PARA CERRAR ]';
-    overlay.appendChild(hint);
-
-    const dismiss = (e) => {
-      if (e.type === 'keydown' && e.key !== 'Escape') return;
-      e.preventDefault();
-      e.stopPropagation();
-      _activeEffects.get('media')?.cleanup();
-    };
-    document.addEventListener('keydown', dismiss, { capture: true });
-    overlay.addEventListener('click', dismiss);
-    removeDismissListeners = () => {
-      document.removeEventListener('keydown', dismiss, { capture: true });
-      overlay.removeEventListener('click', dismiss);
-    };
-  }
-
   registerEffect('media', overlay, () => {
-    removeDismissListeners();
     restorePos();
   });
+  if (Number(duration) > 0) autoRemove('media', Number(duration));
 }
 
 // ── Clear all ─────────────────────────────────────────────────────────────────
@@ -588,15 +583,26 @@ function clearAllEffects() {
 
 function applyEffect(payload) {
   const { effect, options = {} } = payload;
+  let applied = true;
   switch (effect) {
-    case 'alarm':    return triggerAlarm(options);
-    case 'hack':     return triggerHack(options);
-    case 'fog':      return triggerFog(options);
-    case 'flicker':  return triggerFlicker(options);
-    case 'critical': return triggerCritical(options);
-    case 'media':    return triggerMedia(options);
-    default: break;
+    case 'alarm':    triggerAlarm(options); break;
+    case 'hack':     triggerHack(options); break;
+    case 'fog':      triggerFog(options); break;
+    case 'flicker':  triggerFlicker(options); break;
+    case 'critical': triggerCritical(options); break;
+    case 'media':    triggerMedia(options); break;
+    default: applied = false; break;
   }
+  if (applied) {
+    sendAgentEffectState({ state: 'running', effect });
+  }
+}
+
+function sendAgentEffectState(payload) {
+  if (!_ws || _ws.readyState !== WebSocket.OPEN) return;
+  try {
+    _ws.send(JSON.stringify({ type: 'effects:agent-state', ...payload }));
+  } catch (_) {}
 }
 
 // ─── WebSocket connection ─────────────────────────────────────────────────────
@@ -615,7 +621,10 @@ function connect() {
       let payload;
       try { payload = JSON.parse(String(event.data || '{}')); } catch (_) { return; }
       if (payload.type === 'effects:trigger') applyEffect(payload);
-      if (payload.type === 'effects:clear')   clearAllEffects();
+      if (payload.type === 'effects:clear') {
+        clearAllEffects();
+        sendAgentEffectState({ state: 'cleared', effect: 'clear' });
+      }
     };
     _ws.onclose = () => {
       _ws = null;

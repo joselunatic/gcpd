@@ -3549,12 +3549,22 @@ effectsWss.on('connection', (ws, request, url) => {
   }
 
   ws.on('message', (raw) => {
-    if (!isDm) return;
     let payload;
     try {
       payload = JSON.parse(String(raw || '{}'));
     } catch {
-      wsSend(ws, { type: 'effects:error', code: 'invalid_payload', message: 'Payload invalido.' });
+      if (isDm) wsSend(ws, { type: 'effects:error', code: 'invalid_payload', message: 'Payload invalido.' });
+      return;
+    }
+    if (!isDm) {
+      if (payload.type === 'effects:agent-state') {
+        broadcastEffectToDm({
+          type: 'effects:agent-state',
+          state: String(payload.state || ''),
+          effect: String(payload.effect || ''),
+          agents: effectsAgentSockets.size,
+        });
+      }
       return;
     }
     if (payload.type === 'effects:trigger') {

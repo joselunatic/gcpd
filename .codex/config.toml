@@ -3,4 +3,7 @@
 command = "node"
 args = ["C:\\Users\\JoseAntonioHernandez\\Repos\\gcpd\\gcpd\\node_modules\\@iwsdk\\cli\\dist\\cli.js", "mcp", "stdio"]
 
+[mcp_servers.iwsdk-runtime.tools.browser_reload_page]
+approval_mode = "approve"
+
 # --- end IWER managed ---

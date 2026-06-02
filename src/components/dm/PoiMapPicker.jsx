@@ -21,6 +21,7 @@ const PoiMapPicker = ({
   afterPreview = null,
 }) => {
   const [internalExpanded, setInternalExpanded] = useState(false);
+  const [hoverCoords, setHoverCoords] = useState(null); // { x, y, px, py }
   const thumbFrameRef = useRef(null);
   const thumbViewportRef = useRef(null);
   const overlayFrameRef = useRef(null);
@@ -37,6 +38,21 @@ const PoiMapPicker = ({
     const y = ((event.clientY - rect.top) / rect.height) * 100;
     viewportRef.current.style.transformOrigin = `${x}% ${y}%`;
     viewportRef.current.style.transform = 'scale(2)';
+  };
+
+  const handleThumbHover = (event) => {
+    if (!thumbFrameRef.current) return;
+    const rect = thumbFrameRef.current.getBoundingClientRect();
+    const xPct = ((event.clientX - rect.left) / rect.width) * 100;
+    const yPct = ((event.clientY - rect.top) / rect.height) * 100;
+    // Position tooltip relative to the frame
+    const px = event.clientX - rect.left;
+    const py = event.clientY - rect.top;
+    setHoverCoords({ x: xPct.toFixed(1), y: yPct.toFixed(1), px, py });
+  };
+
+  const handleThumbLeave = () => {
+    setHoverCoords(null);
   };
 
   const handleZoomLeave = (viewportRef) => () => {
@@ -74,12 +90,18 @@ const PoiMapPicker = ({
 
   return (
     <>
-      <div className="dm-panel__map-thumb" style={{ aspectRatio }}>
+      <div className="dm-panel__map-thumb" style={{ aspectRatio, position: 'relative' }}>
         <div
           className="dm-panel__map-frame dm-panel__map-frame--thumb"
           ref={thumbFrameRef}
-          onPointerMove={handleZoomMove(thumbFrameRef, thumbViewportRef)}
-          onPointerLeave={handleZoomLeave(thumbViewportRef)}
+          onPointerMove={(e) => {
+            handleZoomMove(thumbFrameRef, thumbViewportRef)(e);
+            handleThumbHover(e);
+          }}
+          onPointerLeave={(e) => {
+            handleZoomLeave(thumbViewportRef)(e);
+            handleThumbLeave();
+          }}
           onClick={handlePick(thumbFrameRef)}
         >
           <div className="dm-panel__map-viewport">
@@ -93,6 +115,17 @@ const PoiMapPicker = ({
             </div>
           </div>
         </div>
+        {hoverCoords && (
+          <div
+            className="dm-panel__map-hover-tooltip"
+            style={{
+              left: hoverCoords.px + 10,
+              top: hoverCoords.py - 32,
+            }}
+          >
+            X {hoverCoords.x}% · Y {hoverCoords.y}%
+          </div>
+        )}
       </div>
       {afterPreview}
 

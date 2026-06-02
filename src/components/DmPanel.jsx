@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '../css/DmPanel.styles.css';
+import DmToast from './dm/DmToast';
+import GlobalSearch from './dm/GlobalSearch';
 import PoiSelector from './dm/PoiList';
 import PoiPreview from './dm/PoiPreview';
 import PoiEditor from './dm/PoiEditor';
@@ -33,6 +35,7 @@ const LIVE_MAP_BACKGROUNDS_ENDPOINT = '/api/live-map-backgrounds';
 const LIVE_MAP_BACKGROUND_UPLOAD_ENDPOINT = '/api/live-map-background-upload';
 const LIVE_MAP_BACKGROUND_DELETE_ENDPOINT = '/api/live-map-backgrounds';
 const RT_EFFECTS_MEDIA_ENDPOINT = '/api/rt-effects-media';
+const RT_EFFECTS_DURATION_INFINITY_SEC = 60;
 
 const initialCaseForm = {
   id: '',
@@ -427,17 +430,23 @@ const splitLines = (value = '') =>
     .map((line) => line.trim())
     .filter(Boolean);
 
-const VIEW_OPTIONS = [
-  { id: 'cases', label: 'Casos' },
-  { id: 'pois', label: 'POIs' },
-  { id: 'villains', label: 'Villanos' },
-  { id: 'evidence', label: 'Evidencias' },
-  { id: 'tracer', label: 'Tracer' },
-  { id: 'liveMap', label: 'Mapa Live' },
-  { id: 'rtEffects', label: 'Efectos RT' },
-  { id: 'access', label: 'Accesos' },
-  { id: 'campaign', label: 'Campaña' },
-];
+const SECTION_TABS = {
+  DATA: [
+    { id: 'cases', label: 'Casos' },
+    { id: 'pois', label: 'POIs' },
+    { id: 'villains', label: 'Villanos' },
+    { id: 'evidence', label: 'Evidencias' },
+  ],
+  OPS: [
+    { id: 'tracer', label: 'Tracer' },
+    { id: 'liveMap', label: 'Mapa Live' },
+    { id: 'rtEffects', label: 'Efectos RT' },
+  ],
+  CONFIG: [
+    { id: 'access', label: 'Accesos' },
+    { id: 'campaign', label: 'Campaña' },
+  ],
+};
 
 const MAP_IMAGE = '/mapa.png';
 const MAP_ASPECT_RATIO = 0.744;
@@ -927,6 +936,16 @@ const buildNavigationTree = (items, scope = 'cases') => {
 };
 
 const DmPanel = () => {
+  // ── Toast system ──────────────────────────────────────────
+  const [toasts, setToasts] = useState([]);
+  const addToast = useCallback((text, type = 'info') => {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    setToasts((prev) => [...prev.slice(-4), { id, text, type }]);
+  }, []);
+  const dismissToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
   const [passwordInput, setPasswordInput] = useState('');
   const [authorized, setAuthorized] = useState(false);
   const [authError, setAuthError] = useState('');
@@ -967,6 +986,7 @@ const DmPanel = () => {
   const [caseMessage, setCaseMessage] = useState('');
   const [caseBaseline, setCaseBaseline] = useState(JSON.stringify(initialCaseForm));
   const [caseSaveState, setCaseSaveState] = useState({ status: 'idle', at: null });
+  const [caseSaving, setCaseSaving] = useState(false);
   const [caseDraftActive, setCaseDraftActive] = useState(false);
 
   const [pois, setPois] = useState([]);
@@ -976,6 +996,7 @@ const DmPanel = () => {
   const [poiMessage, setPoiMessage] = useState('');
   const [poiBaseline, setPoiBaseline] = useState(JSON.stringify(initialPoiForm));
   const [poiSaveState, setPoiSaveState] = useState({ status: 'idle', at: null });
+  const [poiSaving, setPoiSaving] = useState(false);
   const [poiRecents, setPoiRecents] = useState([]);
   const [poiImageFile, setPoiImageFile] = useState(null);
   const [poiImageUploading, setPoiImageUploading] = useState(false);
@@ -1009,6 +1030,7 @@ const DmPanel = () => {
     JSON.stringify(initialVillainForm)
   );
   const [villainSaveState, setVillainSaveState] = useState({ status: 'idle', at: null });
+  const [villainSaving, setVillainSaving] = useState(false);
   const [accessVillainId, setAccessVillainId] = useState(
     () => readJsonStorage(STORAGE_KEYS.selections, {}).access || ''
   );
@@ -1099,7 +1121,10 @@ const DmPanel = () => {
   const [rtEffectsMediaUrl, setRtEffectsMediaUrl] = useState('');
   const [rtEffectsMediaType, setRtEffectsMediaType] = useState('image');
   const [rtEffectsMediaCaption, setRtEffectsMediaCaption] = useState('');
-  const [rtEffectsMediaDismissable, setRtEffectsMediaDismissable] = useState(true);
+  const [rtEffectsDurationSec, setRtEffectsDurationSec] = useState(8);
+  const [rtEffectsPreview, setRtEffectsPreview] = useState(null);
+  const [rtEffectsDraft, setRtEffectsDraft] = useState(null);
+  const [rtEffectsAgentState, setRtEffectsAgentState] = useState({ label: 'SIN EMISIÓN', tone: 'idle' });
   const [rtEffectsMediaLibrary, setRtEffectsMediaLibrary] = useState([]);
   const [rtEffectsMediaLibraryLoading, setRtEffectsMediaLibraryLoading] = useState(false);
   const [rtEffectsMediaLibraryUploading, setRtEffectsMediaLibraryUploading] = useState(false);
@@ -2060,6 +2085,7 @@ const DmPanel = () => {
   const saveCase = async (event) => {
     event.preventDefault();
     setCaseMessage('');
+    setCaseSaving(true);
     const existingCommands =
       selectedCase?.commands && typeof selectedCase.commands === 'object'
         ? selectedCase.commands
@@ -2100,6 +2126,7 @@ const DmPanel = () => {
       const saved = await res.json();
       setCaseMessage('Caso guardado');
       setCaseSaveState({ status: 'saved', at: Date.now() });
+      addToast(`Caso "${saved.title || saved.id}" guardado`, 'success');
       resetCaseForm(saved);
       setSelectedCase(saved);
       setCases((prev) => {
@@ -2109,6 +2136,9 @@ const DmPanel = () => {
     } catch (error) {
       setCaseMessage(error.message);
       setCaseSaveState({ status: 'error', at: Date.now() });
+      addToast(error.message || 'Error al guardar el caso', 'error');
+    } finally {
+      setCaseSaving(false);
     }
   };
 
@@ -2153,14 +2183,17 @@ const DmPanel = () => {
       resetCaseForm(null);
       setSelectedCase(null);
       setCaseMessage('Caso eliminado.');
+      addToast('Caso eliminado', 'info');
     } catch (error) {
       setCaseMessage(error.message || 'No se pudo eliminar el caso.');
+      addToast(error.message || 'No se pudo eliminar el caso', 'error');
     }
   };
 
   const savePoi = async (event) => {
     event.preventDefault();
     setPoiMessage('');
+    setPoiSaving(true);
     const existingPoiV2 =
       selectedPoi?.poiV2 && typeof selectedPoi.poiV2 === 'object'
         ? selectedPoi.poiV2
@@ -2193,6 +2226,7 @@ const DmPanel = () => {
       const saved = await res.json();
       setPoiMessage('POI guardado');
       setPoiSaveState({ status: 'saved', at: Date.now() });
+      addToast(`POI "${saved.name || saved.id}" guardado`, 'success');
       resetPoiForm(saved);
       setSelectedPoi(saved);
       addPoiRecent(saved);
@@ -2203,6 +2237,9 @@ const DmPanel = () => {
     } catch (error) {
       setPoiMessage(error.message);
       setPoiSaveState({ status: 'error', at: Date.now() });
+      addToast(error.message || 'Error al guardar el POI', 'error');
+    } finally {
+      setPoiSaving(false);
     }
   };
 
@@ -2674,6 +2711,7 @@ const DmPanel = () => {
   const saveVillain = async (event) => {
     event.preventDefault();
     setVillainMessage('');
+    setVillainSaving(true);
     const existing = selectedVillain && typeof selectedVillain === 'object' ? selectedVillain : {};
     const existingUnlock = existing.unlockConditions || { ...defaultAccessConfig };
     const existingDm = existing.dm || { notes: '', spoilers: [] };
@@ -2719,6 +2757,7 @@ const DmPanel = () => {
       const saved = await res.json();
       setVillainMessage('Perfil guardado');
       setVillainSaveState({ status: 'saved', at: Date.now() });
+      addToast(`Villano "${saved.name || saved.id}" guardado`, 'success');
       resetVillainForm(saved);
       setSelectedVillain(saved);
       setVillains((prev) => {
@@ -2728,6 +2767,9 @@ const DmPanel = () => {
     } catch (error) {
       setVillainMessage(error.message);
       setVillainSaveState({ status: 'error', at: Date.now() });
+      addToast(error.message || 'Error al guardar el perfil', 'error');
+    } finally {
+      setVillainSaving(false);
     }
   };
 
@@ -4391,6 +4433,22 @@ const DmPanel = () => {
       if (payload.type === 'effects:status') {
         setRtEffectsAgents(Number(payload.agents) || 0);
       }
+      if (payload.type === 'effects:agent-state') {
+        const rawEffect = String(payload.effect || '');
+        const effect = rawEffect === 'alarm'
+          ? 'ALARMA'
+          : rawEffect === 'hack'
+            ? 'HACKEO SEVERO'
+            : rawEffect === 'fog'
+              ? 'NIEBLA'
+              : rawEffect.toUpperCase();
+        const state = String(payload.state || '').toUpperCase();
+        const agents = Number(payload.agents) || 0;
+        setRtEffectsAgentState({
+          label: effect ? `${effect} · ${state || 'ACK'} · ${agents} AG` : `${state || 'ACK'} · ${agents} AG`,
+          tone: payload.state === 'cleared' ? 'idle' : 'active',
+        });
+      }
     };
     return () => {
       if (rtEffectsSocketRef.current === socket) rtEffectsSocketRef.current = null;
@@ -4398,22 +4456,84 @@ const DmPanel = () => {
     };
   }, [activeView, authorized, sessionToken]);
 
+  const getRtEffectsDurationMs = useCallback(() => {
+    const seconds = Number(rtEffectsDurationSec);
+    if (!Number.isFinite(seconds)) return 8000;
+    if (seconds >= RT_EFFECTS_DURATION_INFINITY_SEC) return 0;
+    return Math.max(0, Math.min(300, seconds)) * 1000;
+  }, [rtEffectsDurationSec]);
+
+  const withRtEffectsDuration = useCallback(
+    (options = {}) => ({
+      ...options,
+      duration: getRtEffectsDurationMs(),
+    }),
+    [getRtEffectsDurationMs]
+  );
+
+  const withRtEffectsMediaOptions = useCallback(
+    (options = {}) => ({
+      ...options,
+      loop: getRtEffectsDurationMs() === 0,
+      duration: getRtEffectsDurationMs(),
+    }),
+    [getRtEffectsDurationMs]
+  );
+
+  const buildRtEffectsOptions = useCallback((draft) => {
+    if (!draft) return {};
+    if (draft.effect === 'media') return withRtEffectsMediaOptions(draft.options);
+    return withRtEffectsDuration(draft.options);
+  }, [withRtEffectsDuration, withRtEffectsMediaOptions]);
+
+  const prepareRtEffect = useCallback((effect, options = {}) => {
+    const draft = { effect, options };
+    setRtEffectsDraft(draft);
+    setRtEffectsPreview({ effect, options: buildRtEffectsOptions(draft), ts: null, mode: 'draft' });
+    setRtEffectsAgentState({ label: 'LISTO PARA LANZAR', tone: 'ready' });
+  }, [buildRtEffectsOptions]);
+
   const sendEffect = useCallback((effect, options = {}) => {
     const socket = rtEffectsSocketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
     socket.send(JSON.stringify({ type: 'effects:trigger', effect, options }));
     const ts = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setRtEffectsPreview({ effect, options, ts });
     setRtEffectsLog((prev) => [
       { ts, effect, options },
       ...prev.slice(0, 19),
     ]);
+    setRtEffectsAgentState({ label: 'ENVIADO · ESPERANDO AGENTE', tone: 'pending' });
   }, []);
+
+  const sendRtAlarmEffect = useCallback(() => {
+    const message = window.prompt('Texto de alarma para la pantalla de agente:', 'ALERTA DE SEGURIDAD');
+    if (message === null) return;
+    const normalizedMessage = message.trim() || 'ALERTA DE SEGURIDAD';
+    prepareRtEffect('alarm', { message: normalizedMessage });
+  }, [prepareRtEffect]);
+
+  const launchRtEffect = useCallback(() => {
+    if (!rtEffectsDraft) return;
+    sendEffect(rtEffectsDraft.effect, buildRtEffectsOptions(rtEffectsDraft));
+  }, [buildRtEffectsOptions, rtEffectsDraft, sendEffect]);
+
+  useEffect(() => {
+    if (!rtEffectsDraft) return;
+    setRtEffectsPreview((current) => {
+      if (!current || current.effect !== rtEffectsDraft.effect) return current;
+      return { ...current, options: buildRtEffectsOptions(rtEffectsDraft) };
+    });
+  }, [buildRtEffectsOptions, rtEffectsDraft]);
 
   const sendEffectClear = useCallback(() => {
     const socket = rtEffectsSocketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
     socket.send(JSON.stringify({ type: 'effects:clear' }));
     const ts = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setRtEffectsPreview(null);
+    setRtEffectsDraft(null);
+    setRtEffectsAgentState({ label: 'SIN EMISIÓN', tone: 'idle' });
     setRtEffectsLog((prev) => [{ ts, effect: 'CLEAR', options: {} }, ...prev.slice(0, 19)]);
   }, []);
 
@@ -4535,13 +4655,12 @@ const DmPanel = () => {
 
   const sendSelectedRtEffectsMedia = useCallback((media) => {
     if (!media) return;
-    sendEffect('media', {
+    prepareRtEffect('media', {
       url: media.url,
       mediaType: media.kind === 'video' ? 'video' : 'image',
       caption: media.title || media.description || '',
-      dismissable: rtEffectsMediaDismissable,
     });
-  }, [rtEffectsMediaDismissable, sendEffect]);
+  }, [prepareRtEffect]);
 
   useEffect(() => {
     if (!authorized || !sessionToken || activeView !== 'rtEffects') return undefined;
@@ -4552,6 +4671,26 @@ const DmPanel = () => {
     const wsOnline = rtEffectsWsState === 'online';
     const wsIndicator = wsOnline ? '● ONLINE' : rtEffectsWsState === 'connecting' ? '◌ CONECTANDO' : '○ OFFLINE';
     const selectedMedia = rtEffectsMediaLibrary.find((entry) => entry.id === rtEffectsMediaSelectedId) || null;
+    const previewOptions = rtEffectsPreview?.options || {};
+    const previewIsMedia = rtEffectsPreview?.effect === 'media' && previewOptions.url;
+    const durationIsInfinite = getRtEffectsDurationMs() === 0;
+    const durationLabel = durationIsInfinite ? '∞' : `${rtEffectsDurationSec}s`;
+    const previewDurationLabel =
+      previewOptions.loop || Number(previewOptions.duration) === 0
+        ? '∞'
+        : `${Math.round((Number(previewOptions.duration) || getRtEffectsDurationMs()) / 1000)}s`;
+    const previewEffectLabel = rtEffectsPreview?.effect === 'alarm'
+      ? 'ALARMA'
+      : rtEffectsPreview?.effect === 'hack'
+        ? 'HACKEO SEVERO'
+        : rtEffectsPreview?.effect === 'fog'
+          ? 'NIEBLA'
+          : rtEffectsPreview?.effect?.toUpperCase();
+    const previewDetail = rtEffectsPreview?.effect === 'alarm'
+      ? (previewOptions.message || 'ALERTA DE SEGURIDAD')
+      : rtEffectsPreview
+        ? 'Representación local del efecto enviado.'
+        : 'Lanza un efecto para ver una representación local.';
     return (
       <div className="dm-panel__section rt-effects-panel">
         <div className="rt-effects-header">
@@ -4560,39 +4699,85 @@ const DmPanel = () => {
           <span className="rt-effects-agents">{rtEffectsAgents} agente{rtEffectsAgents !== 1 ? 's' : ''} conectado{rtEffectsAgents !== 1 ? 's' : ''}</span>
         </div>
 
-        <div className="rt-effects-group">
-          <div className="rt-effects-group-label">ALERTAS</div>
-          <div className="rt-effects-btn-row">
-            <button className="rt-effects-btn rt-effects-btn--alarm" disabled={!wsOnline} onClick={() => sendEffect('alarm', { duration: 5000 })}>🚨 ALARMA 5s</button>
-            <button className="rt-effects-btn rt-effects-btn--alarm" disabled={!wsOnline} onClick={() => sendEffect('alarm', { duration: 10000 })}>🚨 ALARMA 10s</button>
-            <button className="rt-effects-btn rt-effects-btn--alarm" disabled={!wsOnline} onClick={() => sendEffect('alarm', { duration: 0 })}>🚨 ALARMA ∞</button>
-            <button className="rt-effects-btn rt-effects-btn--critical" disabled={!wsOnline} onClick={() => sendEffect('critical', { duration: 6000 })}>⚡ NIVEL CRÍTICO</button>
+        <div className="rt-effects-control-deck">
+          <div className="rt-effects-preview-card">
+            <div className="rt-effects-preview-header">
+              <span className="rt-effects-group-label">PREVIEW LOCAL DM</span>
+              <label className="rt-effects-duration-control" title="Extremo derecho: infinito hasta limpiar.">
+                <span>{durationLabel}</span>
+                <input
+                  type="range"
+                  min="1"
+                  max={RT_EFFECTS_DURATION_INFINITY_SEC}
+                  step="1"
+                  value={rtEffectsDurationSec}
+                  onChange={(event) => setRtEffectsDurationSec(Number(event.target.value))}
+                />
+                <small>∞</small>
+              </label>
+              <div className="rt-effects-preview-actions">
+                <button className="rt-effects-preview-launch" disabled={!wsOnline || !rtEffectsDraft} onClick={launchRtEffect}>
+                  LANZAR
+                </button>
+                <button className="rt-effects-preview-clear" disabled={!wsOnline} onClick={sendEffectClear}>
+                  LIMPIAR
+                </button>
+              </div>
+              <div className="rt-effects-preview-state">
+                <span>{rtEffectsPreview ? `${previewEffectLabel} · ${previewDurationLabel}` : 'SIN EMISIÓN'}</span>
+                <span className={`rt-effects-agent-chip rt-effects-agent-chip--${rtEffectsAgentState.tone}`}>{rtEffectsAgentState.label}</span>
+              </div>
+            </div>
+            <div className={`rt-effects-preview-stage${rtEffectsPreview ? ` rt-effects-preview-stage--${rtEffectsPreview.effect}` : ''}`}>
+              {previewIsMedia ? (
+                previewOptions.mediaType === 'video' ? (
+                  <video
+                    src={previewOptions.url}
+                    muted
+                    loop={Boolean(previewOptions.loop)}
+                    autoPlay
+                    controls
+                    playsInline
+                  />
+                ) : (
+                  <img src={previewOptions.url} alt={previewOptions.caption || 'Preview media'} />
+                )
+              ) : (
+                <div className="rt-effects-preview-placeholder">
+                  <strong>{rtEffectsPreview ? previewEffectLabel : 'AGENT VIEW'}</strong>
+                  <span>{previewDetail}</span>
+                </div>
+              )}
+              {rtEffectsPreview && <div className="rt-effects-preview-scanline" />}
+            </div>
           </div>
         </div>
 
-        <div className="rt-effects-group">
-          <div className="rt-effects-group-label">ATMÓSFERA</div>
-          <div className="rt-effects-btn-row">
-            <button className="rt-effects-btn rt-effects-btn--hack" disabled={!wsOnline} onClick={() => sendEffect('hack', { duration: 8000, intensity: 'light' })}>💀 GLITCH LEVE</button>
-            <button className="rt-effects-btn rt-effects-btn--hack" disabled={!wsOnline} onClick={() => sendEffect('hack', { duration: 8000, intensity: 'medium' })}>💀 HACKEO</button>
-            <button className="rt-effects-btn rt-effects-btn--hack" disabled={!wsOnline} onClick={() => sendEffect('hack', { duration: 8000, intensity: 'heavy' })}>💀 HACKEO SEVERO</button>
-            <button className="rt-effects-btn rt-effects-btn--fog" disabled={!wsOnline} onClick={() => sendEffect('fog', { duration: 12000 })}>🌫 NIEBLA</button>
-            <button className="rt-effects-btn rt-effects-btn--fog" disabled={!wsOnline} onClick={() => sendEffect('fog', { duration: 0 })}>🌫 NIEBLA ∞</button>
-            <button className="rt-effects-btn rt-effects-btn--flicker" disabled={!wsOnline} onClick={() => sendEffect('flicker', { count: 3 })}>📺 PARPADEO CRT</button>
-          </div>
+        <div className="rt-effects-command-shelf">
+          <div className="rt-effects-command-label">DISPARADORES</div>
+          <button className="rt-effects-btn rt-effects-btn--alarm" disabled={!wsOnline} onClick={sendRtAlarmEffect}>ALARMA</button>
+          <button className="rt-effects-btn rt-effects-btn--hack" disabled={!wsOnline} onClick={() => prepareRtEffect('hack', { intensity: 'heavy' })}>HACKEO SEVERO</button>
+          <button className="rt-effects-btn rt-effects-btn--fog" disabled={!wsOnline} onClick={() => prepareRtEffect('fog')}>NIEBLA</button>
         </div>
 
         <div className="rt-effects-group">
           <div className="rt-effects-group-label">BIBLIOTECA DE VIDEOS</div>
           <div className="rt-effects-media-library">
             <div className="rt-effects-media-upload">
-              <label className="dm-panel__label">Archivo local</label>
-              <input
-                className="dm-panel__input"
-                type="file"
-                accept="video/*"
-                onChange={(event) => setRtEffectsMediaLibraryFile(event.target.files?.[0] || null)}
-              />
+              <div className="rt-effects-upload-zone">
+                <input
+                  id="rt-effects-video-file"
+                  className="rt-effects-file-input"
+                  type="file"
+                  accept="video/*"
+                  onChange={(event) => setRtEffectsMediaLibraryFile(event.target.files?.[0] || null)}
+                />
+                <label className="rt-effects-file-picker" htmlFor="rt-effects-video-file">
+                  <span className="rt-effects-file-picker-icon">UPLOAD</span>
+                  <strong>{rtEffectsMediaLibraryFile ? rtEffectsMediaLibraryFile.name : 'Seleccionar video local'}</strong>
+                  <small>{rtEffectsMediaLibraryFile ? `${Math.round(rtEffectsMediaLibraryFile.size / 1024 / 1024 * 10) / 10} MB` : 'MP4, WEBM o MOV desde tu equipo'}</small>
+                </label>
+              </div>
               <label className="dm-panel__label">Nombre del video</label>
               <input
                 className="dm-panel__input"
@@ -4635,10 +4820,14 @@ const DmPanel = () => {
               {!rtEffectsMediaLibraryLoading && rtEffectsMediaLibrary.length === 0 && (
                 <div className="rt-effects-media-empty">Todavía no hay videos guardados.</div>
               )}
+              <div className="rt-effects-media-items">
               {rtEffectsMediaLibrary.map((media) => {
                 const isSelected = media.id === rtEffectsMediaSelectedId;
                 return (
                   <div key={media.id} className={`rt-effects-media-item${isSelected ? ' rt-effects-media-item--selected' : ''}`}>
+                    {media.kind === 'video' && (
+                      <video className="rt-effects-media-preview" src={media.url} muted preload="metadata" />
+                    )}
                     <div className="rt-effects-media-item-main">
                       <div className="rt-effects-media-item-meta">
                         <strong>{media.title}</strong>
@@ -4650,19 +4839,17 @@ const DmPanel = () => {
                           Seleccionar
                         </button>
                         <button className="rt-effects-btn rt-effects-btn--small" onClick={() => sendSelectedRtEffectsMedia(media)}>
-                          Emitir
+                          Preparar
                         </button>
                         <button className="rt-effects-btn rt-effects-btn--small rt-effects-btn--danger" onClick={() => deleteRtEffectsMedia(media.id)}>
                           Borrar
                         </button>
                       </div>
                     </div>
-                    {media.kind === 'video' && (
-                      <video className="rt-effects-media-preview" src={media.url} controls preload="metadata" />
-                    )}
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
         </div>
@@ -4697,26 +4884,18 @@ const DmPanel = () => {
               value={rtEffectsMediaCaption}
               onChange={(e) => setRtEffectsMediaCaption(e.target.value)}
             />
-            <label className="rt-effects-checkbox">
-              <input
-                type="checkbox"
-                checked={rtEffectsMediaDismissable}
-                onChange={(e) => setRtEffectsMediaDismissable(e.target.checked)}
-              />
-              El agente puede cerrar con ESC
-            </label>
+            <div className="rt-effects-control-note">La pestaña de agente no puede cerrar ni anular efectos. Control exclusivo del DM.</div>
             <div className="rt-effects-media-direct-actions">
               <button
                 className="rt-effects-btn rt-effects-btn--media"
                 disabled={!wsOnline || !rtEffectsMediaUrl.trim()}
-                onClick={() => sendEffect('media', {
+                onClick={() => prepareRtEffect('media', {
                   url: rtEffectsMediaUrl.trim(),
                   mediaType: rtEffectsMediaType,
                   caption: rtEffectsMediaCaption.trim(),
-                  dismissable: rtEffectsMediaDismissable,
                 })}
               >
-                ▶ EMITIR MEDIA
+                PREPARAR MEDIA
               </button>
               <button
                 className="rt-effects-btn rt-effects-btn--small"
@@ -4735,17 +4914,11 @@ const DmPanel = () => {
                   disabled={!wsOnline}
                   onClick={() => sendSelectedRtEffectsMedia(selectedMedia)}
                 >
-                  ▶ EMITIR SELECCIONADO
+                  PREPARAR SELECCIONADO
                 </button>
               </div>
             )}
           </div>
-        </div>
-
-        <div className="rt-effects-clear-row">
-          <button className="rt-effects-btn rt-effects-btn--clear" disabled={!wsOnline} onClick={sendEffectClear}>
-            ⬛ LIMPIAR TODOS LOS EFECTOS
-          </button>
         </div>
 
         {rtEffectsLog.length > 0 && (
@@ -4798,27 +4971,91 @@ const DmPanel = () => {
     img.src = pngPath;
   }, [ballisticsForm.pngPath]);
 
+  const handleGlobalSearchNavigate = useCallback(
+    (view, id) => {
+      setActiveView(view);
+      setSelection(view, id);
+
+      if (view === 'cases') {
+        const match = cases.find((entry) => entry.id === id);
+        if (match) {
+          setSelectedCase(match);
+          resetCaseForm(match);
+        }
+        return;
+      }
+
+      if (view === 'pois') {
+        const match = pois.find((entry) => entry.id === id);
+        if (match) {
+          setSelectedPoi(match);
+          resetPoiForm(match);
+          addPoiRecent(match);
+        }
+        return;
+      }
+
+      if (view === 'villains') {
+        const match = villains.find((entry) => entry.id === id);
+        if (match) {
+          setSelectedVillain(match);
+          resetVillainForm(match);
+        }
+        return;
+      }
+
+      if (view === 'evidence') {
+        const match = evidenceModels.find((entry) => entry.id === id);
+        if (match) {
+          setEvidenceTab('stl');
+          setEvidenceFile(null);
+          setEvidenceMessage('');
+          setEvidenceProfile('default');
+          setEvidenceForm({
+            id: match.id || '',
+            label: match.label || '',
+            command: match.command || '',
+            stlPath: match.stlPath || '',
+          });
+          setEvidencePreviewNonce((prev) => prev + 1);
+        }
+      }
+    },
+    [cases, pois, villains, evidenceModels]
+  );
+
   const renderNav = () => (
-    <div className="dm-panel__nav" data-workspace={activeView}>
-      {VIEW_OPTIONS.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          onClick={() => setActiveView(option.id)}
-          className={activeView === option.id ? 'active' : ''}
-        >
-          {option.label}
-        </button>
+    <nav className="dm-panel__nav" data-workspace={activeView} aria-label="Panel de control — navegación principal">
+      {Object.entries(SECTION_TABS).map(([groupKey, tabs]) => (
+        <div key={groupKey} className="dm-panel__nav-group" role="group" aria-label={`Grupo ${groupKey}`}>
+          <div className="dm-panel__nav-group-label" aria-hidden="true">{groupKey}</div>
+          <div className="dm-panel__nav-group-buttons" role="tablist">
+            {tabs.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="tab"
+                aria-selected={activeView === option.id}
+                aria-controls={`dm-panel-view-${option.id}`}
+                onClick={() => setActiveView(option.id)}
+                className={activeView === option.id ? 'active' : ''}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
       ))}
       <a
         href="/docs#panel"
         target="_blank"
         rel="noreferrer"
         className="dm-panel__nav-link"
+        aria-label="Ayuda y documentación del panel DM (abre en nueva pestaña)"
       >
         Ayuda
       </a>
-    </div>
+    </nav>
   );
 
   const resolveNoticeTone = (text = '') => {
@@ -5250,8 +5487,8 @@ const DmPanel = () => {
               <div className="dm-panel__editor-main">
                 <form onSubmit={saveCase} className="dm-panel__form">
                   <div className="dm-panel__editor-actions">
-                    <button type="submit" className="dm-panel__primary">
-                      Guardar
+                    <button type="submit" className="dm-panel__primary" disabled={caseSaving} data-loading={caseSaving || undefined}>
+                      {caseSaving ? 'Guardando...' : 'Guardar'}
                     </button>
                     <button type="button" className="dm-panel__ghost" onClick={toggleAdvanced}>
                       {advancedOpen ? 'Avanzado ▾' : 'Avanzado ▸'}
@@ -5269,7 +5506,7 @@ const DmPanel = () => {
                     <div className="dm-panel__editor-shortcuts">
                       <button
                         type="button"
-                        className="dm-panel__ghost"
+                        className="dm-panel__btn--secondary"
                         onClick={() => {
                           setSelection('cases', '');
                           startNewCase('');
@@ -5279,7 +5516,7 @@ const DmPanel = () => {
                       </button>
                       <button
                         type="button"
-                        className="dm-panel__ghost"
+                        className="dm-panel__btn--secondary"
                         disabled={!selectedCase}
                         onClick={() => {
                           if (!selectedCase) return;
@@ -5291,7 +5528,7 @@ const DmPanel = () => {
                       </button>
                       <button
                         type="button"
-                        className="dm-panel__ghost"
+                        className="dm-panel__btn--secondary"
                         onClick={() => {
                           setSelectedCase(null);
                           setSelection('cases', '');
@@ -5598,7 +5835,7 @@ const DmPanel = () => {
                         {selectedCase && (
                           <button
                             type="button"
-                            className="dm-panel__delete dm-panel__delete--compact"
+                            className="dm-panel__btn--danger dm-panel__delete--compact"
                             onClick={deleteCase}
                           >
                             Eliminar caso
@@ -5724,6 +5961,7 @@ const DmPanel = () => {
                   selectedPoi={selectedPoi}
                   deletePoi={deletePoi}
                   poiMessage={poiMessage}
+                  saving={poiSaving}
                   isOperation={isOperation}
                   mapProps={{
                     aspectRatio: MAP_ASPECT_RATIO,
@@ -5937,8 +6175,8 @@ const DmPanel = () => {
               <div className="dm-panel__editor-main">
                 <form onSubmit={saveVillain} className="dm-panel__form">
                   <div className="dm-panel__editor-actions">
-                    <button type="submit" className="dm-panel__primary">
-                      Guardar
+                    <button type="submit" className="dm-panel__primary" disabled={villainSaving} data-loading={villainSaving || undefined}>
+                      {villainSaving ? 'Guardando...' : 'Guardar'}
                     </button>
                     <button type="button" className="dm-panel__ghost" onClick={toggleAdvanced}>
                       {advancedOpen ? 'Avanzado ▾' : 'Avanzado ▸'}
@@ -6403,7 +6641,7 @@ const DmPanel = () => {
                       </div>
                       <button
                         type="button"
-                        className="dm-panel__delete dm-panel__delete--compact"
+                        className="dm-panel__btn--danger dm-panel__delete--compact"
                         onClick={deleteVillain}
                       >
                         Eliminar villano
@@ -8135,6 +8373,14 @@ const DmPanel = () => {
 
         {authorized && (
           <>
+            <DmToast toasts={toasts} onDismiss={dismissToast} />
+            <GlobalSearch
+              cases={cases}
+              pois={pois}
+              villains={villains}
+              evidence={evidenceModels}
+              onNavigate={handleGlobalSearchNavigate}
+            />
             <div className="dm-panel__workspace-top">
               {renderNav()}
               {transientNotice && (

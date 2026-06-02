@@ -1,6 +1,6 @@
 # Codex To Claude Handoff
 
-Last updated: 2026-06-01
+Last updated: 2026-06-02
 
 ## Current Repo State
 
@@ -16,19 +16,17 @@ Last updated: 2026-06-01
 
 ## Deployment Preference
 
-- The VPS used for launch is lightweight and should not be required to build the frontend on every service restart.
-- Preferred workflow: build locally on the development machine, commit the generated `dist/`, push, then pull on the VPS.
-- `dist/` is intentionally versionable in this repo. Do not re-add it to `.gitignore` unless the deployment strategy changes.
-- Local release flow:
+- `dist/` is intentionally kept out of Git again and must stay ignored.
+- Do not commit generated build artifacts unless the deployment strategy is explicitly changed.
+- The VPS used for launch is lightweight, so avoid unnecessary rebuilds there, but the current repo policy is still source-only Git.
+- Normal local flow:
   - Apply source changes.
-  - Run `npm run build` locally.
-  - Review generated `dist/` changes together with source changes.
-  - Stage source files plus `dist/`.
-  - Commit and push.
-- VPS release flow:
+  - Run `npm run build` locally for verification.
+  - Commit/push source and docs only, not `dist/`.
+- VPS flow:
   - `git pull`
-  - Restart only the process that serves the frontend/static bundle.
-  - Do not run `npm run build` on the VPS for normal frontend-only deploys.
+  - Rebuild only when frontend source changed and production static assets must be refreshed.
+  - If only backend/API files changed, restart API as needed and do not rebuild frontend.
 - Backend/API note:
   - If only frontend/TUI/DM UI changed, the API process usually does not need a restart.
   - If `server/index.js`, DB schema/migrations, env vars, uploads handling, or websocket server logic changed, restart the API process too.

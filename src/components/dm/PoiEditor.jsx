@@ -12,6 +12,7 @@ const PoiEditor = ({
   renderSection,
   labelRow,
   savePoi,
+  saving = false,
   advancedOpen,
   toggleAdvanced,
   previewOpen,
@@ -60,8 +61,8 @@ const PoiEditor = ({
           <button type="button" className="dm-panel__ghost dm-panel__ghost--utility" onClick={toggleAdvanced}>
             {advancedOpen ? 'Avanzado ▾' : 'Avanzado ▸'}
           </button>
-          <button type="submit" className="dm-panel__primary">
-            Guardar
+          <button type="submit" className="dm-panel__primary" disabled={saving} data-loading={saving || undefined}>
+            {saving ? 'Guardando...' : 'Guardar'}
           </button>
           <span className={`dm-panel__save-state dm-panel__save-state--${saveState.status}`}>
             {saveStateCompact}
