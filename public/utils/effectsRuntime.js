@@ -7,6 +7,13 @@ let _audioCtx = null;
 let _reconnectTimer = null;
 let _ws = null;
 let _activeEffects = new Map(); // effectId -> { cleanup }
+const _relativeHosts = new WeakMap();
+let _historyPatched = false;
+let _locationWatcherInstalled = false;
+
+function isAgentViewPath(pathname = window.location.pathname || '/') {
+  return pathname === '/' || pathname === '/index.html';
+}
 
 function getAudioCtx() {
   if (!_audioCtx || _audioCtx.state === 'closed') {
@@ -339,11 +346,32 @@ function getScreenHost() {
 
 function ensureRelative(host) {
   if (host === document.body) return () => {};
-  const prev = host.style.position;
-  if (getComputedStyle(host).position === 'static') {
+  const entry = _relativeHosts.get(host);
+  if (entry) {
+    entry.count += 1;
+    return () => {
+      entry.count -= 1;
+      if (entry.count <= 0) {
+        if (entry.changed) host.style.position = entry.previous;
+        _relativeHosts.delete(host);
+      }
+    };
+  }
+  const previous = host.style.position;
+  const changed = getComputedStyle(host).position === 'static';
+  if (changed) {
     host.style.position = 'relative';
   }
-  return () => { host.style.position = prev; };
+  _relativeHosts.set(host, { count: 1, previous, changed });
+  return () => {
+    const current = _relativeHosts.get(host);
+    if (!current) return;
+    current.count -= 1;
+    if (current.count <= 0) {
+      if (current.changed) host.style.position = current.previous;
+      _relativeHosts.delete(host);
+    }
+  };
 }
 
 // ─── Effect handlers ──────────────────────────────────────────────────────────
@@ -518,6 +546,8 @@ function triggerMedia({ url, mediaType = 'image', caption = '', dismissable = tr
     overlay.appendChild(cap);
   }
 
+  let removeDismissListeners = () => {};
+
   if (dismissable) {
     const hint = document.createElement('div');
     hint.className = 'rt-media-dismiss';
@@ -528,17 +558,20 @@ function triggerMedia({ url, mediaType = 'image', caption = '', dismissable = tr
       if (e.type === 'keydown' && e.key !== 'Escape') return;
       e.preventDefault();
       e.stopPropagation();
-      cleanup();
+      _activeEffects.get('media')?.cleanup();
     };
     document.addEventListener('keydown', dismiss, { capture: true });
     overlay.addEventListener('click', dismiss);
-    var cleanup = () => {
+    removeDismissListeners = () => {
       document.removeEventListener('keydown', dismiss, { capture: true });
-      _activeEffects.get('media')?.cleanup();
+      overlay.removeEventListener('click', dismiss);
     };
   }
 
-  registerEffect('media', overlay, restorePos);
+  registerEffect('media', overlay, () => {
+    removeDismissListeners();
+    restorePos();
+  });
 }
 
 // ── Clear all ─────────────────────────────────────────────────────────────────
@@ -596,9 +629,58 @@ function connect() {
   }
 }
 
+function disconnect() {
+  clearTimeout(_reconnectTimer);
+  _reconnectTimer = null;
+  if (_ws) {
+    try {
+      _ws.onclose = null;
+      _ws.onerror = null;
+      _ws.onmessage = null;
+      _ws.close(1000, 'route-change');
+    } catch (_) {}
+    _ws = null;
+  }
+  clearAllEffects();
+}
+
+function syncRuntimeForLocation() {
+  if (isAgentViewPath(window.location.pathname || '/')) {
+    injectStyles();
+    connect();
+    return;
+  }
+  disconnect();
+}
+
+function installLocationWatcher() {
+  if (_locationWatcherInstalled) return;
+  _locationWatcherInstalled = true;
+
+  if (!_historyPatched) {
+    const { pushState, replaceState } = window.history;
+    window.history.pushState = function (...args) {
+      const result = pushState.apply(this, args);
+      window.dispatchEvent(new Event('locationchange'));
+      return result;
+    };
+    window.history.replaceState = function (...args) {
+      const result = replaceState.apply(this, args);
+      window.dispatchEvent(new Event('locationchange'));
+      return result;
+    };
+    window.addEventListener('popstate', () => {
+      window.dispatchEvent(new Event('locationchange'));
+    });
+    _historyPatched = true;
+  }
+
+  window.addEventListener('locationchange', syncRuntimeForLocation);
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export function startEffectsRuntime() {
-  injectStyles();
-  connect();
+  installLocationWatcher();
+  syncRuntimeForLocation();
 }

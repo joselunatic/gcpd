@@ -18,7 +18,7 @@ Synchronizes the repository into /opt/gcpd for systemd deployment.
 
 Options:
   --install   Run npm ci in the destination after syncing.
-  --build     Run npm run build in the destination after syncing.
+  --build     Run npm run build in the destination after syncing. Optional; normally dist/ comes from git.
   --restart   Restart gcpd-api and gcpd-frontend after syncing.
 EOF
 }
@@ -70,7 +70,6 @@ sync_tree() {
     --exclude '.git' \
     --exclude '.gitignore' \
     --exclude 'node_modules' \
-    --exclude 'dist' \
     --exclude '.codex' \
     --exclude '.DS_Store' \
     "$REPO_ROOT"/ "$DEST_DIR"/

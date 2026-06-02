@@ -96,7 +96,7 @@ sudo useradd --system --home /opt/gcpd --shell /usr/sbin/nologin gcpd
 sudo install -d -o gcpd -g gcpd /opt/gcpd
 sudo rsync -a --delete /home/jose/gcpdwopr/woprcrt-terminal/ /opt/gcpd/
 sudo chown -R gcpd:gcpd /opt/gcpd
-sudo ./scripts/sync-to-opt.sh --install --build
+sudo ./scripts/sync-to-opt.sh --install
 sudo ./scripts/install-systemd.sh --enable --start
 ```
 
@@ -116,20 +116,39 @@ sudo journalctl -u gcpd-api -f
 sudo journalctl -u gcpd-frontend -f
 ```
 
-El frontend queda servido desde `vite preview` sobre `dist/`, así que conviene ejecutar `npm run build` antes si vas a levantarlo manualmente fuera de `systemd`.
+El frontend queda servido desde `vite preview` sobre `dist/`. En este VPS el flujo normal asume que `dist/` ya viene construido desde el remoto tras `git pull`; usa `--build` solo si necesitas compilar localmente.
 Las unidades están pensadas para ejecutarse como la cuenta de servicio `gcpd`, no como tu usuario personal.
 Si tu instalación de Node no deja `npm` en `/usr/bin/npm`, ajusta `ExecStart` y `ExecStartPre` a la ruta real del binario en la máquina de despliegue.
 
 Despliegue rápido a `/opt/gcpd`:
 
 ```bash
-sudo ./scripts/sync-to-opt.sh --install --build --restart
+sudo ./scripts/sync-to-opt.sh --install --restart
 ```
 
 Si solo quieres sincronizar sin reinstalar dependencias ni reiniciar servicios:
 
 ```bash
 sudo ./scripts/sync-to-opt.sh
+```
+
+Flujo recomendado tras `git pull`:
+
+```bash
+git pull
+sudo ./scripts/sync-to-opt.sh --install --restart
+```
+
+Eso deja `/opt/gcpd` con el ultimo código antes de cambiar el frontend a modo desarrollo:
+
+```bash
+sudo ./scripts/frontend-mode.sh dev
+```
+
+Si quieres volver a producción después:
+
+```bash
+sudo ./scripts/frontend-mode.sh prod
 ```
 
 Instalar o actualizar unidades `systemd`:

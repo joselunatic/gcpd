@@ -39,6 +39,9 @@ const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
 app.use('/uploads', express.static(uploadsDir));
 app.use('/api/uploads', express.static(uploadsDir));
+const rtEffectsMediaDir = path.join(uploadsDir, 'rt-effects-media');
+const rtEffectsVideoDir = path.join(rtEffectsMediaDir, 'videos');
+fs.mkdirSync(rtEffectsVideoDir, { recursive: true });
 
 const ballisticsDir = path.join(__dirname, '..', 'public', 'assets', 'ballistics');
 fs.mkdirSync(ballisticsDir, { recursive: true });
@@ -284,6 +287,35 @@ const liveMapBackgroundUpload = multer({
   },
 });
 
+const rtEffectsVideoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, rtEffectsVideoDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const allowed = ['.mp4', '.webm', '.mov', '.m4v', '.ogv'];
+    const safeExt = allowed.includes(ext) ? ext : '.mp4';
+    const stamp = Date.now();
+    const random = crypto.randomBytes(4).toString('hex');
+    cb(null, `rt-effects-${stamp}-${random}${safeExt}`);
+  },
+});
+
+const rtEffectsVideoUpload = multer({
+  storage: rtEffectsVideoStorage,
+  limits: { fileSize: 60 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const allowed = ['.mp4', '.webm', '.mov', '.m4v', '.ogv'];
+    const mime = String(file.mimetype || '').toLowerCase();
+    if (!allowed.includes(ext) && !mime.startsWith('video/')) {
+      cb(new Error('Solo se permiten videos MP4/WEBM/MOV/M4V/OGV.'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
 function initDatabase() {
   db.prepare(
     `CREATE TABLE IF NOT EXISTS settings (
@@ -356,6 +388,19 @@ function initDatabase() {
       unlock_conditions TEXT,
       dm TEXT,
       commands TEXT
+    )`
+  ).run();
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS rt_effects_media (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      kind TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      url TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     )`
   ).run();
 
@@ -1412,6 +1457,143 @@ function seedAudioModelsFromAssets() {
   if (entries.length) setAudioModels(entries);
 }
 
+function getRtEffectsMedia() {
+  let rows = [];
+  try {
+    rows = db.prepare(
+      `SELECT id, title, description, kind, filename, original_name, url, created_at, updated_at
+       FROM rt_effects_media
+       ORDER BY created_at DESC, updated_at DESC`
+    ).all();
+  } catch (error) {
+    console.warn('RT effects media read failed:', error);
+    return [];
+  }
+  return rows
+    .map((row) => {
+      const url = String(row?.url || '').trim();
+      const filename = String(row?.filename || '').trim();
+      if (!url || !filename) return null;
+      if (!fs.existsSync(path.join(rtEffectsVideoDir, filename))) return null;
+      return {
+        id: String(row.id || '').trim(),
+        title: String(row.title || '').trim(),
+        description: String(row.description || '').trim(),
+        kind: String(row.kind || 'video').trim() || 'video',
+        filename,
+        originalName: String(row.original_name || '').trim(),
+        url,
+        createdAt: Number(row.created_at) || 0,
+        updatedAt: Number(row.updated_at) || 0,
+      };
+    })
+    .filter(Boolean);
+}
+
+function addRtEffectsMedia(entry) {
+  const media = {
+    id: String(entry?.id || '').trim(),
+    title: String(entry?.title || '').trim(),
+    description: String(entry?.description || '').trim(),
+    kind: String(entry?.kind || 'video').trim() || 'video',
+    filename: String(entry?.filename || '').trim(),
+    original_name: String(entry?.original_name || '').trim(),
+    url: String(entry?.url || '').trim(),
+    created_at: Number(entry?.created_at) || Date.now(),
+    updated_at: Number(entry?.updated_at) || Date.now(),
+  };
+  if (!media.id || !media.title || !media.filename || !media.url) return null;
+  db.prepare(
+    `INSERT INTO rt_effects_media (
+      id, title, description, kind, filename, original_name, url, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      title = excluded.title,
+      description = excluded.description,
+      kind = excluded.kind,
+      filename = excluded.filename,
+      original_name = excluded.original_name,
+      url = excluded.url,
+      updated_at = excluded.updated_at`
+  ).run(
+    media.id,
+    media.title,
+    media.description,
+    media.kind,
+    media.filename,
+    media.original_name,
+    media.url,
+    media.created_at,
+    media.updated_at
+  );
+  return media;
+}
+
+function removeRtEffectsMedia(id) {
+  const mediaId = String(id || '').trim();
+  if (!mediaId) return null;
+  const row = db.prepare(
+    `SELECT id, title, description, kind, filename, original_name, url, created_at, updated_at
+     FROM rt_effects_media
+     WHERE id = ?`
+  ).get(mediaId);
+  if (!row) return null;
+  db.prepare('DELETE FROM rt_effects_media WHERE id = ?').run(mediaId);
+  const filePath = path.join(rtEffectsVideoDir, row.filename);
+  if (fs.existsSync(filePath)) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch (error) {
+      console.warn('[RT_EFFECTS_MEDIA] file delete failed', { id: mediaId, error: error.message });
+    }
+  }
+  return {
+    id: String(row.id || '').trim(),
+    title: String(row.title || '').trim(),
+    description: String(row.description || '').trim(),
+    kind: String(row.kind || 'video').trim() || 'video',
+    filename: String(row.filename || '').trim(),
+    originalName: String(row.original_name || '').trim(),
+    url: String(row.url || '').trim(),
+    createdAt: Number(row.created_at) || 0,
+    updatedAt: Number(row.updated_at) || 0,
+  };
+}
+
+function seedRtEffectsMediaFromAssets() {
+  const existing = getRtEffectsMedia();
+  if (existing.length) return;
+  let files = [];
+  try {
+    files = fs.readdirSync(rtEffectsVideoDir);
+  } catch (error) {
+    console.warn('RT effects media assets read failed:', error);
+    return;
+  }
+  const supported = new Set(['.mp4', '.webm', '.mov', '.m4v', '.ogv']);
+  const now = Date.now();
+  const entries = files
+    .filter((name) => supported.has(path.extname(name || '').toLowerCase()))
+    .map((name, index) => {
+      const title = path.basename(name, path.extname(name));
+      return addRtEffectsMedia({
+        id: `rtm-${title.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()}-${index + 1}`,
+        title: title || `Video ${index + 1}`,
+        description: '',
+        kind: 'video',
+        filename: name,
+        original_name: name,
+        url: `/uploads/rt-effects-media/videos/${name}`,
+        created_at: now + index,
+        updated_at: now + index,
+      });
+    })
+    .filter(Boolean);
+  if (entries.length) {
+    console.log('[RT_EFFECTS_MEDIA] seeded from filesystem', { count: entries.length });
+  }
+}
+
 function ensureDefaultPassword() {
   const existingHash = getSetting('dm_password_hash');
   if (!existingHash) {
@@ -1935,6 +2117,7 @@ initDatabase();
 ensureDefaultPassword();
 seedBallisticsModelsFromAssets();
 seedAudioModelsFromAssets();
+seedRtEffectsMediaFromAssets();
 ensureCampaignState();
 seedInitialData();
 
@@ -2632,6 +2815,55 @@ app.post('/api/audio-upload', authMiddleware, (req, res) => {
   });
 });
 
+app.get('/api/rt-effects-media', authMiddleware, (req, res) => {
+  res.json({ media: getRtEffectsMedia() });
+});
+
+app.post('/api/rt-effects-media', authMiddleware, (req, res) => {
+  rtEffectsVideoUpload.single('file')(req, res, (err) => {
+    if (err) {
+      console.warn('[RT_EFFECTS_MEDIA_UPLOAD] failed', { ip: req.ip, error: err.message });
+      return res.status(400).json({ message: err.message || 'Error al subir el video.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: 'Archivo de video requerido.' });
+    }
+    const title = String(req.body?.title || req.file.originalname || '').trim();
+    const description = String(req.body?.description || '').trim();
+    if (!title) {
+      return res.status(400).json({ message: 'Nombre requerido para el video.' });
+    }
+    const media = addRtEffectsMedia({
+      id: `rtm-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+      title,
+      description,
+      kind: 'video',
+      filename: req.file.filename,
+      original_name: req.file.originalname,
+      url: `/uploads/rt-effects-media/videos/${req.file.filename}`,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    });
+    console.info('[RT_EFFECTS_MEDIA_UPLOAD] ok', {
+      ip: req.ip,
+      id: media?.id,
+      title,
+      filename: req.file.filename,
+      original: req.file.originalname,
+      url: media?.url,
+    });
+    res.json({ media, mediaList: getRtEffectsMedia() });
+  });
+});
+
+app.delete('/api/rt-effects-media/:id', authMiddleware, (req, res) => {
+  const removed = removeRtEffectsMedia(req.params.id);
+  if (!removed) {
+    return res.status(404).json({ message: 'Video no encontrado.' });
+  }
+  res.json({ removed, media: getRtEffectsMedia() });
+});
+
 app.post('/api/audio-unlock', (req, res) => {
   const { id, password } = req.body || {};
   if (!id || !password) {
@@ -3288,6 +3520,15 @@ function validateEffectPayload(payload) {
   return allowed.includes(payload.effect);
 }
 
+function sanitizeEffectsMediaUrl(rawUrl = '') {
+  const url = String(rawUrl || '').trim().replace(/['"<>]/g, '');
+  if (!url || !url.startsWith('/') || url.startsWith('//')) return null;
+  if (!url.startsWith('/uploads/') && !url.startsWith('/api/uploads/') && !url.startsWith('/assets/')) {
+    return null;
+  }
+  return url;
+}
+
 effectsWss.on('connection', (ws, request, url) => {
   const role = String(url.searchParams.get('role') || 'agent').toLowerCase();
   const token = String(url.searchParams.get('token') || '');
@@ -3319,18 +3560,13 @@ effectsWss.on('connection', (ws, request, url) => {
     if (payload.type === 'effects:trigger') {
       if (!validateEffectPayload(payload)) return;
       const options = payload.options && typeof payload.options === 'object' ? payload.options : {};
-      // Sanitize media URL if present
       if (payload.effect === 'media' && options.url) {
-        const url = String(options.url);
-        const isRelative = url.startsWith('/');
-        const isSameOrigin = url.startsWith(
-          `${(request.headers['origin'] || '')}`.split('//')[1] || ''
-        );
-        if (!isRelative && !isSameOrigin) {
+        const safeUrl = sanitizeEffectsMediaUrl(options.url);
+        if (!safeUrl) {
           wsSend(ws, { type: 'effects:error', code: 'invalid_url', message: 'Solo URLs relativas del servidor.' });
           return;
         }
-        options.url = url.replace(/['"<>]/g, '');
+        options.url = safeUrl;
       }
       broadcastEffectToAgents({ type: 'effects:trigger', effect: payload.effect, options });
       return;

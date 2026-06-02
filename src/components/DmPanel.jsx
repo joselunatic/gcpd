@@ -32,6 +32,7 @@ const LIVE_MAP_ENDPOINT = '/api/live-map';
 const LIVE_MAP_BACKGROUNDS_ENDPOINT = '/api/live-map-backgrounds';
 const LIVE_MAP_BACKGROUND_UPLOAD_ENDPOINT = '/api/live-map-background-upload';
 const LIVE_MAP_BACKGROUND_DELETE_ENDPOINT = '/api/live-map-backgrounds';
+const RT_EFFECTS_MEDIA_ENDPOINT = '/api/rt-effects-media';
 
 const initialCaseForm = {
   id: '',
@@ -1099,6 +1100,14 @@ const DmPanel = () => {
   const [rtEffectsMediaType, setRtEffectsMediaType] = useState('image');
   const [rtEffectsMediaCaption, setRtEffectsMediaCaption] = useState('');
   const [rtEffectsMediaDismissable, setRtEffectsMediaDismissable] = useState(true);
+  const [rtEffectsMediaLibrary, setRtEffectsMediaLibrary] = useState([]);
+  const [rtEffectsMediaLibraryLoading, setRtEffectsMediaLibraryLoading] = useState(false);
+  const [rtEffectsMediaLibraryUploading, setRtEffectsMediaLibraryUploading] = useState(false);
+  const [rtEffectsMediaLibraryMessage, setRtEffectsMediaLibraryMessage] = useState('');
+  const [rtEffectsMediaLibraryFile, setRtEffectsMediaLibraryFile] = useState(null);
+  const [rtEffectsMediaLibraryTitle, setRtEffectsMediaLibraryTitle] = useState('');
+  const [rtEffectsMediaLibraryDescription, setRtEffectsMediaLibraryDescription] = useState('');
+  const [rtEffectsMediaSelectedId, setRtEffectsMediaSelectedId] = useState('');
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -4408,9 +4417,141 @@ const DmPanel = () => {
     setRtEffectsLog((prev) => [{ ts, effect: 'CLEAR', options: {} }, ...prev.slice(0, 19)]);
   }, []);
 
+  const loadRtEffectsMedia = useCallback(async () => {
+    if (!authorized || !sessionToken) return;
+    setRtEffectsMediaLibraryLoading(true);
+    setRtEffectsMediaLibraryMessage('');
+    try {
+      const res = await fetch(RT_EFFECTS_MEDIA_ENDPOINT, {
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudo cargar la biblioteca de videos.');
+      }
+      const media = Array.isArray(data?.media) ? data.media : [];
+      setRtEffectsMediaLibrary(media);
+      setRtEffectsMediaSelectedId((current) => current || media[0]?.id || '');
+    } catch (error) {
+      setRtEffectsMediaLibraryMessage(error.message || 'No se pudo cargar la biblioteca de videos.');
+    } finally {
+      setRtEffectsMediaLibraryLoading(false);
+    }
+  }, [authorized, sessionToken]);
+
+  const uploadRtEffectsMedia = useCallback(async () => {
+    if (!authorized || !sessionToken) {
+      setRtEffectsMediaLibraryMessage('Necesitas sesion activa para subir videos.');
+      return;
+    }
+    if (!rtEffectsMediaLibraryFile) {
+      setRtEffectsMediaLibraryMessage('Selecciona un video del filesystem local.');
+      return;
+    }
+    if (!rtEffectsMediaLibraryTitle.trim()) {
+      setRtEffectsMediaLibraryMessage('Indica un nombre para el video.');
+      return;
+    }
+    setRtEffectsMediaLibraryUploading(true);
+    setRtEffectsMediaLibraryMessage('');
+    try {
+      const formData = new FormData();
+      formData.append('file', rtEffectsMediaLibraryFile);
+      formData.append('title', rtEffectsMediaLibraryTitle.trim());
+      formData.append('description', rtEffectsMediaLibraryDescription.trim());
+      const res = await fetch(RT_EFFECTS_MEDIA_ENDPOINT, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudo subir el video.');
+      }
+      const media = Array.isArray(data?.mediaList) ? data.mediaList : data?.media ? [data.media] : [];
+      setRtEffectsMediaLibrary(media);
+      setRtEffectsMediaLibraryFile(null);
+      setRtEffectsMediaLibraryTitle('');
+      setRtEffectsMediaLibraryDescription('');
+      if (data?.media?.id) {
+        setRtEffectsMediaSelectedId(data.media.id);
+        setRtEffectsMediaUrl(data.media.url || '');
+        setRtEffectsMediaType('video');
+        setRtEffectsMediaCaption(data.media.title || '');
+      }
+      setRtEffectsMediaLibraryMessage('Video guardado en la biblioteca.');
+    } catch (error) {
+      setRtEffectsMediaLibraryMessage(error.message || 'No se pudo subir el video.');
+    } finally {
+      setRtEffectsMediaLibraryUploading(false);
+    }
+  }, [
+    authorized,
+    rtEffectsMediaLibraryDescription,
+    rtEffectsMediaLibraryFile,
+    rtEffectsMediaLibraryTitle,
+    sessionToken,
+  ]);
+
+  const deleteRtEffectsMedia = useCallback(async (mediaId) => {
+    const id = String(mediaId || '').trim();
+    if (!id) return;
+    if (!authorized || !sessionToken) {
+      setRtEffectsMediaLibraryMessage('Necesitas sesion activa para borrar videos.');
+      return;
+    }
+    setRtEffectsMediaLibraryLoading(true);
+    setRtEffectsMediaLibraryMessage('');
+    try {
+      const res = await fetch(`${RT_EFFECTS_MEDIA_ENDPOINT}/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudo borrar el video.');
+      }
+      const media = Array.isArray(data?.media) ? data.media : [];
+      setRtEffectsMediaLibrary(media);
+      if (rtEffectsMediaSelectedId === id) {
+        setRtEffectsMediaSelectedId(media[0]?.id || '');
+      }
+      setRtEffectsMediaLibraryMessage('Video eliminado.');
+    } catch (error) {
+      setRtEffectsMediaLibraryMessage(error.message || 'No se pudo borrar el video.');
+    } finally {
+      setRtEffectsMediaLibraryLoading(false);
+    }
+  }, [authorized, rtEffectsMediaSelectedId, sessionToken]);
+
+  const selectRtEffectsMedia = useCallback((media) => {
+    if (!media) return;
+    setRtEffectsMediaSelectedId(media.id || '');
+    setRtEffectsMediaUrl(media.url || '');
+    setRtEffectsMediaType(media.kind === 'video' ? 'video' : 'image');
+    setRtEffectsMediaCaption(media.title || '');
+  }, []);
+
+  const sendSelectedRtEffectsMedia = useCallback((media) => {
+    if (!media) return;
+    sendEffect('media', {
+      url: media.url,
+      mediaType: media.kind === 'video' ? 'video' : 'image',
+      caption: media.title || media.description || '',
+      dismissable: rtEffectsMediaDismissable,
+    });
+  }, [rtEffectsMediaDismissable, sendEffect]);
+
+  useEffect(() => {
+    if (!authorized || !sessionToken || activeView !== 'rtEffects') return undefined;
+    loadRtEffectsMedia();
+  }, [activeView, authorized, loadRtEffectsMedia, sessionToken]);
+
   const renderRtEffectsView = () => {
     const wsOnline = rtEffectsWsState === 'online';
     const wsIndicator = wsOnline ? '● ONLINE' : rtEffectsWsState === 'connecting' ? '◌ CONECTANDO' : '○ OFFLINE';
+    const selectedMedia = rtEffectsMediaLibrary.find((entry) => entry.id === rtEffectsMediaSelectedId) || null;
     return (
       <div className="dm-panel__section rt-effects-panel">
         <div className="rt-effects-header">
@@ -4442,13 +4583,98 @@ const DmPanel = () => {
         </div>
 
         <div className="rt-effects-group">
-          <div className="rt-effects-group-label">MEDIA</div>
+          <div className="rt-effects-group-label">BIBLIOTECA DE VIDEOS</div>
+          <div className="rt-effects-media-library">
+            <div className="rt-effects-media-upload">
+              <label className="dm-panel__label">Archivo local</label>
+              <input
+                className="dm-panel__input"
+                type="file"
+                accept="video/*"
+                onChange={(event) => setRtEffectsMediaLibraryFile(event.target.files?.[0] || null)}
+              />
+              <label className="dm-panel__label">Nombre del video</label>
+              <input
+                className="dm-panel__input"
+                type="text"
+                placeholder="Alerta de pasillo 7"
+                value={rtEffectsMediaLibraryTitle}
+                onChange={(e) => setRtEffectsMediaLibraryTitle(e.target.value)}
+              />
+              <label className="dm-panel__label">Descripción</label>
+              <textarea
+                className="dm-panel__textarea"
+                rows="3"
+                placeholder="Vídeo para usar cuando el agente entre en la zona comprometida."
+                value={rtEffectsMediaLibraryDescription}
+                onChange={(e) => setRtEffectsMediaLibraryDescription(e.target.value)}
+              />
+              <button
+                className="rt-effects-btn rt-effects-btn--media"
+                disabled={!rtEffectsMediaLibraryFile || rtEffectsMediaLibraryUploading}
+                onClick={uploadRtEffectsMedia}
+              >
+                {rtEffectsMediaLibraryUploading ? '⬆ SUBIENDO...' : '⬆ GUARDAR VIDEO EN BIBLIOTECA'}
+              </button>
+              <div className="rt-effects-media-note">
+                Los videos se guardan en <code>/uploads/rt-effects-media/videos</code> y quedan disponibles para reutilizarlos.
+              </div>
+              {rtEffectsMediaLibraryMessage && (
+                <div className="rt-effects-media-message">{rtEffectsMediaLibraryMessage}</div>
+              )}
+            </div>
+
+            <div className="rt-effects-media-library-list">
+              <div className="rt-effects-media-library-toolbar">
+                <span className="rt-effects-group-label">VIDEOS GUARDADOS</span>
+                <span className="rt-effects-media-count">
+                  {rtEffectsMediaLibrary.length} video{rtEffectsMediaLibrary.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              {rtEffectsMediaLibraryLoading && <div className="rt-effects-media-empty">Cargando biblioteca...</div>}
+              {!rtEffectsMediaLibraryLoading && rtEffectsMediaLibrary.length === 0 && (
+                <div className="rt-effects-media-empty">Todavía no hay videos guardados.</div>
+              )}
+              {rtEffectsMediaLibrary.map((media) => {
+                const isSelected = media.id === rtEffectsMediaSelectedId;
+                return (
+                  <div key={media.id} className={`rt-effects-media-item${isSelected ? ' rt-effects-media-item--selected' : ''}`}>
+                    <div className="rt-effects-media-item-main">
+                      <div className="rt-effects-media-item-meta">
+                        <strong>{media.title}</strong>
+                        <span>{media.description || 'Sin descripción'}</span>
+                        <small>{media.originalName || media.filename}</small>
+                      </div>
+                      <div className="rt-effects-media-item-actions">
+                        <button className="rt-effects-btn rt-effects-btn--small" onClick={() => selectRtEffectsMedia(media)}>
+                          Seleccionar
+                        </button>
+                        <button className="rt-effects-btn rt-effects-btn--small" onClick={() => sendSelectedRtEffectsMedia(media)}>
+                          Emitir
+                        </button>
+                        <button className="rt-effects-btn rt-effects-btn--small rt-effects-btn--danger" onClick={() => deleteRtEffectsMedia(media.id)}>
+                          Borrar
+                        </button>
+                      </div>
+                    </div>
+                    {media.kind === 'video' && (
+                      <video className="rt-effects-media-preview" src={media.url} controls preload="metadata" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="rt-effects-group">
+          <div className="rt-effects-group-label">EMISIÓN DIRECTA</div>
           <div className="rt-effects-media-form">
             <label className="dm-panel__label">URL del recurso (relativa al servidor)</label>
             <input
               className="dm-panel__input"
               type="text"
-              placeholder="/uploads/images/poi-xxxx.png"
+              placeholder="/uploads/rt-effects-media/videos/mi-video.mp4"
               value={rtEffectsMediaUrl}
               onChange={(e) => setRtEffectsMediaUrl(e.target.value)}
             />
@@ -4479,18 +4705,40 @@ const DmPanel = () => {
               />
               El agente puede cerrar con ESC
             </label>
-            <button
-              className="rt-effects-btn rt-effects-btn--media"
-              disabled={!wsOnline || !rtEffectsMediaUrl.trim()}
-              onClick={() => sendEffect('media', {
-                url: rtEffectsMediaUrl.trim(),
-                mediaType: rtEffectsMediaType,
-                caption: rtEffectsMediaCaption.trim(),
-                dismissable: rtEffectsMediaDismissable,
-              })}
-            >
-              ▶ EMITIR MEDIA
-            </button>
+            <div className="rt-effects-media-direct-actions">
+              <button
+                className="rt-effects-btn rt-effects-btn--media"
+                disabled={!wsOnline || !rtEffectsMediaUrl.trim()}
+                onClick={() => sendEffect('media', {
+                  url: rtEffectsMediaUrl.trim(),
+                  mediaType: rtEffectsMediaType,
+                  caption: rtEffectsMediaCaption.trim(),
+                  dismissable: rtEffectsMediaDismissable,
+                })}
+              >
+                ▶ EMITIR MEDIA
+              </button>
+              <button
+                className="rt-effects-btn rt-effects-btn--small"
+                disabled={!selectedMedia}
+                onClick={() => selectedMedia && selectRtEffectsMedia(selectedMedia)}
+              >
+                Cargar selección
+              </button>
+            </div>
+            {selectedMedia && (
+              <div className="rt-effects-media-selected">
+                <div className="rt-effects-media-selected-title">Seleccionado: {selectedMedia.title}</div>
+                <div className="rt-effects-media-selected-desc">{selectedMedia.description || 'Sin descripción'}</div>
+                <button
+                  className="rt-effects-btn rt-effects-btn--small"
+                  disabled={!wsOnline}
+                  onClick={() => sendSelectedRtEffectsMedia(selectedMedia)}
+                >
+                  ▶ EMITIR SELECCIONADO
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
