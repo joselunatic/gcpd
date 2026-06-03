@@ -1,10 +1,4 @@
-@import url("https://fonts.googleapis.com/css?family=VT323&display=swap");
-@import url("https://fonts.googleapis.com/css?family=Share+Tech+Mono&display=swap");
-
-@font-face {
-  font-family: "WOPR";
-  src: url("/assets/fonts/wopr-tweaked.ttf");
-}
+/* Fonts loaded offline via src/css/tokens.css (imported from App.css) */
 
 * {
   margin: 0;

@@ -1,0 +1,162 @@
+/* ============================================================================
+   BROTHER EYE MK0 — DESIGN TOKENS
+   GCPD Brother Eye Mk0 · Diegetic DM control terminal
+   Phosphor-green CRT operator console. Always dark. Offline fonts only.
+   ----------------------------------------------------------------------------
+   Import this file FIRST. Everything downstream reads from --bem-* custom
+   properties. Raw hex values below are the canonical anchors — do not
+   introduce new green/cyan variants; reach for an existing token.
+   ============================================================================ */
+
+/* ── Offline fonts ──────────────────────────────────────────────────────────
+   All fonts are bundled locally — no network required during RPG sessions. */
+
+@font-face {
+  font-family: 'Share Tech Mono';
+  src: url('/assets/fonts/ShareTechMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'WOPR';
+  src: url('/assets/fonts/wopr-tweaked.ttf') format('truetype');
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'VT323';
+  src: url('/assets/fonts/VT323-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Monofonto';
+  src: url('/assets/fonts/monofonto.ttf') format('truetype');
+  font-weight: 400;
+  font-display: block;
+}
+
+:root {
+  /* ══ COLOR · SURFACES ════════════════════════════════════════════════════
+     A dark-only depth ladder. Lower = deeper into the chassis. */
+  --bem-bg-void:      #020709;
+  --bem-bg-surface:   #0c1511;
+  --bem-bg-input:     #031016;
+  --bem-bg-elevated:  rgba(4, 14, 18, 0.84);
+  --bem-bg-sunken:    rgba(1, 7, 10, 0.72);
+  --bem-bg-scrim:     rgba(0, 0, 0, 0.6);
+
+  /* ══ COLOR · PHOSPHOR (the consolidation) ════════════════════════════════
+     17+ ad-hoc green/cyan values collapse into ONE ramp by luminance. */
+  --bem-phosphor-bright: #7fffd0;
+  --bem-phosphor:        #2ddc93;
+  --bem-phosphor-text:   #b4ffe4;
+  --bem-phosphor-soft:   #defff3;
+  --bem-phosphor-dim:    rgba(180, 255, 228, 0.65);
+  --bem-phosphor-faint:  rgba(180, 255, 228, 0.45);
+  --bem-phosphor-mute:   rgba(125, 182, 195, 0.50);
+
+  /* ══ COLOR · BORDERS ═════════════════════════════════════════════════════ */
+  --bem-border-strong: rgba(124, 255, 178, 0.30);
+  --bem-border:        rgba(45, 220, 147, 0.22);
+  --bem-border-faint:  rgba(124, 255, 178, 0.10);
+  --bem-border-input:  #1e3b42;
+
+  /* ══ COLOR · SEMANTIC STATUS ═════════════════════════════════════════════ */
+  --bem-ok:        #2ddc93;
+  --bem-warn:      #e8c96a;
+  --bem-danger:    #ff6b6b;
+  --bem-info:      #8cb4ff;
+  --bem-live:      #5cb5ff;
+
+  --bem-ok-bg:     rgba(45, 220, 147, 0.08);
+  --bem-warn-bg:   rgba(232, 201, 106, 0.08);
+  --bem-danger-bg: rgba(255, 107, 107, 0.08);
+  --bem-info-bg:   rgba(140, 180, 255, 0.08);
+
+  /* RT-Effects category accents */
+  --bem-fx-alarm:   #ffb0b0;
+  --bem-fx-critical:#ff8080;
+  --bem-fx-hack:    #7dffcf;
+  --bem-fx-fog:     #a8d8f0;
+  --bem-fx-flicker: #ffe99a;
+  --bem-fx-media:   #c0d8ff;
+
+  /* ══ TYPE · FAMILIES ═════════════════════════════════════════════════════ */
+  --bem-font-mono:    'Share Tech Mono', 'IBM Plex Mono', ui-monospace, monospace;
+  --bem-font-display: 'WOPR', 'Share Tech Mono', ui-monospace, monospace;
+  --bem-font-readout: 'VT323', 'Share Tech Mono', monospace;
+  --bem-font-output:  'Monofonto', 'Share Tech Mono', monospace;
+
+  /* ══ TYPE · SCALE (8 semantic levels) ════════════════════════════════════ */
+  --bem-text-display: 1.7rem;
+  --bem-text-h1:      1.25rem;
+  --bem-text-h2:      1rem;
+  --bem-text-body:    0.95rem;
+  --bem-text-sm:      0.85rem;
+  --bem-text-xs:      0.78rem;
+  --bem-text-2xs:     0.70rem;
+  --bem-text-micro:   0.65rem;
+
+  /* ══ TYPE · TRACKING & LEADING ═══════════════════════════════════════════ */
+  --bem-track-tight:  0.04em;
+  --bem-track:        0.08em;
+  --bem-track-wide:   0.12em;
+  --bem-track-banner: 0.18em;
+  --bem-leading:      1.35;
+  --bem-leading-tight:1.2;
+
+  /* ══ SPACING · RHYTHM (4px base) ═════════════════════════════════════════ */
+  --bem-space-1: 0.25rem;
+  --bem-space-2: 0.4rem;
+  --bem-space-3: 0.6rem;
+  --bem-space-4: 0.9rem;
+  --bem-space-5: 1.2rem;
+  --bem-space-6: 1.6rem;
+  --bem-space-7: 2rem;
+  --bem-space-8: 3rem;
+
+  /* ══ RADII (4 values only) ═══════════════════════════════════════════════ */
+  --bem-radius-sm:   4px;
+  --bem-radius-md:   8px;
+  --bem-radius-lg:   12px;
+  --bem-radius-pill: 999px;
+
+  /* ══ ELEVATION · GLOW + SHADOW ═══════════════════════════════════════════
+     Glow = phosphor bloom (focus / active). Shadow = physical depth. */
+  --bem-glow-sm:   0 0 10px rgba(45, 220, 147, 0.20);
+  --bem-glow-md:   0 0 14px rgba(45, 220, 147, 0.26);
+  --bem-glow-lg:   0 0 18px rgba(45, 220, 147, 0.31);
+  --bem-glow-cyan: 0 0 12px rgba(124, 255, 178, 0.18);
+
+  --bem-shadow-card:  0 18px 30px rgba(0, 0, 0, 0.40);
+  --bem-shadow-pop:   0 12px 24px rgba(0, 0, 0, 0.35);
+  --bem-shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.60), 0 0 0 1px rgba(124, 255, 178, 0.12);
+  --bem-shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.40);
+
+  --bem-focus-ring: 2px solid rgba(124, 255, 178, 0.95);
+  --bem-focus-halo: 0 0 0 3px rgba(12, 45, 38, 0.8);
+
+  /* ══ GRADIENTS (primary action ONLY — keep subtle) ══════════════════════ */
+  --bem-grad-primary: linear-gradient(180deg,
+                        rgba(45, 220, 147, 0.28) 0%,
+                        rgba(45, 220, 147, 0.12) 100%);
+
+  /* ══ MAP CANVAS ══════════════════════════════════════════════════════════
+     INVARIANT: This aspect ratio MUST be identical on every map viewer —
+     DM panel, agent terminal, phone panel. Tokens are stored as percentage
+     coordinates (0–100) relative to this canvas. Any viewer that respects
+     this ratio will position tokens correctly regardless of pixel size.
+     Change this value in ONE place; both surfaces adapt automatically. */
+  --bem-map-aspect: 1.428 / 1;   /* ~10:7, matches the campaign map export  */
+  --bem-map-grid:   32px;
+
+  /* ══ MOTION ══════════════════════════════════════════════════════════════ */
+  --bem-ease:        ease;
+  --bem-dur-fast:    120ms;
+  --bem-dur:         180ms;
+  --bem-dur-slow:    200ms;
+}

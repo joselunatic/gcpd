@@ -1,15 +1,12 @@
 .dm-panel {
   min-height: 100vh;
-  background: #020709;
-  color: #b4ffe4;
-  font-family: 'Share Tech Mono', 'IBM Plex Mono', monospace;
+  background: var(--bem-bg-void, #020709);
+  color: var(--bem-phosphor-text, #b4ffe4);
+  font-family: var(--bem-font-mono, 'Share Tech Mono', 'IBM Plex Mono', monospace);
   padding: 2rem 1rem 3rem;
 }
 
-@font-face {
-  font-family: 'WOPR';
-  src: url('/assets/fonts/wopr-tweaked.ttf');
-}
+/* Fonts loaded offline via src/css/tokens.css (imported from App.css) */
 
 .dm-panel a,
 .dm-panel button,
@@ -40,9 +37,9 @@
 }
 
 .dm-panel :where(button, input, textarea, select, a, [tabindex]):focus-visible {
-  outline: 2px solid rgba(124, 255, 178, 0.95);
+  outline: var(--bem-focus-ring, 2px solid rgba(124, 255, 178, 0.95));
   outline-offset: 2px;
-  box-shadow: 0 0 0 3px rgba(12, 45, 38, 0.8);
+  box-shadow: var(--bem-focus-halo, 0 0 0 3px rgba(12, 45, 38, 0.8));
 }
 
 .dm-panel__card form {
@@ -120,10 +117,11 @@
   flex-wrap: wrap;
   gap: 0.6rem;
   margin-bottom: 0;
-  padding: 0.35rem;
-  border: 1px solid rgba(45, 220, 147, 0.22);
-  border-radius: 999px;
-  background: rgba(4, 14, 18, 0.84);
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--bem-border, rgba(45, 220, 147, 0.22));
+  border-radius: var(--bem-radius-lg, 12px);
+  background: var(--bem-bg-elevated, rgba(4, 14, 18, 0.84));
+  backdrop-filter: blur(8px);
 }
 
 .dm-panel__nav button {
@@ -190,14 +188,10 @@
 }
 
 .dm-panel__nav button.active {
-  background: linear-gradient(
-    180deg,
-    rgba(45, 220, 147, 0.28) 0%,
-    rgba(45, 220, 147, 0.12) 100%
-  );
+  background: var(--bem-grad-primary, linear-gradient(180deg, rgba(45, 220, 147, 0.28) 0%, rgba(45, 220, 147, 0.12) 100%));
   border-color: rgba(80, 255, 190, 0.8);
-  color: #d7fff1;
-  box-shadow: 0 0 14px rgba(45, 220, 147, 0.26);
+  color: var(--bem-phosphor-soft, #defff3);
+  box-shadow: var(--bem-glow-md, 0 0 14px rgba(45, 220, 147, 0.26));
 }
 
 .dm-panel--workspace .dm-panel__nav {
@@ -2982,7 +2976,7 @@
   position: relative;
   width: 100%;
   min-height: 0;
-  aspect-ratio: 1.428 / 1;
+  aspect-ratio: var(--bem-map-aspect, 1.428 / 1);
   border: 1px solid rgba(124, 255, 178, 0.28);
   background-color: rgba(1, 10, 12, 0.88);
   background-image:
@@ -3425,7 +3419,7 @@
   backdrop-filter: blur(8px);
   pointer-events: auto;
   animation: toastSlideIn 200ms ease;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  box-shadow: var(--bem-shadow-toast, 0 8px 24px rgba(0, 0, 0, 0.4));
 }
 
 .dm-panel__toast--success {
