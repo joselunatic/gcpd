@@ -219,6 +219,37 @@ Si no se define `DM_DEFAULT_PASSWORD`, el servidor inicializa la contraseña del
 - [docs/gcpd-functional-plan.md](C:/Repos/gcpd/docs/gcpd-functional-plan.md): blueprint funcional.
 - [docs/db-schema.md](C:/Repos/gcpd/docs/db-schema.md): resumen del esquema SQLite.
 - [docs/TOUCH-MOBILE-STATE.md](C:/Repos/gcpd/docs/TOUCH-MOBILE-STATE.md): estado del flujo touch/mobile.
+- [docs/live-map-handoff.md](C:/Repos/gcpd/docs/live-map-handoff.md): estado actual de `Mapa Live` y `TACTICAL`.
+- [docs/rt-effects-handoff.md](C:/Repos/gcpd/docs/rt-effects-handoff.md): estado actual de `Efectos RT`, media overlay y websocket de efectos.
+- [docs/agent-terminal-visual-refresh.md](C:/Repos/gcpd/docs/agent-terminal-visual-refresh.md): primera integración visual de la guía de diseño del terminal de agente.
+
+## Orden de lectura recomendado para otro agente
+
+Si otro agente tiene que ponerse al dia antes de tocar TUI o DM, este es el orden correcto:
+
+1. [README.md](C:/Repos/gcpd/README.md)
+   Contexto de producto, superficies y flujo general.
+2. [docs/repo-current-state.md](C:/Repos/gcpd/docs/repo-current-state.md)
+   Mapa técnico, deuda estructural y riesgos.
+3. [docs/live-map-handoff.md](C:/Repos/gcpd/docs/live-map-handoff.md)
+   Estado del mapa táctico live y contrato actual.
+4. [docs/rt-effects-handoff.md](C:/Repos/gcpd/docs/rt-effects-handoff.md)
+   Estado de `Efectos RT` y comportamiento del overlay de media.
+5. [codex_to_claude.md](C:/Repos/gcpd/codex_to_claude.md)
+   Handoff operativo acumulado entre agentes.
+
+Después de leer eso, para implementación real:
+
+- TUI agente:
+  [src/js/terminal.js](C:/Repos/gcpd/src/js/terminal.js),
+  [public/utils/screens.js](C:/Repos/gcpd/public/utils/screens.js),
+  [public/utils/effectsRuntime.js](C:/Repos/gcpd/public/utils/effectsRuntime.js),
+  [public/commands](C:/Repos/gcpd/public/commands)
+- DM:
+  [src/components/DmPanel.jsx](C:/Repos/gcpd/src/components/DmPanel.jsx),
+  [src/css/DmPanel.styles.css](C:/Repos/gcpd/src/css/DmPanel.styles.css)
+- Backend:
+  [server/index.js](C:/Repos/gcpd/server/index.js)
 
 ## Próximo trabajo recomendado
 

@@ -5,6 +5,20 @@ import { loadCampaignState } from "/utils/campaignState.js";
 import { main_with_info, osMenu } from "/utils/screens.js";
 
 const CAMPAIGN_URL = "/api/campaign-state";
+const SYSTEM_BARS = {
+  oracleRelay: 8,
+  batsignal: 0,
+  omacSensors: 22,
+  gothamGrid: 67,
+  powerGrid: 33,
+  cooling: 84,
+};
+
+function bars(pct = 0) {
+  const safe = Math.max(0, Math.min(100, Number(pct) || 0));
+  const filled = Math.round(safe / 10);
+  return `${"█".repeat(filled)}${"░".repeat(10 - filled)} ${String(safe).padStart(3, " ")}%`;
+}
 
 async function fetchCampaignState() {
   try {
@@ -33,8 +47,7 @@ export default async () => {
   const unlocked = state.unlocked || {};
   const lines = [
     " ",
-    "ESTADO DEL NODO AUXILIAR",
-    "========================",
+    "═══════════════ ESTADO DEL NODO ═══════════════",
     " ",
     "BROTHER-MK0 OPERATIVO // CANAL GCPD",
     "SINCRONIA BATCUEVA: INDETERMINADA",
@@ -43,9 +56,21 @@ export default async () => {
     `NIVEL DE ALERTA: ${(state.alertLevel || "low").toUpperCase()}`,
     `CASO ACTIVO: ${state.activeCaseId || "NINGUNO"}`,
     `FLAGS: ${(state.flags || []).length ? state.flags.join(" | ") : "NINGUNA"}`,
+    " ",
+    "SUBSISTEMAS:",
+    `  ORACLE RELAY    [${bars(SYSTEM_BARS.oracleRelay)}] STANDBY`,
+    `  BATSIGNAL       [${bars(SYSTEM_BARS.batsignal)}] OFFLINE`,
+    `  OMAC SENSORS    [${bars(SYSTEM_BARS.omacSensors)}] PARTIAL`,
+    `  GOTHAM GRID     [${bars(SYSTEM_BARS.gothamGrid)}] MONITORIZANDO`,
+    `  RED ELECTRICA   [${bars(SYSTEM_BARS.powerGrid)}] ACTIVA`,
+    `  REFRIGERACION   [${bars(SYSTEM_BARS.cooling)}] ESTABLE`,
     `CASOS HABILITADOS: ${(unlocked.cases || []).length}`,
     `POIS HABILITADOS: ${(unlocked.map || []).length}`,
     `VILLANOS HABILITADOS: ${(unlocked.villains || []).length}`,
+    " ",
+    "CPU AUTH RV-345-AX8      PUERTOS: LISTENING",
+    `CACHE LOCAL: ${unsynced ? "ACTIVA" : "SINCRONIZADA"}`,
+    "DIAG SISTEMA: NODO LISTO PARA CONSULTA",
     " ",
   ];
 

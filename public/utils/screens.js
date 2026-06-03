@@ -677,12 +677,14 @@ async function login() {
   await type(
     [
       " ",
-      ...wrapLine("WAYNE INDUSTRIES AUXILIARY NODE // BUILD 79-A"),
-      ...wrapLine("PROTOCOL: KNIGHTFALL-C (CONTINGENCIA POST-BATMAN)"),
-      ...wrapLine("SUBSYSTEM: BROTHER-MK0  // PROTOTYPE BROTHER EYE"),
-      ...wrapLine("CHANNEL: GCPD BACKDOOR RELAY 03"),
+      "══════════════════════════════════════════════════",
+      ...wrapLine("WAYNE AUXILIARY NODE // BUILD 79-A"),
+      ...wrapLine("KNIGHTFALL-C // CONTINGENCY AUTH CHANNEL"),
+      ...wrapLine("BROTHER-MK0 // RESTRICTED COGNITIVE PROFILE"),
+      ...wrapLine("REMOTE ACCESS CHANNEL OPEN"),
       ...wrapLine("SYSLOG: BATSIGNAL OFFLINE | ORACLE RELAY: STANDBY"),
-      ...wrapLine("ENLACE CON BATMAN: PERDIDO  |  CONTROL GCPD: SOLICITADO"),
+      ...wrapLine("ENLACE CON BATMAN: PERDIDO | CONTROL GCPD: SOLICITADO"),
+      "══════════════════════════════════════════════════",
       " ",
       "NOTA DE ARCHIVO:",
       ...wrapLine("> SI HAS ENCONTRADO ESTE TERMINAL, BRUCE NO ESTA."),
@@ -1002,6 +1004,7 @@ async function handleDialerSelection(selected, isPortrait = isPortraitNarrow()) 
 
   if (line.action === "activate") {
     const dialNumber = line.number;
+    window.dispatchEvent(new CustomEvent("enablewoprsound"));
     await alert(`CONTACTING LINE ${dialNumber}`);
     dialupsound.play();
     dialupsound.onended = function () {
@@ -1016,6 +1019,7 @@ async function handleDialerSelection(selected, isPortrait = isPortraitNarrow()) 
 
   if (line.action === "remote-os") {
     const dialNumber = line.number;
+    window.dispatchEvent(new CustomEvent("enablewoprsound"));
     await alert(`CONTACTING LINE ${dialNumber}`);
     dialupsound.play();
     dialupsound.onended = function () {
@@ -1234,11 +1238,13 @@ async function main_with_info() {
   await type(
     [
       " ",
-      ...wrapLine("WAYNE INDUSTRIES AUX NODE // BROTHER-MK0"),
-      ...wrapLine("STATUS: KNIGHTFALL CONTINGENCY ACTIVE"),
-      ...wrapLine("BATMAN: UNRESPONSIVE | BATSIGNAL: DARK"),
+      "════════════ BROTHER-MK0 // SHELL OPERATIVA ════════════",
+      ...wrapLine("WAYNE AUXILIARY NODE // KNIGHTFALL CONTINGENCY"),
+      ...wrapLine("BATMAN: UNRESPONSIVE | GCPD RELAY: LIVE"),
+      ...wrapLine("HELP // DIRECTORIO DE ORDENES"),
       " ",
-      ...wrapLine("ESTE TERMINAL RESPONDE AL GCPD. TRABAJA LIMPIO Y EN SILENCIO."),
+      ...wrapLine("ESTE TERMINAL RESPONDE AL GCPD."),
+      ...wrapLine("TRABAJA LIMPIO. REGISTRA TODO. NO PIERDAS GOTHAM."),
       " ",
     ],
     { wait: false, initialWait: false, finalWait: false, speak: false }

@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BROTHER EYE MK0 — TERMINAL UI KIT</title>
+
+  <template id="__bundler_thumbnail">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 56">
+      <rect width="80" height="56" fill="#060808"/>
+      <rect x="10" y="8" width="60" height="40" rx="4" fill="#0a1a10" stroke="#2a4a3a" stroke-width="1"/>
+      <rect x="14" y="12" width="52" height="30" rx="2" fill="#030b11"/>
+      <text x="17" y="23" font-family="monospace" font-size="4" fill="#5785b7">WAYNE IND. AUX NODE</text>
+      <text x="17" y="29" font-family="monospace" font-size="3.5" fill="#3a6a8a">PROTOCOL: KNIGHTFALL-C</text>
+      <text x="17" y="35" font-family="monospace" font-size="3.5" fill="#3a6a8a">BATSIGNAL: OFFLINE</text>
+      <text x="17" y="39" font-family="monospace" font-size="3" fill="#5785b7">$/&gt; _</text>
+      <text x="23" y="52" font-family="monospace" font-size="3" fill="#2a4a3a" text-anchor="middle">BROTHER EYE MK0</text>
+    </svg>
+  </template>
+
+  <style>
+    /* ============================================================
+       BROTHER EYE MK0 — AGENT TERMINAL UI KIT
+       Faithful port from:  Terminal.styles.css · Monitor.styles.css
+       Screen.styles.css · Scanline.styles.css · Interlace.styles.css
+       tokens.css · screens.js state machine
+    ============================================================ */
+
+    /* ── Offline fonts (must match gcpd/public/assets/fonts/) ── */
+    @font-face { font-family:'WOPR';           src:url('fonts/wopr-tweaked.ttf')        format('truetype'); font-display:block; }
+    @font-face { font-family:'Share Tech Mono';src:url('fonts/ShareTechMono-Regular.ttf')format('truetype'); font-display:block; }
+    @font-face { font-family:'VT323';          src:url('fonts/VT323-Regular.ttf')        format('truetype'); font-display:block; }
+    @font-face { font-family:'Monofonto';      src:url('fonts/monofonto.ttf')            format('truetype'); font-display:block; }
+
+    /* ── CSS variables — blue phosphor default (Terminal.styles.css :root) ── */
+    :root {
+      --color:        #5785b7;
+      --fg-primary:   #5785b7;
+      --fg-muted:     #8aa6c9;
+      --fg-accent:    #b6d6ff;
+      --fg-system:    #9fb9d9;
+      --fg-ok:        #7fd7a5;
+      --fg-warn:      #f1c36a;
+      --fg-alert:     #f0847c;
+      --fg-sep:       rgba(138,166,201,0.55);
+      --bg-focus:     rgba(87,133,183,0.18);
+      --glow-focus:   0 0 6px rgba(182,214,255,0.45);
+      --panel-bg:     rgba(255,255,255,0.06);
+      --envelope-margin:     0.45rem;
+      --envelope-background: #030b11;
+      --term: "$/> ";
+    }
+
+    /* ── Green phosphor theme ── */
+    #terminal-container.terminal-theme--green {
+      --color:        #68e06f;
+      --fg-primary:   #68e06f;
+      --fg-muted:     #5fbf7b;
+      --fg-accent:    #b7f5c7;
+      --fg-system:    #8ad7a3;
+      --fg-ok:        #7ff0a0;
+      --fg-warn:      #d8c07a;
+      --fg-alert:     #f08f7f;
+      --fg-sep:       rgba(104,224,111,0.45);
+      --bg-focus:     rgba(104,224,111,0.14);
+      --glow-focus:   0 0 6px rgba(104,224,111,0.45);
+      --envelope-background: #020c05;
+    }
+
+    /* ── Amber phosphor theme ── */
+    #terminal-container.terminal-theme--amber {
+      --color:        #e7b867;
+      --fg-primary:   #e7b867;
+      --fg-muted:     #c9a46b;
+      --fg-accent:    #ffd997;
+      --fg-system:    #dfc08a;
+      --fg-ok:        #cfe1a5;
+      --fg-warn:      #f5c26c;
+      --fg-alert:     #f08b6d;
+      --fg-sep:       rgba(231,184,103,0.45);
+      --bg-focus:     rgba(231,184,103,0.14);
+      --glow-focus:   0 0 6px rgba(231,184,103,0.45);
+      --envelope-background: #090604;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: #040b11;
+      color:       #4a6a5a;
+      font-family: 'Share Tech Mono', ui-monospace, monospace;
+      min-height:  100vh;
+    }
+
+    body {
+      /* Atmospheric background matching gcpd.joselun.xyz */
+      background:
+        radial-gradient(ellipse 80% 60% at 15% 40%, rgba(8,45,55,0.85) 0%, transparent 65%),
+        radial-gradient(ellipse 60% 80% at 85% 20%, rgba(4,28,42,0.7) 0%, transparent 60%),
+        radial-gradient(ellipse 100% 100% at 50% 50%, rgba(6,22,32,0.6) 0%, transparent 100%),
+        linear-gradient(160deg, #050f18 0%, #040b11 40%, #030810 70%, #040c14 100%);
+      display:        flex;
+      flex-direction: column;
+      align-items:    center;
+      padding:        0.9rem 0.5rem 2rem;
+      gap:            0.7rem;
+    }
+
+    /* ── Kit header ── */
+    #kit-header {
+      width:      100%;
+      max-width:  900px;
+      display:    flex;
+      align-items:    center;
+      justify-content:space-between;
+      flex-wrap:  wrap;
+      gap:        0.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(10,30,50,0.8);
+    }
+
+    .kit-title {
+      font-size:      0.62rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color:          #2e4e3e;
+    }
+    .kit-title strong { color: #4a7a5a; }
+
+    #kit-controls {
+      display:    flex;
+      gap:        0.3rem;
+      align-items:center;
+      flex-wrap:  wrap;
+    }
+
+    .kit-sep { color: #1a2a1a; font-size: 0.6rem; padding: 0 0.1rem; }
+
+    .kit-btn {
+      font-family:    'WOPR', 'Share Tech Mono', monospace;
+      font-size:      0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      background:     transparent;
+      border:         1px solid #1a3220;
+      color:          #3a5a46;
+      padding:        0.17rem 0.45rem;
+      cursor:         pointer;
+      transition:     border-color 0.12s, color 0.12s, background 0.12s;
+    }
+    .kit-btn:hover   { border-color: #3a6a48; color: #5a9a6a; }
+    .kit-btn.active  { border-color: #4a8a5a; color: #7ada8a; background: rgba(74,138,90,0.08); }
+    .kit-btn.power   { border-color: #1e3a4e; color: #3a6888; }
+    .kit-btn.power:hover { border-color: #3a6888; color: #6aaad8; }
+    .kit-btn.danger  { border-color: #3e1e1e; color: #6e3e3e; }
+    .kit-btn.danger:hover { border-color: #7e3e3e; color: #cf7e7e; }
+
+    /* ── CRT Monitor shell (Monitor.styles.css) ── */
+    #monitor {
+      position:   relative;
+      width:      860px;
+      height:     650px;
+      user-select:none;
+      border-radius: 20px;
+      padding:    17px 13px 0;
+      background-color: #b8bbbf;
+      background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAM1BMVEWUlJSXl5eampqVlZWYmJiWlpaZmZmTk5OSkpKRkZGQkJCPj4+OjoqMjIyLi4uKioqHiIhFAAAA1ElEQVR4XpXQyw6CMBBF0Xu5t/z/3xoEFHC8TOIG7iSc0ycVbW1bAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAVoFRXwAAAAkklEQVRYhe3BMQEAAADCoPVP7WsIoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeAMBuAABMgAAAABJRU5ErkJggg==");
+      box-shadow:
+        0 0 0 rgb(194,197,198), 0 2px 0 rgb(189,192,193),
+        0 5px 0 rgb(181,184,185), 0 9px 0 rgb(171,174,175),
+        0 13px 0 rgb(160,163,164), 0 17px 0 rgb(148,151,152),
+        0 18px 15px rgba(0,0,0,0.14), 0 18px 1px rgba(0,0,0,0.48),
+        0 0 15px rgba(0,0,0,0.18);
+    }
+
+    #monitor h2 {
+      color:          #eaeef0;
+      text-align:     center;
+      padding:        8px 0 0;
+      font:           600 0.95em Arial, Helvetica, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.3em;
+      text-shadow:    0 1px 0 rgba(0,0,0,0.45), 0 5px 6px rgba(0,0,0,0.7);
+    }
+
+    #monitor pre {
+      display:     block;
+      height:      calc(100% - 38px);
+      overflow:    hidden;
+      position:    relative;
+      border:      12px solid #0e1210;
+      border-radius: 38px;
+      filter:      blur(0.3px);
+      padding:     5px;
+      box-shadow:
+        inset 0 0 0 8px rgba(20,20,18,0.6),
+        0 1px 55px 10px rgba(38,44,38,8),
+        inset 0 1px 75px 5px rgba(0,0,0,0.96);
+    }
+
+    /* ── Screen on/off + container (Screen.styles.css) ── */
+    #screen { position: relative; width: 100%; height: 100%; }
+
+    #screen-on-off-container {
+      position:  absolute;
+      inset:     0;
+      opacity:   0.05;
+    }
+    .screen-on  { animation: turn-on  3.8s linear          forwards; }
+    .screen-off { animation: turn-off 0.55s cubic-bezier(0.23,1,0.32,1) forwards; }
+
+    @keyframes turn-on {
+      0%   { transform:scale(1,.8) translate3d(0,0,0);    filter:brightness(30); opacity:1; }
+      3.5% { transform:scale(1,.8) translate3d(0,100%,0); }
+      3.6% { transform:scale(1,.8) translate3d(0,-100%,0); opacity:1; }
+      9%   { transform:scale(1.3,.6) translate3d(0,100%,0); filter:brightness(30); opacity:0; }
+      11%  { transform:scale(1,1) translate3d(0,0,0); filter:contrast(0) brightness(0); opacity:0; }
+      100% { transform:scale(1,1) translate3d(0,0,0); filter:contrast(1) brightness(1.2) saturate(1.3); opacity:1; }
+    }
+    @keyframes turn-off {
+      0%   { transform:scale(1,1.3) translate3d(0,0,0); filter:brightness(1); opacity:1; }
+      60%  { transform:scale(1.3,.001) translate3d(0,0,0); filter:brightness(10); }
+      100% { transform:scale(0,.0001) translate3d(0,0,0); filter:brightness(50); }
+    }
+
+    #screen-container {
+      position:        absolute;
+      inset:           0;
+      z-index:         30;
+      transform-origin:50% 50%;
+      transform:       skewX(0.5deg);
+      animation:       crt-pulse 5s linear infinite;
+    }
+    #screen-container::before {
+      content:""; position:absolute; inset:0; z-index:31; pointer-events:none;
+      background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.22) 100%);
+    }
+    #screen-container::after {
+      content:""; position:absolute; inset:0; z-index:32; opacity:0.45; pointer-events:none;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0.14) 95%, rgba(0,0,0,0) 100%);
+      animation: crt-glow 2s linear infinite;
+    }
+    @keyframes crt-pulse { 0%,100%{transform:scale(1) skewX(0.5deg);}  50%{transform:scale(1.005) skewX(0.5deg);} }
+    @keyframes crt-glow  { 50%{transform:scale(1.2);} }
+
+    /* ── Interlace (Interlace.styles.css) ── */
+    #interlace {
+      position:       absolute; inset:0; z-index:21;
+      opacity:        0.22; pointer-events:none;
+      background:     repeating-linear-gradient(
+                        to bottom,
+                        transparent 0, transparent 1px,
+                        rgba(0,0,0,0.11) 1px, rgba(0,0,0,0.11) 2px
+                      );
+    }
+
+    /* ── Scanline (Scanline.styles.css) ── */
+    #scanline {
+      position:  absolute; left:0; right:0; top:0;
+      height:    4px; z-index:22;
+      opacity:   0.09; pointer-events:none;
+      background:rgba(255,255,255,0.2);
+      animation: scanline 1.25s linear infinite;
+    }
+    @keyframes scanline { 0%{top:0;} 100%{top:100%;} }
+
+    /* ── Terminal container (Terminal.styles.css #terminal-container) ── */
+    #terminal-container {
+      position:  absolute;
+      inset:     var(--envelope-margin);
+      z-index:   40;
+      background:var(--envelope-background);
+      animation: crt-skew 5s linear infinite;
+    }
+    @keyframes crt-skew {
+      0%  {transform:skewX(0.5deg);}
+      8%  {transform:skewX(1deg) scale(1.0001);}
+      15% {transform:skewX(0.6deg) skewY(-0.05deg);}
+      30% {transform:skewX(0.6deg);}
+      100%{transform:skewX(0.1deg);}
+    }
+
+    /* ── Terminal (.terminal) ── */
+    .terminal {
+      font-family:    'WOPR', 'Share Tech Mono', monospace;
+      font-size:      13.5px;
+      line-height:    1.44;
+      position:       relative;
+      height:         100%;
+      padding:        1.2rem 1.4rem;
+      overflow-y:     auto;
+      overflow-x:     hidden;
+      word-break:     break-word;
+      text-transform: uppercase;
+      animation:      textShadow 4s infinite;
+      box-sizing:     border-box;
+      color:          var(--fg-primary);
+      text-shadow:    0 0 3px rgba(200,200,200,0.55);
+      scrollbar-width:none;
+    }
+    .terminal::-webkit-scrollbar { display:none; }
+
+    ::selection { background:var(--color); color:#020408; text-shadow:none; }
+
+    /* RGB chromatic aberration (textShadow animation) */
+    @keyframes textShadow {
+      0%  {text-shadow:.44px 0 1px rgba(0,30,255,.5),  -.44px 0 1px rgba(255,0,80,.3),  0 0 3px;}
+      5%  {text-shadow:2.79px 0 1px rgba(0,30,255,.5), -2.79px 0 1px rgba(255,0,80,.3), 0 0 3px;}
+      20% {text-shadow:3.48px 0 1px rgba(0,30,255,.5), -3.48px 0 1px rgba(255,0,80,.3), 0 0 3px;}
+      35% {text-shadow:3.9px 0 1px rgba(0,30,255,.5),  -3.9px 0 1px rgba(255,0,80,.3),  0 0 3px;}
+      50% {text-shadow:.08px 0 1px rgba(0,30,255,.5),  -.08px 0 1px rgba(255,0,80,.3),  0 0 3px;}
+      70% {text-shadow:.49px 0 1px rgba(0,30,255,.5),  -.49px 0 1px rgba(255,0,80,.3),  0 0 3px;}
+      100%{text-shadow:2.62px 0 1px rgba(0,30,255,.5), -2.62px 0 1px rgba(255,0,80,.3), 0 0 3px;}
+    }
+
+    /* Blinking block cursor (cursor animation) */
+    @keyframes cursor { 0%,75%,100%{opacity:1;} 25%{opacity:0;} }
+
+    .typer.active::after {
+      content: "■";
+      animation: cursor 1s infinite step-end;
+      margin-left: 1px;
+    }
+
+    /* ── Input prompt ── */
+    #term-input {
+      display:      block;
+      outline:      none;
+      white-space:  pre-wrap;
+      caret-color:  transparent;
+    }
+    #term-input::before { content: var(--term); }
+    #term-input[contenteditable="true"]::after {
+      content: "■";
+      animation: cursor 1s infinite step-end;
+      margin-left: 1px;
+    }
+    body.dialer-mode #term-input { display:none; pointer-events:none; }
+
+    /* ── Terminal lines + typer ── */
+    .typer          { word-break:break-word; white-space:pre-wrap; }
+    .terminal-line  { display:block; white-space:pre-wrap; }
+
+    /* ── Selectable (Dialer navigation) ── */
+    .touch-selectable {
+      position:    relative;
+      padding-left:2rem;
+      cursor:      pointer;
+    }
+    .touch-selectable::before {
+      content:     "  ";
+      position:    absolute;
+      left:        0;
+      color:       var(--color);
+      opacity:     0;
+      min-width:   1.8rem;
+      transition:  opacity 0.1s;
+    }
+    .touch-selectable.is-selected::before { content:"=>"; opacity:1; }
+    .touch-selectable.is-selected {
+      background: var(--bg-focus);
+      animation:  pulseSelect 1.2s ease-in-out infinite;
+    }
+    @keyframes pulseSelect {
+      0%,100% { box-shadow:inset 0 0 4px rgba(90,180,223,.4), 0 0 6px rgba(90,180,223,0); }
+      50%     { box-shadow:inset 0 0 12px rgba(90,180,223,.6), 0 0 12px rgba(90,180,223,.2); }
+    }
+
+    /* ── Alert overlay ── */
+    .alert-box {
+      position:   absolute;
+      left:       50%; top:40%;
+      transform:  translateX(-50%);
+      text-align: center;
+      background: #050b0f;
+      border:     2px solid var(--color);
+      padding:    8px 22px;
+      z-index:    999;
+      font-family:'WOPR', monospace;
+      font-size:  13px;
+      text-transform:uppercase;
+      color:      var(--fg-primary);
+      white-space:nowrap;
+      animation:  alertFlicker 2s infinite;
+    }
+    @keyframes alertFlicker {
+      0%,100%{opacity:1;} 50%{opacity:.85;} 52%{opacity:.6;} 54%{opacity:.9;}
+    }
+
+    /* ── TUI semantic colour classes (Terminal.styles.css) ── */
+    .tui-primary { color:var(--fg-primary); }
+    .tui-muted   { color:var(--fg-muted); }
+    .tui-accent  { color:var(--fg-accent); text-shadow:var(--glow-focus); }
+    .tui-system  { color:var(--fg-system); }
+    .tui-ok      { color:var(--fg-ok); }
+    .tui-warn    { color:var(--fg-warn); }
+    .tui-alert   { color:var(--fg-alert); text-shadow:0 0 6px rgba(240,132,124,.4); }
+    .tui-sep     { color:var(--fg-sep); }
+
+    /* ── Kit legend ── */
+    #kit-legend {
+      width:      100%;
+      max-width:  860px;
+      display:    grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px,1fr));
+      gap:        0.4rem 1rem;
+      padding-top:0.6rem;
+      border-top: 1px solid rgba(10,30,50,0.8);
+      font-size:  0.57rem;
+      letter-spacing:0.06em;
+      text-transform:uppercase;
+    }
+    .legend-group  { display:flex; flex-direction:column; gap:0.12rem; }
+    .legend-head   { color:#3a6040; margin-bottom:0.08rem; letter-spacing:0.1em; }
+    .legend-item   { color:#233a2e; }
+    .legend-item b { color:#4a7a58; }
+
+    /* ── Cases split-panel — flex cols, width in ch units ── */
+    .cases-row { display:flex; white-space:nowrap; overflow:hidden; }
+    .cases-L   { flex:0 0 38ch; overflow:hidden; min-width:0; }
+    .cases-D   { flex:0 0 1ch;  color:var(--fg-sep); }
+    .cases-R   { flex:1 1 51ch; background:var(--panel-bg); overflow:hidden; min-width:0; }
+    .cases-item { position:relative; padding-left:2ch; }
+    .cases-item::before { content:"  "; position:absolute; left:0; color:var(--color); opacity:0; }
+    .cases-item.is-selected { background:var(--bg-focus); }
+    .cases-item.is-selected::before { content:"=>"; opacity:1; }
+    .cases-sep { display:block; color:var(--fg-sep); }
+
+    @media (max-width:900px) {
+      #monitor {
+        width:100%; height:58vw; min-height:300px;
+        border-radius:12px; padding:10px 8px 0;
+      }
+      #monitor pre { border-radius:22px; border-width:7px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Kit Header ─────────────────────────────────────────── -->
+  <header id="kit-header">
+    <div class="kit-title">
+      <strong>BROTHER EYE MK0</strong> &nbsp;·&nbsp; TERMINAL DE AGENTE &nbsp;·&nbsp; UI KIT
+    </div>
+    <div id="kit-controls">
+      <span class="kit-sep">FOSFORO</span>
+      <button class="kit-btn theme-btn active" data-theme="blue"  title="Fósforo azul (defecto)">AZUL</button>
+      <button class="kit-btn theme-btn"        data-theme="green" title="Fósforo verde">VERDE</button>
+      <button class="kit-btn theme-btn"        data-theme="amber" title="Fósforo ámbar">AMBAR</button>
+      <span class="kit-sep">&nbsp;|&nbsp;</span>
+      <button class="kit-btn power" id="power-btn" title="Encender / apagar el terminal">PWR OFF</button>
+      <button class="kit-btn danger" id="reset-btn" title="Reset — power-cycle con feedback diegético (Tier 1 #3)">RESET</button>
+    </div>
+  </header>
+
+  <!-- ── CRT Monitor ────────────────────────────────────────── -->
+  <div id="monitor">
+    <pre>
+      <div id="screen">
+        <div id="screen-on-off-container">
+          <div id="screen-container">
+            <div id="interlace"></div>
+            <div id="scanline"></div>
+            <div id="terminal-container">
+              <div class="terminal" id="terminal">
+                <!-- injected by terminal.js -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </pre>
+    <h2>WAYNE AUX NODE</h2>
+  </div>
+
+  <!-- ── Kit Legend ─────────────────────────────────────────── -->
+  <footer id="kit-legend">
+    <div class="legend-group">
+      <div class="legend-head">▸ Dialer</div>
+      <div class="legend-item"><b>▲ / ▼</b> &nbsp;Mover selección</div>
+      <div class="legend-item"><b>ENTER</b> &nbsp;Confirmar línea</div>
+      <div class="legend-item"><b>CLIC</b> &nbsp;También funciona</div>
+    </div>
+    <div class="legend-group">
+      <div class="legend-head">▸ OS Shell</div>
+      <div class="legend-item"><b>HELP</b> &nbsp;Directorio</div>
+      <div class="legend-item"><b>STATUS</b> &nbsp;Estado nodo</div>
+      <div class="legend-item"><b>CASES</b> &nbsp;Expedientes</div>
+      <div class="legend-item"><b>CASE &lt;ID&gt;</b> &nbsp;Expediente</div>
+    </div>
+    <div class="legend-group">
+      <div class="legend-head">▸ OS Shell</div>
+      <div class="legend-item"><b>VILLAINS</b> &nbsp;Galería</div>
+      <div class="legend-item"><b>MAP</b> &nbsp;Cartografía</div>
+      <div class="legend-item"><b>SYSLOG</b> &nbsp;Registro</div>
+      <div class="legend-item"><b>TRACER &lt;NUM&gt;</b> Rastrear</div>
+    </div>
+    <div class="legend-group">
+      <div class="legend-head">▸ Teclas rápidas</div>
+      <div class="legend-item"><b>F1</b> MAP &nbsp;<b>F2</b> CASES</div>
+      <div class="legend-item"><b>F3</b> VILLAINS &nbsp;<b>F4</b> DIALER</div>
+      <div class="legend-item"><b>EXIT / BYE</b> &nbsp;Al dialer</div>
+      <div class="legend-item"><b>CLEAR</b> &nbsp;Limpiar pantalla</div>
+    </div>
+    <div class="legend-group">
+      <div class="legend-head">▸ Tier 1 integrado</div>
+      <div class="legend-item">#1 Boot log antes del dialer</div>
+      <div class="legend-item">#2 Ring animation al marcar</div>
+      <div class="legend-item">#3 Feedback power-cycle</div>
+    </div>
+  </footer>
+
+  <script src="terminal.js"></script>
+</body>
+</html>

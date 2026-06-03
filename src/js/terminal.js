@@ -1,6 +1,10 @@
 var woprsound = new Audio("/assets/sounds/wopr-humming.mp3");
 woprsound.muted = true;
 
+function enableWoprSound() {
+  woprsound.muted = false;
+}
+
 async function initTouch() {
   const module = await import(
     `${import.meta.env.BASE_URL}utils/touch.js` /* @vite-ignore */
@@ -59,9 +63,13 @@ try {
 
 window.addEventListener("playwoprsound", (event) => {
   console.log("Terminal event listener playwoprsound: ", event);
-  if (woprsound.muted) return;
+  enableWoprSound();
   woprsound.loop = true;
-  woprsound.play();
+  woprsound.play().catch(() => {});
+});
+
+window.addEventListener("enablewoprsound", () => {
+  enableWoprSound();
 });
 
 window.addEventListener("stopwoprsound", (event) => {
