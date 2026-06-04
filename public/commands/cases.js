@@ -470,25 +470,58 @@ function buildDetailBody(item, evaluation, cases, poisIndex) {
 
 async function renderCaseDetails(item, evaluation, cases, poisIndex) {
   const canDescend = (getNodeType(item) === "container" || getNodeType(item) === "mixed") && hasChildren(cases, item.id);
+  const relatedPoiIds = resolveCaseLocations(item, poisIndex).map((entry) => entry.poiId);
+  const hasCaseMap = relatedPoiIds.length > 0;
   while (true) {
     clear();
     await renderSelectableLines(
       {
         lines: buildDetailBody(item, evaluation, cases, poisIndex),
-        footerLines: [{ parts: [{ text: "ACTIONS: ", className: "tui-system" }, { text: "M", className: "tui-accent" }, { text: " mapa | ", className: "tui-muted" }, ...(canDescend ? [{ text: "S", className: "tui-accent" }, { text: " subcasos | ", className: "tui-muted" }] : []), { text: "B", className: "tui-accent" }, { text: " volver", className: "tui-muted" }] }],
-        chips: [{ label: "MAPA", action: "input", value: "M" }, ...(canDescend ? [{ label: "SUBCASOS", action: "input", value: "S" }] : []), { label: "VOLVER", action: "input", value: "B" }],
+        footerLines: [{
+          parts: [
+            { text: "ACTIONS: ", className: "tui-system" },
+            ...(hasCaseMap
+              ? [
+                  { text: "M", className: "tui-accent" },
+                  { text: " mapa | ", className: "tui-muted" },
+                ]
+              : []),
+            ...(canDescend
+              ? [
+                  { text: "S", className: "tui-accent" },
+                  { text: " subcasos | ", className: "tui-muted" },
+                ]
+              : []),
+            { text: "B", className: "tui-accent" },
+            { text: " volver", className: "tui-muted" },
+          ],
+        }],
+        chips: [
+          ...(hasCaseMap ? [{ label: "MAPA", action: "input", value: "M" }] : []),
+          ...(canDescend ? [{ label: "SUBCASOS", action: "input", value: "S" }] : []),
+          { label: "VOLVER", action: "input", value: "B" },
+        ],
         context: { backValue: "B", backAction: "input" },
         defaultIndex: 0,
       },
       fastRender
     );
     markSeen("cases", item.id, Number(item.updatedAt || Date.now()));
-    const choice = isPortraitNarrow() ? (await waitForSelection())?.dataset?.value || "" : await input(false, { hint: canDescend ? "AUX-01 > M map | S subcases | B back" : "AUX-01 > M map | B back" });
+    const choice = isPortraitNarrow()
+      ? (await waitForSelection())?.dataset?.value || ""
+      : await input(false, {
+          hint: hasCaseMap
+            ? canDescend
+              ? "AUX-01 > M map | S subcases | B back"
+              : "AUX-01 > M map | B back"
+            : canDescend
+              ? "AUX-01 > S subcases | B back"
+              : "AUX-01 > B back",
+        });
     const normalized = String(choice || "").trim().toUpperCase();
     if (!normalized || normalized === "B" || normalized === "X") return { action: "back" };
-    if (normalized === "M" || normalized === "MAP" || normalized === "MAPA") {
-      const relatedPoiIds = resolveCaseLocations(item, poisIndex).map((entry) => entry.poiId);
-      await parse(relatedPoiIds.length ? `map ${relatedPoiIds.join(" ")}` : "map sininfo");
+    if (hasCaseMap && (normalized === "M" || normalized === "MAP" || normalized === "MAPA")) {
+      await parse(`map ${relatedPoiIds.join(" ")}`);
       continue;
     }
     if (canDescend && (normalized === "S" || normalized === "SUBCASOS")) return { action: "descend" };

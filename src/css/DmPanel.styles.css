@@ -4246,3 +4246,19 @@
   padding: 1px 5px;
   font-size: 0.65rem;
 }
+
+.rt-effects-alarm-modal {
+  width: min(560px, calc(100vw - 48px));
+}
+
+.rt-effects-alarm-modal__body {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.rt-effects-alarm-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}

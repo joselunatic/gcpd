@@ -1115,6 +1115,7 @@ const DmPanel = () => {
   const liveMapSocketRef = useRef(null);
   const liveMapDragRef = useRef(null);
   const rtEffectsSocketRef = useRef(null);
+  const rtEffectsAlarmInputRef = useRef(null);
   const [rtEffectsWsState, setRtEffectsWsState] = useState('offline');
   const [rtEffectsAgents, setRtEffectsAgents] = useState(0);
   const [rtEffectsLog, setRtEffectsLog] = useState([]);
@@ -1133,6 +1134,8 @@ const DmPanel = () => {
   const [rtEffectsMediaLibraryTitle, setRtEffectsMediaLibraryTitle] = useState('');
   const [rtEffectsMediaLibraryDescription, setRtEffectsMediaLibraryDescription] = useState('');
   const [rtEffectsMediaSelectedId, setRtEffectsMediaSelectedId] = useState('');
+  const [rtEffectsAlarmModalOpen, setRtEffectsAlarmModalOpen] = useState(false);
+  const [rtEffectsAlarmDraft, setRtEffectsAlarmDraft] = useState('ALERTA DE SEGURIDAD');
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -4506,12 +4509,30 @@ const DmPanel = () => {
     setRtEffectsAgentState({ label: 'ENVIADO · ESPERANDO AGENTE', tone: 'pending' });
   }, []);
 
-  const sendRtAlarmEffect = useCallback(() => {
-    const message = window.prompt('Texto de alarma para la pantalla de agente:', 'ALERTA DE SEGURIDAD');
-    if (message === null) return;
-    const normalizedMessage = message.trim() || 'ALERTA DE SEGURIDAD';
+  useEffect(() => {
+    if (!rtEffectsAlarmModalOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      rtEffectsAlarmInputRef.current?.focus();
+      rtEffectsAlarmInputRef.current?.select();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [rtEffectsAlarmModalOpen]);
+
+  const closeRtAlarmModal = useCallback(() => {
+    setRtEffectsAlarmModalOpen(false);
+  }, []);
+
+  const confirmRtAlarmEffect = useCallback(() => {
+    const normalizedMessage = rtEffectsAlarmDraft.trim() || 'ALERTA DE SEGURIDAD';
     prepareRtEffect('alarm', { message: normalizedMessage });
-  }, [prepareRtEffect]);
+    setRtEffectsAlarmDraft(normalizedMessage);
+    setRtEffectsAlarmModalOpen(false);
+  }, [prepareRtEffect, rtEffectsAlarmDraft]);
+
+  const sendRtAlarmEffect = useCallback(() => {
+    setRtEffectsAlarmDraft((current) => current || 'ALERTA DE SEGURIDAD');
+    setRtEffectsAlarmModalOpen(true);
+  }, []);
 
   const launchRtEffect = useCallback(() => {
     if (!rtEffectsDraft) return;
@@ -4692,6 +4713,7 @@ const DmPanel = () => {
         ? 'Representación local del efecto enviado.'
         : 'Lanza un efecto para ver una representación local.';
     return (
+      <>
       <div className="dm-panel__section rt-effects-panel">
         <div className="rt-effects-header">
           <span className="rt-effects-title">EFECTOS RT — CONSOLA DM</span>
@@ -4936,6 +4958,61 @@ const DmPanel = () => {
           </div>
         )}
       </div>
+      {rtEffectsAlarmModalOpen && (
+        <div className="dm-panel__modal">
+          <div className="dm-panel__modal-backdrop" onClick={closeRtAlarmModal} />
+          <div className="dm-panel__modal-card rt-effects-alarm-modal" role="dialog" aria-modal="true" aria-label="Configurar alarma RT">
+            <div className="dm-panel__modal-header">
+              <strong>ALARMA RT</strong>
+              <button
+                type="button"
+                className="dm-panel__ghost"
+                onClick={closeRtAlarmModal}
+              >
+                Cerrar
+              </button>
+            </div>
+            <form
+              className="rt-effects-alarm-modal__body"
+              onSubmit={(event) => {
+                event.preventDefault();
+                confirmRtAlarmEffect();
+              }}
+            >
+              <label className="dm-panel__label" htmlFor="rt-effects-alarm-message">
+                Texto de alarma para pantalla de agente
+              </label>
+              <input
+                id="rt-effects-alarm-message"
+                ref={rtEffectsAlarmInputRef}
+                className="dm-panel__input"
+                type="text"
+                maxLength={96}
+                value={rtEffectsAlarmDraft}
+                onChange={(event) => setRtEffectsAlarmDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeRtAlarmModal();
+                  }
+                }}
+              />
+              <div className="rt-effects-control-note">
+                Este texto se mostrará en primer plano en la TUI de agente hasta lanzar o limpiar el efecto.
+              </div>
+              <div className="rt-effects-alarm-modal__actions">
+                <button type="button" className="rt-effects-btn rt-effects-btn--small" onClick={closeRtAlarmModal}>
+                  Cancelar
+                </button>
+                <button type="submit" className="rt-effects-btn rt-effects-btn--alarm">
+                  Preparar alarma
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      </>
     );
   };
 
