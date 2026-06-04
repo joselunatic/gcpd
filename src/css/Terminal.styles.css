@@ -390,6 +390,11 @@
   white-space: pre-wrap;
 }
 
+.terminal-line.tui-split-selectable {
+  overflow: hidden;
+  white-space: pre;
+}
+
 .terminal-line.cases-live-refresh {
   animation: casesPanelRefresh 180ms ease-out;
   background:
@@ -464,6 +469,14 @@
     background 120ms ease,
     box-shadow 120ms ease,
     transform 120ms ease;
+}
+
+.touch-selectable.tui-split-selectable {
+  padding-left: 0;
+}
+
+.touch-selectable.tui-split-selectable::before {
+  left: -1.65rem;
 }
 
 .touch-selectable::before {

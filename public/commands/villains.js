@@ -17,7 +17,7 @@ import { getStatusContext } from "/utils/status.js";
 import { getDeltaMarker } from "/utils/delta.js";
 import { isPortraitNarrow, getWrapLimit } from "/utils/portrait.js";
 import { waitForSelection } from "/utils/selection.js";
-import { paginateSelectableItems } from "/utils/pagination.js";
+import { paginateItems } from "/utils/pagination.js";
 import {
   SYMBOLS,
   buildHeaderLines,
@@ -118,6 +118,7 @@ const fetchGallery = async () => {
 const fastRender = { wait: false, initialWait: false, finalWait: false };
 const detailRender = { wait: 8, initialWait: false, finalWait: false };
 const COLUMN = { left: 38, right: 51, divider: "│" };
+const VILLAINS_PAGE_SIZE = 10;
 
 const mergeLine = (left = "", right = "") =>
   mergePartsLine(left, right, {
@@ -646,12 +647,8 @@ async function browseVillains(villains) {
       { label: "VILLANOS", action: "command", value: "villains" },
       { label: "DIALER", action: "command", value: "dialer" },
     ];
-    const { pages, pageCount } = paginateSelectableItems({
-      lines: headerLines,
-      items,
-      footerLines: baseFooterLines,
-      chips: baseChips,
-    });
+    const pages = paginateItems(items, VILLAINS_PAGE_SIZE);
+    const pageCount = pages.length;
     const pageIndex = Math.max(
       0,
       Math.min(stack[stack.length - 1].pageIndex || 0, pageCount - 1)

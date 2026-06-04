@@ -4725,7 +4725,7 @@ const DmPanel = () => {
           <div className="rt-effects-preview-card">
             <div className="rt-effects-preview-header">
               <span className="rt-effects-group-label">PREVIEW LOCAL DM</span>
-              <label className="rt-effects-duration-control" title="Extremo derecho: infinito hasta limpiar.">
+              <label className={`rt-effects-duration-control${durationIsInfinite ? ' is-infinite' : ''}`} title="Extremo derecho: infinito hasta limpiar.">
                 <span>{durationLabel}</span>
                 <input
                   type="range"
