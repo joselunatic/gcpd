@@ -327,6 +327,10 @@ function createLineNode(lineInput = "", { selectable = false, action = "", value
     plainText = String(lineInput ?? "");
     line.textContent = plainText;
   } else if (lineInput && typeof lineInput === "object") {
+    if (Number.isFinite(lineInput.splitLeftWidth) && lineInput.splitLeftWidth > 0) {
+      line.classList.add("tui-split-line");
+      line.style.setProperty("--tui-split-left-cols", String(lineInput.splitLeftWidth));
+    }
     if (lineInput.className) {
       String(lineInput.className)
         .split(" ")

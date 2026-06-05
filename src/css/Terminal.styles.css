@@ -395,6 +395,28 @@
   white-space: pre;
 }
 
+.terminal-line.tui-split-line {
+  position: relative;
+  white-space: pre;
+}
+
+.terminal-line.tui-split-line::before {
+  content: "";
+  position: absolute;
+  top: 0.16em;
+  bottom: 0.16em;
+  left: calc((var(--tui-split-left-cols, 38) * 1ch) + 0.5ch);
+  transform: translateX(-0.5px);
+  border-left: 1px solid var(--fg-sep);
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+.terminal-line.tui-split-line .tui-sep {
+  color: transparent;
+  text-shadow: none;
+}
+
 .terminal-line.cases-live-refresh {
   animation: casesPanelRefresh 180ms ease-out;
   background:

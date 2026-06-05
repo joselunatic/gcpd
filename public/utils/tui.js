@@ -108,6 +108,7 @@ function mergePartsLine(
         : part
   );
   return {
+    splitLeftWidth: leftWidth,
     parts: [
       ...leftParts,
       { text: divider, className: dividerClass },

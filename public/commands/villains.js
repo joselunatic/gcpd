@@ -574,6 +574,7 @@ const mergeItemsWithPreview = (items, previewLines) => {
       }));
       return {
         className: "tui-split-selectable",
+        splitLeftWidth: COLUMN.left,
         parts: [
           ...leftParts,
           { text: COLUMN.divider, className: "tui-sep" },
@@ -604,6 +605,13 @@ function fillLineNode(node, lineInput = "") {
     plainText = String(lineInput ?? "");
     node.textContent = plainText;
   } else if (lineInput && typeof lineInput === "object") {
+    if (Number.isFinite(lineInput.splitLeftWidth) && lineInput.splitLeftWidth > 0) {
+      node.classList.add("tui-split-line");
+      node.style.setProperty("--tui-split-left-cols", String(lineInput.splitLeftWidth));
+    } else {
+      node.classList.remove("tui-split-line");
+      node.style.removeProperty("--tui-split-left-cols");
+    }
     if (lineInput.className) {
       String(lineInput.className)
         .split(" ")
