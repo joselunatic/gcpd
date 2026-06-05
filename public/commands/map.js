@@ -1205,6 +1205,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
   let poiPopup = null;
   let hoverTarget = null;
   let lockedTarget = null;
+  let lastFreeTarget = null;
   let exitResolver = null;
   let disposed = false;
   let loupeDrag = null;
@@ -1254,10 +1255,13 @@ async function showMapOverlay({ pois, hotspotsData }) {
 
   if (visibleEntries.length > 12) overlay.classList.add("is-dense");
 
-  const closePoiPopup = () => {
+  const closePoiPopup = ({ restoreLoupe = false } = {}) => {
     if (!poiPopup) return;
     poiPopup.remove();
     poiPopup = null;
+    if (!restoreLoupe) return;
+    hoverTarget = lastFreeTarget || hoverTarget || null;
+    unlockTarget();
   };
 
   const setLoupeMode = (mode) => {
@@ -1601,8 +1605,12 @@ async function showMapOverlay({ pois, hotspotsData }) {
     }
     const closeButton = poiPopup.querySelector(".terminal-map-popup__close");
     const backdrop = poiPopup.querySelector(".terminal-map-popup__backdrop");
-    if (closeButton) closeButton.addEventListener("click", closePoiPopup);
-    if (backdrop) backdrop.addEventListener("click", closePoiPopup);
+    if (closeButton) {
+      closeButton.addEventListener("click", () => closePoiPopup({ restoreLoupe: true }));
+    }
+    if (backdrop) {
+      backdrop.addEventListener("click", () => closePoiPopup({ restoreLoupe: true }));
+    }
     overlay.appendChild(poiPopup);
     if (closeButton) closeButton.focus();
   };
@@ -1803,6 +1811,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
         poi,
         cluster: clusterContext,
       };
+      lastFreeTarget = hoverTarget;
       renderLoupe({
         kind: "poi",
         x: Number(spot.x || 0),
@@ -1820,6 +1829,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
         poi,
         cluster: clusterContext,
       };
+      lastFreeTarget = hoverTarget;
       renderLoupe({
         kind: "poi",
         x: Number(spot.x || 0),
@@ -1863,11 +1873,13 @@ async function showMapOverlay({ pois, hotspotsData }) {
     button.addEventListener("mouseenter", () => {
       if (lockedTarget) return;
       hoverTarget = { kind: "cluster", ...cluster };
+      lastFreeTarget = hoverTarget;
       renderLoupe(hoverTarget);
     });
     button.addEventListener("focus", () => {
       if (lockedTarget) return;
       hoverTarget = { kind: "cluster", ...cluster };
+      lastFreeTarget = hoverTarget;
       renderLoupe(hoverTarget);
     });
     button.addEventListener("click", (event) => {
@@ -1923,6 +1935,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
     const target = getTargetFromPointer(event);
     if (!target) return;
     hoverTarget = target;
+    lastFreeTarget = target;
     renderLoupe(hoverTarget);
   };
 
@@ -1993,7 +2006,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
     {
       Escape: () => {
         if (poiPopup) {
-          closePoiPopup();
+          closePoiPopup({ restoreLoupe: true });
           return true;
         }
         exitOverlay();
@@ -2001,7 +2014,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
       },
       b: () => {
         if (poiPopup) {
-          closePoiPopup();
+          closePoiPopup({ restoreLoupe: true });
           return true;
         }
         exitOverlay();
@@ -2009,7 +2022,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
       },
       B: () => {
         if (poiPopup) {
-          closePoiPopup();
+          closePoiPopup({ restoreLoupe: true });
           return true;
         }
         exitOverlay();
@@ -2017,7 +2030,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
       },
       Backspace: () => {
         if (poiPopup) {
-          closePoiPopup();
+          closePoiPopup({ restoreLoupe: true });
           return true;
         }
         exitOverlay();

@@ -829,6 +829,7 @@ async function browseVillains(villains) {
       items,
       footerLines: baseFooterLines,
       chips: baseChips,
+      maxItemsPerPage: 6,
     });
     const pageIndex = Math.max(
       0,

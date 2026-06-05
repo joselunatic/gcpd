@@ -10,6 +10,26 @@ let _activeEffects = new Map(); // effectId -> { cleanup }
 const _relativeHosts = new WeakMap();
 let _historyPatched = false;
 let _locationWatcherInstalled = false;
+let _interactionBlockInstalled = false;
+
+const BLOCKING_CLASS = 'rt-effects-blocking';
+const BLOCKED_EVENTS = [
+  'keydown',
+  'keypress',
+  'keyup',
+  'beforeinput',
+  'input',
+  'click',
+  'dblclick',
+  'pointerdown',
+  'pointerup',
+  'pointermove',
+  'mousedown',
+  'mouseup',
+  'mousemove',
+  'wheel',
+  'contextmenu',
+];
 
 function isAgentViewPath(pathname = window.location.pathname || '/') {
   return pathname === '/' || pathname === '/index.html';
@@ -137,6 +157,9 @@ function injectStyles() {
       inset: 0;
       z-index: 80;
       pointer-events: none;
+    }
+    .rt-effect-overlay.is-blocking {
+      pointer-events: auto;
     }
     /* ── ALARM ── */
     .rt-effect--alarm {
@@ -390,16 +413,62 @@ function createOverlay(effectClass, host) {
   return el;
 }
 
-function registerEffect(id, el, cleanupFn) {
+function hasBlockingEffects() {
+  return Array.from(_activeEffects.values()).some((entry) => Boolean(entry.blocking));
+}
+
+function rtInteractionBlocker(event) {
+  if (!hasBlockingEffects()) return;
+  const target = event.target;
+  if (target && target.closest && target.closest('.rt-effect-overlay')) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation();
+}
+
+function syncInteractionBlock() {
+  const active = hasBlockingEffects();
+  document.body.classList.toggle(BLOCKING_CLASS, active);
+  document.documentElement.classList.toggle(BLOCKING_CLASS, active);
+  const terminal = document.querySelector('.terminal');
+  if (terminal) {
+    terminal.classList.toggle(BLOCKING_CLASS, active);
+  }
+  if (active && document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur?.();
+  }
+}
+
+function ensureInteractionBlocker() {
+  if (_interactionBlockInstalled) return;
+  _interactionBlockInstalled = true;
+  BLOCKED_EVENTS.forEach((eventName) => {
+    document.addEventListener(eventName, rtInteractionBlocker, true);
+  });
+}
+
+function registerEffect(id, el, cleanupFn, options = {}) {
   const existing = _activeEffects.get(id);
   if (existing) existing.cleanup();
+  const blocking = Boolean(options.blocking);
+  if (blocking && el?.classList) {
+    el.classList.add('is-blocking');
+  }
   _activeEffects.set(id, {
+    blocking,
     cleanup: () => {
       try { cleanupFn?.(); } catch (_) {}
       el?.remove();
       _activeEffects.delete(id);
+      syncInteractionBlock();
     },
   });
+  syncInteractionBlock();
 }
 
 function autoRemove(id, ms) {
@@ -570,7 +639,7 @@ function triggerMedia({ url, mediaType = 'image', caption = '', loop = false, du
 
   registerEffect('media', overlay, () => {
     restorePos();
-  });
+  }, { blocking: true });
   if (Number(duration) > 0) autoRemove('media', Number(duration));
 }
 
@@ -582,6 +651,7 @@ function clearAllEffects() {
   _activeEffects.clear();
   // Remove any stray overlay nodes
   document.querySelectorAll('.rt-effect-overlay').forEach((el) => el.remove());
+  syncInteractionBlock();
 }
 
 // ─── Dispatch incoming payload ────────────────────────────────────────────────
@@ -661,6 +731,7 @@ function disconnect() {
 function syncRuntimeForLocation() {
   if (isAgentViewPath(window.location.pathname || '/')) {
     injectStyles();
+    ensureInteractionBlocker();
     connect();
     return;
   }

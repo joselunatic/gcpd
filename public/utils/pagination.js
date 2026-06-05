@@ -66,7 +66,13 @@ function paginateItems(items = [], budget = 10) {
   return pages.length ? pages : [[]];
 }
 
-function paginateSelectableItems({ lines = [], items = [], footerLines = [], chips = [] } = {}) {
+function paginateSelectableItems({
+  lines = [],
+  items = [],
+  footerLines = [],
+  chips = [],
+  maxItemsPerPage = null,
+} = {}) {
   const capacity = getTerminalLineCapacity();
   const baseReserved =
     countVisualLines(lines) + countVisualLines(footerLines) + (chips.length ? 1 : 0);
@@ -76,6 +82,19 @@ function paginateSelectableItems({ lines = [], items = [], footerLines = [], chi
     const reservedWithPager = baseReserved + 1;
     budget = Math.max(1, capacity - reservedWithPager);
     pages = paginateItems(items, budget);
+  }
+  if (Number.isFinite(maxItemsPerPage) && maxItemsPerPage > 0) {
+    const limitedPages = [];
+    pages.forEach((page) => {
+      if (!Array.isArray(page) || page.length <= maxItemsPerPage) {
+        limitedPages.push(page);
+        return;
+      }
+      for (let index = 0; index < page.length; index += maxItemsPerPage) {
+        limitedPages.push(page.slice(index, index + maxItemsPerPage));
+      }
+    });
+    pages = limitedPages;
   }
   return { pages, pageCount: pages.length, capacity };
 }
