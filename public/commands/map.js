@@ -494,6 +494,29 @@ function ensureMapStyles() {
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .terminal-map-hotspot--marker {
+      width: 10px !important;
+      height: 10px !important;
+      min-width: 10px !important;
+      min-height: 10px !important;
+      max-width: 10px !important;
+      padding: 0 !important;
+      border-radius: 999px;
+      border-width: 1px;
+      background: rgba(2, 14, 10, 0.94);
+      color: transparent;
+      text-shadow: none;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.78),
+        0 0 8px rgba(124, 255, 178, 0.34);
+    }
+    .terminal-map-hotspot--marker::after {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border-radius: 999px;
+      background: rgba(226, 255, 240, 0.9);
+      box-shadow: 0 0 6px rgba(124, 255, 178, 0.4);
+    }
     .terminal-map-hotspot::before {
       content: "";
       position: absolute;
@@ -511,6 +534,18 @@ function ensureMapStyles() {
       box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.72);
       opacity: 0.94;
       max-width: 118px !important;
+    }
+    .terminal-map-overlay.is-dense .terminal-map-hotspot--marker {
+      width: 8px !important;
+      height: 8px !important;
+      min-width: 8px !important;
+      min-height: 8px !important;
+      max-width: 8px !important;
+      padding: 0 !important;
+      color: transparent;
+    }
+    .terminal-map-overlay.is-dense .terminal-map-hotspot--marker::after {
+      inset: 1px;
     }
     .terminal-map-hotspot.is-cluster {
       border-color: rgba(166, 226, 255, 0.98);
@@ -1217,10 +1252,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
     });
   };
 
-  const clusterGroups = visibleEntries.length > 12 ? buildClusterGroups(visibleEntries) : [];
-  const useClusters = clusterGroups.some((group) => group.entries.length > 1);
   if (visibleEntries.length > 12) overlay.classList.add("is-dense");
-  if (useClusters) overlay.classList.add("is-clustered");
 
   const closePoiPopup = () => {
     if (!poiPopup) return;
@@ -1752,13 +1784,13 @@ async function showMapOverlay({ pois, hotspotsData }) {
   const addHotspot = (spot, poi, evaluation, clusterContext = null) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "terminal-map-hotspot";
+    button.className = "terminal-map-hotspot terminal-map-hotspot--marker";
     if (!evaluation.unlocked) button.classList.add("is-locked");
     button.dataset.x = String(spot.x || 0);
     button.dataset.y = String(spot.y || 0);
     button.dataset.poi = poi.id;
     const fullLabel = String(spot.label || poi.name || poi.id).toUpperCase();
-    button.textContent = fullLabel;
+    button.textContent = "";
     button.title = fullLabel;
     button.setAttribute("aria-label", fullLabel);
     button.tabIndex = 0;
@@ -1854,13 +1886,8 @@ async function showMapOverlay({ pois, hotspotsData }) {
     hotspotNodes.push(button);
   };
 
-  (useClusters ? clusterGroups : visibleEntries).forEach((entry) => {
-    if (entry.entries?.length > 1) {
-      addCluster(entry);
-      return;
-    }
-    const single = entry.entries ? entry.entries[0] : entry;
-    addHotspot(single.spot, single.poi, single.evaluation);
+  visibleEntries.forEach((entry) => {
+    addHotspot(entry.spot, entry.poi, entry.evaluation);
   });
 
   const renderLayout = () => {
