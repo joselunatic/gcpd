@@ -1,0 +1,30 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:22px 24px;display:flex;flex-direction:column;gap:14px}
+  label{display:flex;flex-direction:column;gap:.45rem;text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;color:var(--bem-phosphor-dim)}
+  input,select{font-family:inherit;border-radius:var(--bem-radius-md);border:1px solid var(--bem-border-input);
+    background:var(--bem-bg-input);color:var(--bem-phosphor-text);padding:.72rem .9rem;font-size:.9rem;outline:none}
+  input:focus{border-color:rgba(45,220,147,.6);box-shadow:0 0 12px rgba(45,220,147,.15)}
+  input::placeholder{color:rgba(180,255,228,.4)}
+  .grp2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .fieldset{padding:14px;border:1px solid var(--bem-border-faint);border-radius:var(--bem-radius-md);
+    background:rgba(124,255,178,.03)}
+</style>
+</head>
+<body>
+  <div class="fieldset">
+    <div class="grp2">
+      <label>Título del caso<input value="EL HOMBRE QUE RÍE" /></label>
+      <label>Estado<select><option>ACTIVO</option><option>RESUELTO</option></select></label>
+    </div>
+  </div>
+  <label>Clave de acceso<input type="password" placeholder="INPUT REQUIRED" value="••••••••" /></label>
+</body>
+</html>

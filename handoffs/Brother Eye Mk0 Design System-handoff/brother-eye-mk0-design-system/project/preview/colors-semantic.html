@@ -1,0 +1,36 @@
+<!-- @dsCard group="Colors" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:22px 24px;display:flex;flex-direction:column;gap:14px}
+  .grp{display:flex;flex-direction:column;gap:9px}
+  .hd{font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--bem-phosphor-mute)}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:var(--bem-radius-pill);
+    border:1px solid currentColor;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
+  .dot{width:9px;height:9px;border-radius:999px;background:currentColor;box-shadow:0 0 6px currentColor}
+  .ok{color:#2ddc93;background:rgba(45,220,147,.08)}
+  .warn{color:#e8c96a;background:rgba(232,201,106,.08)}
+  .err{color:#ff6b6b;background:rgba(255,107,107,.08)}
+  .info{color:#8cb4ff;background:rgba(140,180,255,.08)}
+  .live{color:#5cb5ff;background:rgba(92,181,255,.08)}
+</style>
+</head>
+<body>
+  <div class="grp">
+    <span class="hd">Semantic status — sparing, desaturated</span>
+    <div class="row">
+      <span class="pill ok"><span class="dot"></span>Online</span>
+      <span class="pill warn"><span class="dot"></span>Connecting</span>
+      <span class="pill err"><span class="dot"></span>Error</span>
+      <span class="pill info"><span class="dot"></span>Info</span>
+      <span class="pill live"><span class="dot"></span>Live</span>
+    </div>
+  </div>
+</body>
+</html>

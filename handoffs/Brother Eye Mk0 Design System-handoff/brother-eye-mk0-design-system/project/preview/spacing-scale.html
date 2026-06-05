@@ -1,0 +1,29 @@
+<!-- @dsCard group="Spacing" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:22px 24px;display:flex;flex-direction:column;gap:7px}
+  .hd{font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--bem-phosphor-mute);margin-bottom:4px}
+  .row{display:flex;align-items:center;gap:14px}
+  .bar{height:14px;background:var(--bem-grad-primary);border:1px solid var(--bem-border);border-radius:2px}
+  .tok{font-size:.66rem;color:var(--bem-phosphor-bright);width:70px}
+  .px{font-size:.62rem;color:var(--bem-phosphor-mute);margin-left:auto}
+</style>
+</head>
+<body>
+  <div class="hd">Spacing rhythm · 4px base — replaces 45+ ad-hoc values</div>
+  <div class="row"><span class="tok">space-1</span><div class="bar" style="width:4px"></div><span class="px">0.25rem · 4px</span></div>
+  <div class="row"><span class="tok">space-2</span><div class="bar" style="width:6px"></div><span class="px">0.4rem · 6px</span></div>
+  <div class="row"><span class="tok">space-3</span><div class="bar" style="width:10px"></div><span class="px">0.6rem · 10px</span></div>
+  <div class="row"><span class="tok">space-4</span><div class="bar" style="width:14px"></div><span class="px">0.9rem · 14px</span></div>
+  <div class="row"><span class="tok">space-5</span><div class="bar" style="width:19px"></div><span class="px">1.2rem · 19px</span></div>
+  <div class="row"><span class="tok">space-6</span><div class="bar" style="width:26px"></div><span class="px">1.6rem · 26px</span></div>
+  <div class="row"><span class="tok">space-7</span><div class="bar" style="width:32px"></div><span class="px">2rem · 32px</span></div>
+  <div class="row"><span class="tok">space-8</span><div class="bar" style="width:48px"></div><span class="px">3rem · 48px</span></div>
+</body>
+</html>

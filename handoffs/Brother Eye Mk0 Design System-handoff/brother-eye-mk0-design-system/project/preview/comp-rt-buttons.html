@@ -1,0 +1,35 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:22px 24px;display:flex;flex-direction:column;gap:14px}
+  .grp{display:flex;flex-direction:column;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--bem-border-faint)}
+  .grp:last-child{border:none;padding:0}
+  .glab{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--bem-phosphor-faint);
+    border-bottom:1px solid var(--bem-border-faint);padding-bottom:4px}
+  .row{display:flex;gap:9px;flex-wrap:wrap}
+  .fx{padding:.5rem 1rem;border:1px solid;border-radius:var(--bem-radius-sm);background:transparent;
+    font-family:inherit;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+  .alarm{border-color:rgba(255,80,80,.55);color:#ffb0b0}
+  .critical{border-color:rgba(255,40,40,.7);color:#ff8080;background:rgba(180,0,0,.08)}
+  .hack{border-color:rgba(0,200,130,.5);color:#7dffcf}
+  .fog{border-color:rgba(90,160,200,.45);color:#a8d8f0}
+  .flicker{border-color:rgba(200,180,100,.45);color:#ffe99a}
+</style>
+</head>
+<body>
+  <div class="grp">
+    <span class="glab">Alarmas</span>
+    <div class="row"><button class="fx alarm">Sirena</button><button class="fx critical">Código Rojo</button></div>
+  </div>
+  <div class="grp">
+    <span class="glab">Ambiente</span>
+    <div class="row"><button class="fx hack">Hackeo</button><button class="fx fog">Niebla</button><button class="fx flicker">Parpadeo</button></div>
+  </div>
+</body>
+</html>

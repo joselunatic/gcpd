@@ -1,0 +1,34 @@
+<!-- @dsCard group="Spacing" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:30px 24px;display:flex;flex-direction:column;gap:18px}
+  .hd{font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--bem-phosphor-mute)}
+  .row{display:flex;gap:22px;flex-wrap:wrap;align-items:center;justify-content:center}
+  .box{width:120px;height:60px;border-radius:var(--bem-radius-md);background:var(--bem-bg-surface);
+    display:flex;align-items:center;justify-content:center;font-size:.6rem;letter-spacing:.08em;
+    color:var(--bem-phosphor-dim);text-transform:uppercase;border:1px solid var(--bem-border-faint)}
+  .g1{box-shadow:var(--bem-glow-sm);border-color:var(--bem-border)}
+  .g2{box-shadow:var(--bem-glow-md);border-color:var(--bem-phosphor)}
+  .g3{box-shadow:var(--bem-glow-lg);border-color:var(--bem-phosphor)}
+  .s1{box-shadow:var(--bem-shadow-pop)}
+  .s2{box-shadow:var(--bem-shadow-card)}
+  .s3{box-shadow:var(--bem-shadow-modal);border-color:var(--bem-border-strong)}
+</style>
+</head>
+<body>
+  <div>
+    <div class="hd" style="margin-bottom:12px">Glow — phosphor bloom (focus / active)</div>
+    <div class="row"><div class="box g1">glow-sm</div><div class="box g2">glow-md</div><div class="box g3">glow-lg</div></div>
+  </div>
+  <div>
+    <div class="hd" style="margin-bottom:12px">Shadow — physical depth (floating chrome)</div>
+    <div class="row"><div class="box s1">pop</div><div class="box s2">card</div><div class="box s3">modal</div></div>
+  </div>
+</body>
+</html>

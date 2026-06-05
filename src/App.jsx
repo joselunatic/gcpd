@@ -8,6 +8,7 @@ import UpdateBanner from './components/UpdateBanner'
 import DmPanel from './components/DmPanel'
 import DocsPage from './components/DocsPage'
 import PhonePanel from './components/PhonePanel'
+import EfectosMobile from './components/EfectosMobile'
 
 const QuestRoute = lazy(() => import('./quest/QuestRoute'))
 
@@ -53,6 +54,7 @@ const App = () => {
       <Route path="/docs" element={<DocsPage />} />
       <Route path="/dm" element={<DmPanel />} />
       <Route path="/phone" element={<PhonePanel />} />
+      <Route path="/effects" element={<EfectosMobile />} />
       <Route
         path="/quest/*"
         element={

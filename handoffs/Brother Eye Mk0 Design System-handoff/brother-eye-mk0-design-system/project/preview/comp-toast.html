@@ -1,0 +1,25 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:22px 24px;display:flex;flex-direction:column;gap:.6rem}
+  .toast{display:flex;align-items:center;gap:.6rem;padding:.75rem 1rem;border-radius:var(--bem-radius-md);
+    border:1px solid;font-size:.88rem;min-width:240px;max-width:380px;box-shadow:var(--bem-shadow-toast)}
+  .icon{font-size:1rem}
+  .x{margin-left:auto;opacity:.6;font-size:1rem}
+  .success{background:rgba(12,35,22,.92);border-color:rgba(45,220,147,.5);color:#b4ffe4}
+  .error{background:rgba(35,8,10,.92);border-color:rgba(255,107,107,.5);color:#ffb4b4}
+  .info{background:rgba(6,18,30,.92);border-color:rgba(130,180,220,.5);color:rgba(200,235,255,.9)}
+</style>
+</head>
+<body>
+  <div class="toast success"><span class="icon">✓</span><span>Caso publicado en el canal.</span><span class="x">×</span></div>
+  <div class="toast error"><span class="icon">✕</span><span>No se pudo subir la imagen.</span><span class="x">×</span></div>
+  <div class="toast info"><span class="icon">ℹ</span><span>Relay GCPD en espera.</span><span class="x">×</span></div>
+</body>
+</html>

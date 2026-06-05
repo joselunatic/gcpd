@@ -1,0 +1,27 @@
+<!-- @dsCard group="Colors" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:22px 24px;
+    display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .sw{border:1px solid var(--bem-border-faint);border-radius:var(--bem-radius-md);
+    padding:14px 14px 12px;display:flex;flex-direction:column;gap:10px;min-height:78px}
+  .chip{height:34px;border-radius:var(--bem-radius-sm);border:1px solid var(--bem-border-faint)}
+  .name{font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--bem-phosphor-bright)}
+  .hex{font-size:.62rem;color:var(--bem-phosphor-mute)}
+</style>
+</head>
+<body>
+  <div class="sw"><div class="chip" style="background:#020709"></div><span class="name">Void</span><span class="hex">#020709 · page</span></div>
+  <div class="sw"><div class="chip" style="background:#0c1511"></div><span class="name">Surface</span><span class="hex">#0c1511 · cards</span></div>
+  <div class="sw"><div class="chip" style="background:#031016"></div><span class="name">Input</span><span class="hex">#031016 · fields</span></div>
+  <div class="sw"><div class="chip" style="background:rgba(4,14,18,.84)"></div><span class="name">Elevated</span><span class="hex">nav / toolbar</span></div>
+  <div class="sw"><div class="chip" style="background:rgba(1,7,10,.72)"></div><span class="name">Sunken</span><span class="hex">nested wells</span></div>
+  <div class="sw"><div class="chip" style="background:rgba(0,0,0,.6)"></div><span class="name">Scrim</span><span class="hex">backdrop</span></div>
+</body>
+</html>

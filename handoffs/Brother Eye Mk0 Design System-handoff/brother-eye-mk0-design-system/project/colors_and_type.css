@@ -1,0 +1,227 @@
+/* ============================================================================
+   BROTHER EYE MK0 — DESIGN TOKENS
+   GCPD Brother Eye Mk0 · Diegetic DM control terminal
+   Phosphor-green CRT operator console. Always dark. Offline fonts only.
+   ----------------------------------------------------------------------------
+   Import this file FIRST. Everything downstream reads from --bem-* custom
+   properties. Raw hex values below are the canonical anchors — do not
+   introduce new green/cyan variants; reach for an existing token.
+   ============================================================================ */
+
+/* ── Offline fonts ──────────────────────────────────────────────────────────
+   All fonts are bundled and loaded locally — no network during RPG sessions.
+   Paths assume this CSS sits beside a /fonts directory. Adjust if relocating. */
+
+@font-face {
+  font-family: 'Share Tech Mono';
+  src: url('fonts/ShareTechMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  /* Display / signage face — the "WOPR" terminal headline font. */
+  font-family: 'WOPR';
+  src: url('fonts/wopr-tweaked.ttf') format('truetype');
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  /* Heavy phosphor face used for boot logos & big readouts. */
+  font-family: 'VT323';
+  src: url('fonts/VT323-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  /* Tight technical mono used for transcript / command output. */
+  font-family: 'Monofonto';
+  src: url('fonts/monofonto.ttf') format('truetype');
+  font-weight: 400;
+  font-display: block;
+}
+
+:root {
+  /* ══ COLOR · SURFACES ════════════════════════════════════════════════════
+     A dark-only depth ladder. Lower = deeper into the chassis. */
+  --bem-bg-void:      #020709; /* page / chassis baseline                     */
+  --bem-bg-surface:   #0c1511; /* cards, modals, search overlay panels        */
+  --bem-bg-input:     #031016; /* text inputs, selects, textareas             */
+  --bem-bg-elevated:  rgba(4, 14, 18, 0.84);  /* sticky nav rail, toolbars    */
+  --bem-bg-sunken:    rgba(1, 7, 10, 0.72);    /* nested wells inside cards    */
+  --bem-bg-scrim:     rgba(0, 0, 0, 0.6);      /* modal / overlay backdrop     */
+
+  /* ══ COLOR · PHOSPHOR (the consolidation) ════════════════════════════════
+     17+ ad-hoc green/cyan values collapse into ONE ramp by luminance.
+     Brightest = headings, mid = primary action, then descending text tints. */
+  --bem-phosphor-bright: #7fffd0; /* H1/H2 headings, key labels — cyan-mint   */
+  --bem-phosphor:        #2ddc93; /* PRIMARY action green, borders, status-ok */
+  --bem-phosphor-text:   #b4ffe4; /* default body text                        */
+  --bem-phosphor-soft:   #defff3; /* high-contrast text on active surfaces    */
+  --bem-phosphor-dim:    rgba(180, 255, 228, 0.65); /* meta / secondary text  */
+  --bem-phosphor-faint:  rgba(180, 255, 228, 0.45); /* group labels, hints    */
+  --bem-phosphor-mute:   rgba(125, 182, 195, 0.50); /* inactive nav, captions */
+
+  /* ══ COLOR · BORDERS ═════════════════════════════════════════════════════ */
+  --bem-border-strong: rgba(124, 255, 178, 0.30); /* card / modal edges       */
+  --bem-border:        rgba(45, 220, 147, 0.22);   /* default hairlines        */
+  --bem-border-faint:  rgba(124, 255, 178, 0.10);  /* internal dividers        */
+  --bem-border-input:  #1e3b42;                    /* form field outlines      */
+
+  /* ══ COLOR · SEMANTIC STATUS ═════════════════════════════════════════════ */
+  --bem-ok:        #2ddc93; /* success / online                               */
+  --bem-warn:      #e8c96a; /* warning / connecting (amber)                   */
+  --bem-danger:    #ff6b6b; /* error / critical (red)                         */
+  --bem-info:      #8cb4ff; /* informational (cool blue)                      */
+  --bem-live:      #5cb5ff; /* live-map tokens / realtime accents             */
+
+  --bem-ok-bg:     rgba(45, 220, 147, 0.08);
+  --bem-warn-bg:   rgba(232, 201, 106, 0.08);
+  --bem-danger-bg: rgba(255, 107, 107, 0.08);
+  --bem-info-bg:   rgba(140, 180, 255, 0.08);
+
+  /* RT-Effects category accents (button families on the ops board) */
+  --bem-fx-alarm:   #ffb0b0;
+  --bem-fx-critical:#ff8080;
+  --bem-fx-hack:    #7dffcf;
+  --bem-fx-fog:     #a8d8f0;
+  --bem-fx-flicker: #ffe99a;
+  --bem-fx-media:   #c0d8ff;
+
+  /* ══ TYPE · FAMILIES ═════════════════════════════════════════════════════ */
+  --bem-font-mono:    'Share Tech Mono', 'IBM Plex Mono', ui-monospace, monospace;
+  --bem-font-display: 'WOPR', 'Share Tech Mono', ui-monospace, monospace;
+  --bem-font-readout: 'VT323', 'Share Tech Mono', monospace;
+  --bem-font-output:  'Monofonto', 'Share Tech Mono', monospace;
+
+  /* ══ TYPE · SCALE (8 semantic levels) ════════════════════════════════════
+     Bloated 25-value scale → 8 rungs. All UI text ≥ 0.65rem.               */
+  --bem-text-display: 1.7rem;   /* section banners                           */
+  --bem-text-h1:      1.25rem;  /* card titles                               */
+  --bem-text-h2:      1rem;     /* panel titles (uppercase)                  */
+  --bem-text-body:    0.95rem;  /* default body / nav                        */
+  --bem-text-sm:      0.85rem;  /* dense controls, secondary                 */
+  --bem-text-xs:      0.78rem;  /* captions, helper text                     */
+  --bem-text-2xs:     0.70rem;  /* group labels, overlines                   */
+  --bem-text-micro:   0.65rem;  /* badges, pills                             */
+
+  /* ══ TYPE · TRACKING & LEADING ═══════════════════════════════════════════ */
+  --bem-track-tight:  0.04em;
+  --bem-track:        0.08em;   /* default uppercase tracking                */
+  --bem-track-wide:   0.12em;
+  --bem-track-banner: 0.18em;   /* section banners / hero overlines          */
+  --bem-leading:      1.35;
+  --bem-leading-tight:1.2;
+
+  /* ══ SPACING · RHYTHM (4px base) ═════════════════════════════════════════
+     45+ arbitrary rem/px values → one 4px-derived ladder.                  */
+  --bem-space-1: 0.25rem;  /*  4px */
+  --bem-space-2: 0.4rem;   /*  ~6px */
+  --bem-space-3: 0.6rem;   /* ~10px */
+  --bem-space-4: 0.9rem;   /* ~14px */
+  --bem-space-5: 1.2rem;   /* ~19px */
+  --bem-space-6: 1.6rem;   /* ~26px */
+  --bem-space-7: 2rem;     /* 32px */
+  --bem-space-8: 3rem;     /* 48px */
+
+  /* ══ RADII (4 values only) ═══════════════════════════════════════════════ */
+  --bem-radius-sm:   4px;   /* badges, chips, small inputs                    */
+  --bem-radius-md:   8px;   /* buttons, inputs, default cards                 */
+  --bem-radius-lg:   12px;  /* modals, toolbars, large panels                 */
+  --bem-radius-pill: 999px; /* nav tabs, status pills, toggles                */
+
+  /* ══ ELEVATION · GLOW + SHADOW ═══════════════════════════════════════════
+     Glow = phosphor bloom (focus / active). Shadow = physical depth.        */
+  --bem-glow-sm:   0 0 10px rgba(45, 220, 147, 0.20);
+  --bem-glow-md:   0 0 14px rgba(45, 220, 147, 0.26);
+  --bem-glow-lg:   0 0 18px rgba(45, 220, 147, 0.31);
+  --bem-glow-cyan: 0 0 12px rgba(124, 255, 178, 0.18);
+
+  --bem-shadow-card:  0 18px 30px rgba(0, 0, 0, 0.40);
+  --bem-shadow-pop:   0 12px 24px rgba(0, 0, 0, 0.35);
+  --bem-shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.60), 0 0 0 1px rgba(124, 255, 178, 0.12);
+  --bem-shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.40);
+
+  /* Focus ring — single source of truth, used app-wide. */
+  --bem-focus-ring: 2px solid rgba(124, 255, 178, 0.95);
+  --bem-focus-halo: 0 0 0 3px rgba(12, 45, 38, 0.8);
+
+  /* ══ GRADIENTS (primary action ONLY — keep subtle) ══════════════════════ */
+  --bem-grad-primary: linear-gradient(180deg,
+                        rgba(45, 220, 147, 0.28) 0%,
+                        rgba(45, 220, 147, 0.12) 100%);
+
+  /* ══ MAP CANVAS ══════════════════════════════════════════════════════════
+     Shared aspect-ratio for the tactical map surface.
+     MUST be identical on both DM and agent views — tokens are stored as
+     percentage coordinates (0–100, relative to this canvas), so any viewer
+     that respects this ratio will position tokens correctly regardless of
+     the actual pixel size of the container.
+     Change this value in ONE place and both surfaces stay in sync.          */
+  --bem-map-aspect: 1.428 / 1;   /* ~10:7, matches the campaign map export  */
+  --bem-map-grid:   32px;         /* phosphor grid-line repeat               */
+
+  /* ══ MOTION ══════════════════════════════════════════════════════════════ */
+  --bem-ease:        ease;
+  --bem-dur-fast:    120ms;  /* hovers, input focus                          */
+  --bem-dur:         180ms;  /* modal / card entrance                        */
+  --bem-dur-slow:    200ms;  /* toast slide                                  */
+}
+
+/* ============================================================================
+   SEMANTIC BASE — opt-in helpers mirroring real DmPanel usage.
+   Apply .bem to a root to inherit the console baseline.
+   ============================================================================ */
+
+.bem {
+  background: var(--bem-bg-void);
+  color: var(--bem-phosphor-text);
+  font-family: var(--bem-font-mono);
+  font-size: var(--bem-text-body);
+  line-height: var(--bem-leading);
+}
+
+.bem h1, .bem .bem-h1 {
+  margin: 0;
+  font-size: var(--bem-text-h1);
+  letter-spacing: var(--bem-track-banner);
+  text-transform: uppercase;
+  color: var(--bem-phosphor-bright);
+}
+
+.bem h2, .bem .bem-h2 {
+  margin: 0;
+  font-size: var(--bem-text-h2);
+  letter-spacing: var(--bem-track-wide);
+  text-transform: uppercase;
+  color: var(--bem-phosphor-bright);
+}
+
+.bem-banner {
+  font-size: var(--bem-text-display);
+  letter-spacing: var(--bem-track-banner);
+  text-transform: uppercase;
+  color: var(--bem-phosphor-text);
+}
+
+.bem-label {
+  font-size: var(--bem-text-2xs);
+  letter-spacing: var(--bem-track-wide);
+  text-transform: uppercase;
+  color: var(--bem-phosphor-mute);
+}
+
+.bem-meta {
+  font-size: var(--bem-text-xs);
+  color: var(--bem-phosphor-dim);
+}
+
+.bem code, .bem .bem-output {
+  font-family: var(--bem-font-output);
+  color: var(--bem-phosphor-bright);
+}
+
+.bem :where(button, input, textarea, select, a, [tabindex]):focus-visible {
+  outline: var(--bem-focus-ring);
+  outline-offset: 2px;
+  box-shadow: var(--bem-focus-halo);
+}

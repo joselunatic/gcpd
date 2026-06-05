@@ -1,0 +1,30 @@
+<!-- @dsCard group="Colors" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:22px 24px;display:flex;flex-direction:column;gap:9px}
+  .hd{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--bem-phosphor-mute);margin-bottom:3px}
+  .ramp{display:flex;flex-direction:column;gap:7px}
+  .row{display:flex;align-items:center;gap:14px}
+  .bar{width:200px;height:26px;border-radius:var(--bem-radius-sm)}
+  .lab{font-size:.72rem;color:var(--bem-phosphor-text)}
+  .hex{font-size:.62rem;color:var(--bem-phosphor-mute);margin-left:auto}
+</style>
+</head>
+<body>
+  <div class="hd">Phosphor ramp · luminance-ordered — one ramp does all green/cyan jobs</div>
+  <div class="ramp">
+    <div class="row"><div class="bar" style="background:#7fffd0"></div><span class="lab">bright — headings</span><span class="hex">#7fffd0</span></div>
+    <div class="row"><div class="bar" style="background:#2ddc93"></div><span class="lab">phosphor — primary / borders</span><span class="hex">#2ddc93</span></div>
+    <div class="row"><div class="bar" style="background:#b4ffe4"></div><span class="lab">text — body</span><span class="hex">#b4ffe4</span></div>
+    <div class="row"><div class="bar" style="background:rgba(180,255,228,.65)"></div><span class="lab">dim — meta</span><span class="hex">a .65</span></div>
+    <div class="row"><div class="bar" style="background:rgba(180,255,228,.45)"></div><span class="lab">faint — labels</span><span class="hex">a .45</span></div>
+    <div class="row"><div class="bar" style="background:rgba(125,182,195,.5)"></div><span class="lab">mute — inactive chrome</span><span class="hex">a .50</span></div>
+  </div>
+</body>
+</html>

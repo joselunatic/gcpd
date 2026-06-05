@@ -1,0 +1,28 @@
+<!-- @dsCard group="Type" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:22px 28px;
+    display:flex;flex-direction:column;gap:9px}
+  .lvl{display:flex;align-items:baseline;gap:16px;border-bottom:1px solid var(--bem-border-faint);padding-bottom:7px}
+  .spec{flex:1;color:var(--bem-phosphor-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meta{font-size:.62rem;letter-spacing:.1em;color:var(--bem-phosphor-mute);text-transform:uppercase;white-space:nowrap}
+  .head{color:var(--bem-phosphor-bright);text-transform:uppercase}
+</style>
+</head>
+<body>
+  <div class="lvl"><span class="spec head" style="font-size:var(--bem-text-display);letter-spacing:.18em">Section Banner</span><span class="meta">display · 1.7</span></div>
+  <div class="lvl"><span class="spec head" style="font-size:var(--bem-text-h1);letter-spacing:.18em">Card Title H1</span><span class="meta">h1 · 1.25</span></div>
+  <div class="lvl"><span class="spec head" style="font-size:var(--bem-text-h2);letter-spacing:.12em">Panel Title H2</span><span class="meta">h2 · 1.0</span></div>
+  <div class="lvl"><span class="spec" style="font-size:var(--bem-text-body)">Body — default operator text</span><span class="meta">body · 0.95</span></div>
+  <div class="lvl"><span class="spec" style="font-size:var(--bem-text-sm)">Small — dense control labels</span><span class="meta">sm · 0.85</span></div>
+  <div class="lvl"><span class="spec" style="font-size:var(--bem-text-xs)">Caption — helper text & hints</span><span class="meta">xs · 0.78</span></div>
+  <div class="lvl"><span class="spec" style="font-size:var(--bem-text-2xs);letter-spacing:.12em;text-transform:uppercase;color:var(--bem-phosphor-mute)">Overline / Group Label</span><span class="meta">2xs · 0.70</span></div>
+  <div class="lvl" style="border:none"><span class="spec" style="font-size:var(--bem-text-micro);letter-spacing:.03em;text-transform:uppercase">Badge / Pill Micro</span><span class="meta">micro · 0.65</span></div>
+</body>
+</html>

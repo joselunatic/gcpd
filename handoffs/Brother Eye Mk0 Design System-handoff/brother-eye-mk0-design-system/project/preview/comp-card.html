@@ -1,0 +1,29 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:22px 24px}
+  .card{background:var(--bem-bg-surface);border:1px solid var(--bem-border-strong);
+    border-radius:var(--bem-radius-lg);padding:20px;box-shadow:var(--bem-shadow-card)}
+  h2{margin:0 0 .5rem;font-size:1rem;letter-spacing:.16em;text-transform:uppercase;color:var(--bem-phosphor-bright)}
+  .meta{font-size:.72rem;letter-spacing:.06em;color:var(--bem-phosphor-mute);margin-bottom:14px}
+  .body{font-size:.85rem;color:var(--bem-phosphor-text);line-height:1.5}
+  .foot{display:flex;gap:9px;margin-top:16px}
+  .dot{display:inline-flex;align-items:center;gap:7px;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:#2ddc93}
+  .dot::before{content:"";width:8px;height:8px;border-radius:999px;background:#2ddc93;box-shadow:0 0 6px #2ddc93}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h2>Caso · El Hombre Que Ríe</h2>
+    <div class="meta">#079-A · KNIGHTFALL-C · <span class="dot">Activo</span></div>
+    <div class="body">&gt; Tres víctimas, idéntica sonrisa post-mortem. Toxina sin identificar.
+      Oracle relay en espera. El terminal recomienda contención inmediata del Distrito Este.</div>
+  </div>
+</body>
+</html>

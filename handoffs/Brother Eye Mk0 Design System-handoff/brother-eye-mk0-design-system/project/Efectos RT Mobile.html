@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Efectos RT — Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+/* ── Tokens (matches tokens.css) ────────────────────────────────────────── */
+:root {
+  --bem-bg-void:      #020709;
+  --bem-bg-surface:   #0c1511;
+  --bem-bg-input:     #031016;
+  --bem-bg-elevated:  rgba(4,14,18,0.84);
+  --bem-bg-scrim:     rgba(0,0,0,0.65);
+  --bem-phosphor-bright: #7fffd0;
+  --bem-phosphor:        #2ddc93;
+  --bem-phosphor-text:   #b4ffe4;
+  --bem-phosphor-dim:    rgba(180,255,228,0.65);
+  --bem-phosphor-faint:  rgba(180,255,228,0.45);
+  --bem-border-strong: rgba(124,255,178,0.30);
+  --bem-border:        rgba(45,220,147,0.22);
+  --bem-border-faint:  rgba(124,255,178,0.10);
+  --bem-border-input:  #1e3b42;
+  --bem-ok:        #2ddc93;
+  --bem-ok-bg:     rgba(45,220,147,0.08);
+  --bem-warn:      #e8c96a;
+  --bem-danger:    #ff6b6b;
+  --bem-live:      #5cb5ff;
+  --bem-fx-alarm:   #ffb0b0;
+  --bem-fx-critical:#ff8080;
+  --bem-fx-hack:    #7dffcf;
+  --bem-fx-fog:     #a8d8f0;
+  --bem-fx-flicker: #ffe99a;
+  --bem-fx-media:   #c0d8ff;
+  --bem-font-mono:    'Share Tech Mono', ui-monospace, monospace;
+  --bem-font-display: 'Share Tech Mono', ui-monospace, monospace;
+  --bem-text-display: 1.5rem;
+  --bem-text-h1: 1.25rem;
+  --bem-text-h2: 1rem;
+  --bem-text-body: 0.95rem;
+  --bem-text-sm: 0.85rem;
+  --bem-text-xs: 0.78rem;
+  --bem-text-2xs: 0.70rem;
+  --bem-track-wide: 0.12em;
+  --bem-track-banner: 0.18em;
+  --bem-track: 0.08em;
+  --bem-leading: 1.35;
+  --bem-space-1: 0.25rem;
+  --bem-space-2: 0.4rem;
+  --bem-space-3: 0.6rem;
+  --bem-space-4: 0.9rem;
+  --bem-space-5: 1.2rem;
+  --bem-space-6: 1.6rem;
+  --bem-radius-sm: 4px;
+  --bem-radius-md: 8px;
+  --bem-radius-lg: 12px;
+  --bem-radius-pill: 999px;
+  --bem-glow-sm:  0 0 10px rgba(45,220,147,0.20);
+  --bem-glow-md:  0 0 14px rgba(45,220,147,0.26);
+  --bem-shadow-modal: 0 24px 64px rgba(0,0,0,0.60),0 0 0 1px rgba(124,255,178,0.12);
+  --bem-dur: 180ms;
+  --bem-ease: ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #010406;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  font-family: var(--bem-font-mono);
+  padding: 16px 0;
+}
+
+/* ── Phone shell ─────────────────────────────────────────────────────────── */
+.phone {
+  width: 390px;
+  height: 844px;
+  transform-origin: top center;
+  transform: scale(min(1, calc((100dvh - 32px) / 844px)));
+  background: #000;
+  border-radius: 50px;
+  box-shadow: 0 0 0 1px #1a1a1a, 0 0 0 3px #111, 0 32px 80px rgba(0,0,0,0.85), 0 0 0 3.5px #222;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* notch */
+.phone::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 120px; height: 30px;
+  background: #000;
+  border-radius: 0 0 20px 20px;
+  z-index: 999;
+}
+
+.phone-inner {
+  flex: 1;
+  overflow: hidden;
+  border-radius: 46px;
+  background: var(--bem-bg-void);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding-top: 30px; /* notch */
+}
+
+/* status bar */
+.phone-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 24px 0;
+  height: 26px;
+  position: relative;
+  z-index: 100;
+  flex-shrink: 0;
+}
+.phone-statusbar__time {
+  font-size: 11px;
+  color: rgba(180,255,228,0.7);
+  letter-spacing: 0.05em;
+}
+.phone-statusbar__icons {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 10px;
+  color: rgba(180,255,228,0.6);
+}
+
+/* ── App root ────────────────────────────────────────────────────────────── */
+#app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
+.ep-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--bem-space-3);
+  padding: 0 var(--bem-space-4);
+  height: 50px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--bem-border-faint);
+  background: var(--bem-bg-surface);
+}
+.ep-topbar__title {
+  font-size: var(--bem-text-h2);
+  letter-spacing: var(--bem-track-banner);
+  color: var(--bem-phosphor-bright);
+  flex: 1;
+}
+.ep-topbar__status {
+  font-size: 0.68rem;
+  letter-spacing: var(--bem-track-wide);
+  padding: 2px 8px;
+  border-radius: var(--bem-radius-pill);
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.ep-topbar__status--online     { color: var(--bem-ok); }
+.ep-topbar__status--connecting { color: var(--bem-warn); }
+.ep-topbar__status--offline    { color: var(--bem-phosphor-faint); }
+.ep-topbar__agents {
+  font-size: 0.68rem;
+  color: var(--bem-phosphor-faint);
+  white-space: nowrap;
+}
+
+/* ── Draft badge ─────────────────────────────────────────────────────────── */
+.ep-draft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bem-space-3);
+  padding: var(--bem-space-2) var(--bem-space-4);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--bem-border-faint);
+  background: var(--bem-bg-elevated);
+  border-left: 3px solid transparent;
+  animation: slideDown 0.18s ease both;
+}
+@keyframes slideDown {
+  from { opacity:0; transform: translateY(-6px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+.ep-draft--alarm    { border-left-color: rgba(255,80,80,0.75); }
+.ep-draft--hack     { border-left-color: rgba(0,200,130,0.75); }
+.ep-draft--fog      { border-left-color: rgba(90,160,200,0.65); }
+.ep-draft--critical { border-left-color: rgba(255,100,60,0.75); }
+.ep-draft--flicker  { border-left-color: rgba(255,220,80,0.65); }
+.ep-draft--media    { border-left-color: rgba(140,180,255,0.65); }
+.ep-draft__left { display: flex; align-items: baseline; gap: var(--bem-space-3); }
+.ep-draft__effect {
+  font-size: var(--bem-text-sm);
+  letter-spacing: var(--bem-track-wide);
+  color: var(--bem-phosphor-text);
+}
+.ep-draft__duration {
+  font-size: 0.68rem;
+  color: var(--bem-phosphor-faint);
+}
+.ep-chip {
+  font-size: 0.65rem;
+  letter-spacing: var(--bem-track-wide);
+  padding: 2px 8px;
+  border-radius: var(--bem-radius-pill);
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.ep-chip--idle    { color: var(--bem-phosphor-faint); }
+.ep-chip--ready   { color: var(--bem-ok); }
+.ep-chip--pending { color: var(--bem-warn); }
+.ep-chip--active  { color: var(--bem-live); }
+
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+.ep-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--bem-border-faint);
+  background: var(--bem-bg-surface);
+}
+.ep-tab {
+  flex: 1;
+  padding: var(--bem-space-3) var(--bem-space-2);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--bem-phosphor-faint);
+  font-family: var(--bem-font-mono);
+  font-size: 0.66rem;
+  letter-spacing: var(--bem-track-wide);
+  cursor: pointer;
+  min-height: 42px;
+  transition: color 180ms, border-color 180ms;
+}
+.ep-tab--active {
+  color: var(--bem-phosphor-bright);
+  border-bottom-color: var(--bem-phosphor);
+}
+
+/* ── Content ─────────────────────────────────────────────────────────────── */
+.ep-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--bem-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--bem-space-3);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+.ep-content::-webkit-scrollbar { width: 3px; }
+.ep-content::-webkit-scrollbar-track { background: transparent; }
+.ep-content::-webkit-scrollbar-thumb { background: var(--bem-border-faint); }
+
+/* ── Triggers ────────────────────────────────────────────────────────────── */
+.ep-triggers { display:flex; flex-direction:column; gap: var(--bem-space-3); }
+
+.ep-trigger {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: var(--bem-space-4) var(--bem-space-5);
+  min-height: 72px;
+  background: var(--bem-bg-surface);
+  border: 1px solid var(--bem-border-faint);
+  border-radius: var(--bem-radius-md);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 180ms, border-color 180ms, box-shadow 180ms;
+  -webkit-tap-highlight-color: transparent;
+}
+.ep-trigger:disabled { opacity: 0.35; cursor: not-allowed; }
+.ep-trigger__name {
+  font-size: var(--bem-text-h2);
+  letter-spacing: var(--bem-track-wide);
+  line-height: 1;
+}
+.ep-trigger__sub {
+  font-size: 0.72rem;
+  letter-spacing: var(--bem-track);
+  opacity: 0.55;
+}
+
+.ep-trigger--alarm    { border-color: rgba(255,80,80,0.28); }
+.ep-trigger--hack     { border-color: rgba(0,200,130,0.28); }
+.ep-trigger--fog      { border-color: rgba(90,160,200,0.28); }
+.ep-trigger--critical { border-color: rgba(255,100,60,0.28); }
+.ep-trigger--flicker  { border-color: rgba(255,220,80,0.28); }
+
+.ep-trigger--alarm    .ep-trigger__name { color: var(--bem-fx-alarm); }
+.ep-trigger--hack     .ep-trigger__name { color: var(--bem-fx-hack); }
+.ep-trigger--fog      .ep-trigger__name { color: var(--bem-fx-fog); }
+.ep-trigger--critical .ep-trigger__name { color: var(--bem-fx-critical); }
+.ep-trigger--flicker  .ep-trigger__name { color: var(--bem-fx-flicker); }
+
+.ep-trigger--alarm:not(:disabled):active    { background: rgba(255,60,60,0.08); border-color: rgba(255,80,80,0.55); }
+.ep-trigger--hack:not(:disabled):active     { background: rgba(0,200,130,0.08); border-color: rgba(0,200,130,0.55); }
+.ep-trigger--fog:not(:disabled):active      { background: rgba(90,160,200,0.08); border-color: rgba(90,160,200,0.55); }
+.ep-trigger--critical:not(:disabled):active { background: rgba(255,100,60,0.08); border-color: rgba(255,100,60,0.55); }
+.ep-trigger--flicker:not(:disabled):active  { background: rgba(255,220,80,0.08); border-color: rgba(255,220,80,0.55); }
+
+/* ── Library ─────────────────────────────────────────────────────────────── */
+.ep-library { display:flex; flex-direction:column; gap: var(--bem-space-3); }
+.ep-media-item {
+  display: flex; align-items: center; gap: var(--bem-space-3);
+  padding: var(--bem-space-3) var(--bem-space-4);
+  background: var(--bem-bg-surface); border: 1px solid var(--bem-border-faint);
+  border-radius: var(--bem-radius-md); min-height: 60px;
+}
+.ep-media-item--selected { border-color: var(--bem-border-strong); background: var(--bem-ok-bg); }
+.ep-media-item__info { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.ep-media-item__title { font-size: var(--bem-text-sm); color: var(--bem-phosphor-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ep-media-item__desc  { font-size:0.68rem; color: var(--bem-phosphor-faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ep-media-item__actions { display:flex; gap: var(--bem-space-2); flex-shrink:0; }
+
+.ep-empty { font-size: var(--bem-text-xs); color: var(--bem-phosphor-faint); padding: var(--bem-space-5) 0; text-align:center; }
+
+/* ── Direct ──────────────────────────────────────────────────────────────── */
+.ep-direct { display:flex; flex-direction:column; gap: var(--bem-space-3); }
+.ep-label { display:block; font-size: var(--bem-text-xs); letter-spacing: var(--bem-track-wide); color: var(--bem-phosphor-faint); }
+.ep-input {
+  background: var(--bem-bg-input); border: 1px solid var(--bem-border-input);
+  color: var(--bem-phosphor-text); font-family: var(--bem-font-mono);
+  font-size: var(--bem-text-sm); padding: var(--bem-space-3) var(--bem-space-4);
+  border-radius: var(--bem-radius-sm); width:100%; min-height:46px; outline:none;
+  -webkit-appearance:none;
+}
+.ep-input:focus { border-color: var(--bem-border-strong); }
+.ep-radio-group { display:flex; gap: var(--bem-space-5); }
+.ep-radio { display:flex; align-items:center; gap: var(--bem-space-2); font-size: var(--bem-text-sm); color: var(--bem-phosphor-dim); cursor:pointer; min-height:44px; }
+.ep-note { font-size:0.68rem; color: var(--bem-phosphor-faint); line-height: var(--bem-leading); padding: var(--bem-space-2) var(--bem-space-3); border-left: 2px solid var(--bem-border-faint); }
+
+/* ── Log ─────────────────────────────────────────────────────────────────── */
+.ep-log { margin-top: var(--bem-space-3); border-top:1px solid var(--bem-border-faint); padding-top: var(--bem-space-4); }
+.ep-log__label { font-size:0.65rem; letter-spacing: var(--bem-track-wide); color: var(--bem-phosphor-faint); margin-bottom: var(--bem-space-2); }
+.ep-log__entry { display:flex; gap: var(--bem-space-3); font-size:0.65rem; letter-spacing: var(--bem-track); margin-bottom: 4px; }
+.ep-log__ts     { color: var(--bem-phosphor-faint); flex-shrink:0; }
+.ep-log__effect { color: var(--bem-phosphor-dim); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.ep-btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  padding: var(--bem-space-3) var(--bem-space-5);
+  border: 1px solid var(--bem-border); border-radius: var(--bem-radius-sm);
+  background: transparent; color: var(--bem-phosphor-text);
+  font-family: var(--bem-font-mono); font-size: var(--bem-text-xs);
+  letter-spacing: var(--bem-track-wide); cursor:pointer; min-height:44px;
+  white-space:nowrap; transition: background 180ms, border-color 180ms;
+  -webkit-tap-highlight-color: transparent;
+}
+.ep-btn:disabled { opacity:.30; cursor:not-allowed; }
+
+.ep-btn--launch {
+  flex:1; min-height:54px;
+  border-color: rgba(45,220,147,0.55); color: var(--bem-phosphor-bright);
+  font-size: var(--bem-text-body); letter-spacing: var(--bem-track-banner);
+  background: rgba(45,220,147,0.06);
+}
+.ep-btn--launch:not(:disabled):active { background: rgba(45,220,147,0.14); box-shadow: var(--bem-glow-md); }
+
+.ep-btn--clear {
+  min-height:54px; padding:0 var(--bem-space-6);
+  border-color: var(--bem-border-faint); color: var(--bem-phosphor-faint);
+  font-size: var(--bem-text-sm); letter-spacing: var(--bem-track-banner);
+}
+.ep-btn--clear:not(:disabled):active { color: var(--bem-phosphor-dim); border-color: var(--bem-border); }
+
+.ep-btn--alarm { border-color: rgba(255,80,80,0.50); color: var(--bem-fx-alarm); letter-spacing: var(--bem-track-wide); }
+.ep-btn--alarm:not(:disabled):active { background: rgba(255,60,60,0.09); }
+
+.ep-btn--media { width:100%; border-color: rgba(140,180,255,0.45); color: var(--bem-fx-media); }
+.ep-btn--media:not(:disabled):active { background: rgba(140,180,255,0.07); }
+
+.ep-btn--sm { min-height:36px; padding: var(--bem-space-2) var(--bem-space-3); font-size:0.68rem; }
+
+.ep-btn--danger { border-color: rgba(255,107,107,0.35); color: var(--bem-danger); }
+.ep-btn--danger:not(:disabled):active { background: rgba(255,107,107,0.07); }
+
+.ep-btn--ghost { border-color:transparent; color: var(--bem-phosphor-faint); font-size: var(--bem-text-xs); }
+.ep-btn--ghost:not(:disabled):active { color: var(--bem-phosphor-dim); }
+
+/* ── Bottom bar ──────────────────────────────────────────────────────────── */
+.ep-bottom {
+  flex-shrink:0; padding: var(--bem-space-3) var(--bem-space-4) calc(var(--bem-space-4) + env(safe-area-inset-bottom,0px));
+  border-top:1px solid var(--bem-border); background: var(--bem-bg-surface);
+  display:flex; flex-direction:column; gap: var(--bem-space-3);
+}
+.ep-duration { display:flex; align-items:center; gap: var(--bem-space-3); }
+.ep-duration__val { font-size: var(--bem-text-sm); color: var(--bem-phosphor-dim); min-width:30px; text-align:right; }
+.ep-duration__slider { flex:1; accent-color: var(--bem-phosphor); cursor:pointer; height:4px; }
+.ep-duration__inf { font-size: var(--bem-text-body); color: var(--bem-phosphor-faint); min-width:16px; text-align:center; transition: color 180ms; }
+.ep-duration__inf.is-active { color: var(--bem-phosphor-bright); }
+.ep-bottom__actions { display:flex; gap: var(--bem-space-3); }
+
+/* ── Bottom sheet ────────────────────────────────────────────────────────── */
+.ep-sheet-backdrop {
+  position:absolute; inset:0; background: rgba(0,0,0,0.65); z-index:200;
+  display:flex; align-items:flex-end; justify-content:center;
+}
+.ep-sheet {
+  background: var(--bem-bg-surface); border:1px solid var(--bem-border);
+  border-bottom:none; border-radius: var(--bem-radius-lg) var(--bem-radius-lg) 0 0;
+  padding: var(--bem-space-4) var(--bem-space-5) var(--bem-space-6);
+  width:100%; display:flex; flex-direction:column; gap: var(--bem-space-4);
+  box-shadow: var(--bem-shadow-modal);
+  animation: sheetIn 180ms ease both;
+}
+@keyframes sheetIn {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.ep-sheet__handle { width:36px; height:4px; background: var(--bem-border); border-radius: var(--bem-radius-pill); margin:0 auto var(--bem-space-2); }
+.ep-sheet__header { display:flex; align-items:center; justify-content:space-between; font-size: var(--bem-text-sm); letter-spacing: var(--bem-track-wide); color: var(--bem-phosphor-bright); }
+.ep-sheet__close { background:transparent; border:none; color: var(--bem-phosphor-faint); font-size: var(--bem-text-body); cursor:pointer; min-height:44px; min-width:44px; display:flex; align-items:center; justify-content:center; }
+.ep-sheet__body { display:flex; flex-direction:column; gap: var(--bem-space-3); }
+.ep-sheet__actions { display:flex; gap: var(--bem-space-3); justify-content:flex-end; margin-top: var(--bem-space-2); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="phone-inner">
+    <div class="phone-statusbar">
+      <span class="phone-statusbar__time" id="clock">22:34</span>
+      <div class="phone-statusbar__icons">
+        <span>▲▲▲</span>
+        <span>WiFi</span>
+        <span>⬛</span>
+      </div>
+    </div>
+    <div id="app"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel">
+const { useState, useCallback, useRef, useEffect } = React;
+
+const DURATION_INFINITY_SEC = 60;
+const EFFECT_LABELS = {
+  alarm:'ALARMA', hack:'HACKEO SEVERO', fog:'NIEBLA',
+  critical:'CRÍTICO', flicker:'FLICKER', media:'MEDIA', clear:'CLEAR',
+};
+const toLabel = (e='') => EFFECT_LABELS[e] ?? String(e).toUpperCase();
+
+// Simulated library
+const MOCK_LIBRARY = [
+  { id:'v1', title:'Alerta pasillo 7', description:'Zona comprometida', kind:'video', url:'' },
+  { id:'v2', title:'Interferencia red eléctrica', description:'Corte sector B', kind:'video', url:'' },
+  { id:'v3', title:'Expediente RX-08', description:'Clasificado alto secreto', kind:'image', url:'' },
+];
+
+function EfectosApp() {
+  // ── State ─────────────────────────────────────────────────────────────────
+  const [wsState]       = useState('online');    // simulated online
+  const [agentCount]    = useState(2);
+  const [agentState, setAgentState] = useState({ label:'SIN EMISIÓN', tone:'idle' });
+  const [durationSec, setDurationSec] = useState(8);
+  const [draft, setDraft]   = useState(null);
+  const [log, setLog]       = useState([]);
+  const [activeTab, setActiveTab] = useState('triggers');
+
+  const [alarmModalOpen, setAlarmModalOpen] = useState(false);
+  const [alarmDraft, setAlarmDraft]         = useState('ALERTA DE SEGURIDAD');
+  const alarmInputRef = useRef(null);
+
+  const [library]   = useState(MOCK_LIBRARY);
+  const [selectedId, setSelectedId] = useState('');
+
+  const [directUrl,     setDirectUrl]     = useState('');
+  const [directType,    setDirectType]    = useState('video');
+  const [directCaption, setDirectCaption] = useState('');
+
+  const getDurationMs = useCallback(() => {
+    const s = Number(durationSec);
+    if (s >= DURATION_INFINITY_SEC) return 0;
+    return Math.max(0, Math.min(300, s)) * 1000;
+  }, [durationSec]);
+
+  const durationIsInfinite = getDurationMs() === 0;
+  const durationLabel      = durationIsInfinite ? '∞' : `${durationSec}s`;
+
+  const prepareDraft = useCallback((effect, options={}) => {
+    const ms = getDurationMs();
+    const opts = effect === 'media'
+      ? { ...options, loop: ms===0, duration: ms }
+      : { ...options, duration: ms };
+    setDraft({ effect, options: opts });
+    setAgentState({ label:'LISTO PARA LANZAR', tone:'ready' });
+  }, [getDurationMs]);
+
+  const launchDraft = useCallback(() => {
+    if (!draft) return;
+    const ts = new Date().toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    setLog(prev => [{ ts, effect: draft.effect, options: draft.options }, ...prev.slice(0,19)]);
+    setAgentState({ label:'ENVIADO · ESPERANDO AGENTE', tone:'pending' });
+    // Simulate ack after 1.2s
+    setTimeout(() => {
+      setAgentState({ label:`${toLabel(draft.effect)} · RUNNING · ${agentCount} AG`, tone:'active' });
+    }, 1200);
+  }, [draft, agentCount]);
+
+  const clearEffects = useCallback(() => {
+    const ts = new Date().toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    setDraft(null);
+    setAgentState({ label:'SIN EMISIÓN', tone:'idle' });
+    setLog(prev => [{ ts, effect:'CLEAR', options:{} }, ...prev.slice(0,19)]);
+  }, []);
+
+  const openAlarmModal = useCallback(() => {
+    setAlarmModalOpen(true);
+    setTimeout(() => { alarmInputRef.current?.focus(); alarmInputRef.current?.select(); }, 80);
+  }, []);
+
+  const confirmAlarm = useCallback(() => {
+    const msg = alarmDraft.trim() || 'ALERTA DE SEGURIDAD';
+    setAlarmDraft(msg);
+    setAlarmModalOpen(false);
+    prepareDraft('alarm', { message: msg });
+  }, [alarmDraft, prepareDraft]);
+
+  const wsOnline  = wsState === 'online';
+  const canLaunch = wsOnline && !!draft;
+
+  // Clock
+  useEffect(() => {
+    const tick = () => {
+      const el = document.getElementById('clock');
+      if (el) el.textContent = new Date().toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit' });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <>
+      {/* Top bar */}
+      <div className="ep-topbar">
+        <span className="ep-topbar__title">EFECTOS RT</span>
+        <span className={`ep-topbar__status ep-topbar__status--${wsState}`}>
+          {wsOnline ? '● ONLINE' : '○ OFFLINE'}
+        </span>
+        <span className="ep-topbar__agents">{agentCount} agentes</span>
+      </div>
+
+      {/* Draft badge */}
+      {draft && (
+        <div className={`ep-draft ep-draft--${draft.effect}`}>
+          <div className="ep-draft__left">
+            <span className="ep-draft__effect">{toLabel(draft.effect)}</span>
+            <span className="ep-draft__duration">
+              {durationIsInfinite ? '∞' : `${Math.round((draft.options?.duration||0)/1000)}s`}
+            </span>
+          </div>
+          <span className={`ep-chip ep-chip--${agentState.tone}`}>{agentState.label}</span>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="ep-tabs">
+        {[['triggers','DISPARADORES'],['library','BIBLIOTECA'],['direct','DIRECTO']].map(([id,label]) => (
+          <button key={id} className={`ep-tab${activeTab===id?' ep-tab--active':''}`}
+            onClick={()=>setActiveTab(id)}>{label}</button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="ep-content">
+
+        {activeTab === 'triggers' && (
+          <div className="ep-triggers">
+            {[
+              ['alarm','ALARMA','Alerta + sirena · texto configurable','alarm',openAlarmModal],
+              ['hack','HACKEO SEVERO','Glitch visual + ruido blanco','hack',()=>prepareDraft('hack',{intensity:'heavy'})],
+              ['fog','NIEBLA','Señal degradada · blur','fog',()=>prepareDraft('fog')],
+              ['critical','CRÍTICO','Alarma + hackeo combinados','critical',()=>prepareDraft('critical')],
+              ['flicker','FLICKER','Parpadeo de pantalla','flicker',()=>prepareDraft('flicker')],
+            ].map(([id,name,sub,cls,action]) => (
+              <button key={id} className={`ep-trigger ep-trigger--${cls}`}
+                disabled={!wsOnline} onClick={action}>
+                <span className="ep-trigger__name">{name}</span>
+                <span className="ep-trigger__sub">{sub}</span>
+              </button>
+            ))}
+            {log.length > 0 && (
+              <div className="ep-log">
+                <div className="ep-log__label">HISTORIAL</div>
+                {log.slice(0,5).map((e,i)=>(
+                  <div key={i} className="ep-log__entry">
+                    <span className="ep-log__ts">[{e.ts}]</span>
+                    <span className="ep-log__effect">{toLabel(e.effect)}</span>
+                    {e.options?.duration > 0 && <span className="ep-log__ts">{e.options.duration/1000}s</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'library' && (
+          <div className="ep-library">
+            {library.map(media => {
+              const isSel = media.id === selectedId;
+              return (
+                <div key={media.id} className={`ep-media-item${isSel?' ep-media-item--selected':''}`}>
+                  <div className="ep-media-item__info">
+                    <strong className="ep-media-item__title">{media.title}</strong>
+                    <span className="ep-media-item__desc">{media.description}</span>
+                  </div>
+                  <div className="ep-media-item__actions">
+                    <button className="ep-btn ep-btn--sm ep-btn--media"
+                      disabled={!wsOnline}
+                      onClick={()=>{ setSelectedId(media.id); prepareDraft('media',{url:media.url,mediaType:media.kind==='video'?'video':'image',caption:media.title}); }}>
+                      PREPARAR
+                    </button>
+                    <button className="ep-btn ep-btn--sm ep-btn--danger">✕</button>
+                  </div>
+                </div>
+              );
+            })}
+            <button className="ep-btn ep-btn--ghost" style={{alignSelf:'flex-start'}}>
+              ⬆ Subir video a biblioteca
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'direct' && (
+          <div className="ep-direct">
+            <label className="ep-label">URL del recurso (relativa al servidor)</label>
+            <input className="ep-input" type="text"
+              placeholder="/uploads/rt-effects-media/videos/mi-video.mp4"
+              value={directUrl} onChange={e=>setDirectUrl(e.target.value)} />
+            <div className="ep-radio-group">
+              <label className="ep-radio">
+                <input type="radio" name="dt" value="image" checked={directType==='image'} onChange={()=>setDirectType('image')} />
+                Imagen
+              </label>
+              <label className="ep-radio">
+                <input type="radio" name="dt" value="video" checked={directType==='video'} onChange={()=>setDirectType('video')} />
+                Video
+              </label>
+            </div>
+            <label className="ep-label">Pie de pantalla (opcional)</label>
+            <input className="ep-input" type="text"
+              placeholder="Expediente #X — Clasificado"
+              value={directCaption} onChange={e=>setDirectCaption(e.target.value)} />
+            <button className="ep-btn ep-btn--media"
+              disabled={!wsOnline || !directUrl.trim()}
+              onClick={()=>prepareDraft('media',{url:directUrl.trim(),mediaType:directType,caption:directCaption.trim()})}>
+              PREPARAR MEDIA
+            </button>
+            <div className="ep-note">
+              La pestaña de agente no puede cerrar ni anular efectos. Control exclusivo del DM.
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* Bottom bar */}
+      <div className="ep-bottom">
+        <div className="ep-duration">
+          <span className="ep-duration__val">{durationLabel}</span>
+          <input type="range" className="ep-duration__slider"
+            min="1" max={DURATION_INFINITY_SEC} step="1" value={durationSec}
+            onChange={e=>setDurationSec(Number(e.target.value))} />
+          <span className={`ep-duration__inf${durationIsInfinite?' is-active':''}`}>∞</span>
+        </div>
+        <div className="ep-bottom__actions">
+          <button className="ep-btn ep-btn--launch" disabled={!canLaunch} onClick={launchDraft}>
+            LANZAR
+          </button>
+          <button className="ep-btn ep-btn--clear" disabled={!wsOnline} onClick={clearEffects}>
+            LIMPIAR
+          </button>
+        </div>
+      </div>
+
+      {/* Alarm modal */}
+      {alarmModalOpen && (
+        <div className="ep-sheet-backdrop" onClick={()=>setAlarmModalOpen(false)}>
+          <div className="ep-sheet" onClick={e=>e.stopPropagation()}
+            role="dialog" aria-modal="true">
+            <div className="ep-sheet__handle" />
+            <div className="ep-sheet__header">
+              <strong>CONFIGURAR ALARMA</strong>
+              <button className="ep-sheet__close" onClick={()=>setAlarmModalOpen(false)}>✕</button>
+            </div>
+            <form className="ep-sheet__body"
+              onSubmit={e=>{ e.preventDefault(); confirmAlarm(); }}>
+              <label className="ep-label">Texto en pantalla del agente</label>
+              <input ref={alarmInputRef} className="ep-input" type="text"
+                maxLength={96} value={alarmDraft}
+                onChange={e=>setAlarmDraft(e.target.value)}
+                onKeyDown={e=>{ if(e.key==='Escape') setAlarmModalOpen(false); }} />
+              <div className="ep-note">
+                Se mostrará en primer plano en la TUI del agente hasta limpiar.
+              </div>
+              <div className="ep-sheet__actions">
+                <button type="button" className="ep-btn ep-btn--sm"
+                  onClick={()=>setAlarmModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="ep-btn ep-btn--alarm">PREPARAR ALARMA</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(<EfectosApp />);
+</script>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 80 56" xmlns="http://www.w3.org/2000/svg">
+    <rect width="80" height="56" fill="#020709"/>
+    <rect x="28" y="4" width="24" height="48" rx="4" fill="#0c1511" stroke="#2ddc93" stroke-width="0.8"/>
+    <rect x="33" y="8" width="14" height="3" rx="1" fill="#2ddc93" opacity=".7"/>
+    <rect x="30" y="14" width="20" height="6" rx="2" fill="#1a1a2e" stroke="#ffb0b0" stroke-width="0.5"/>
+    <rect x="30" y="22" width="20" height="6" rx="2" fill="#1a1a2e" stroke="#7dffcf" stroke-width="0.5"/>
+    <rect x="30" y="30" width="20" height="6" rx="2" fill="#1a1a2e" stroke="#a8d8f0" stroke-width="0.5"/>
+    <rect x="30" y="40" width="20" height="6" rx="2" fill="rgba(45,220,147,0.15)" stroke="#2ddc93" stroke-width="0.8"/>
+  </svg>
+</template>
+</body>
+</html>

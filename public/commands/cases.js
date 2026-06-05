@@ -14,7 +14,7 @@ import { attemptEntityUnlock } from "/utils/accessFlow.js";
 import { getStatusContext } from "/utils/status.js";
 import { isPortraitNarrow, getWrapLimit } from "/utils/portrait.js";
 import { waitForSelection } from "/utils/selection.js";
-import { paginateSelectableItems } from "/utils/pagination.js";
+import { paginateSelectableItems, getTerminalLineCapacity, countVisualLines } from "/utils/pagination.js";
 import { SYMBOLS, buildHeaderLines, buildFooterLines, titleLine, mergePartsLine, toParts, trimParts, padParts } from "/utils/tui.js";
 import { normalizePoisClient, getPoiName } from "/utils/poiContract.js";
 
@@ -468,35 +468,138 @@ function buildDetailBody(item, evaluation, cases, poisIndex) {
   return lines;
 }
 
+function waitForCaseDetailAction({
+  allowMap = false,
+  allowDescend = false,
+  allowTap = false,
+  canScrollUp = false,
+  canScrollDown = false,
+} = {}) {
+  return new Promise((resolve) => {
+    const options = { capture: true };
+    let resolved = false;
+
+    const cleanup = () => {
+      if (resolved) return;
+      resolved = true;
+      document.removeEventListener("keydown", keyHandler, options);
+      if (allowTap) {
+        const terminal = document.querySelector(".terminal");
+        if (terminal) terminal.removeEventListener("pointerdown", tapHandler, options);
+      }
+    };
+
+    const finish = (value) => {
+      cleanup();
+      resolve(value);
+    };
+
+    const keyHandler = (event) => {
+      const key = event?.key || event?.code || "";
+      const lower = String(key).toLowerCase();
+      if ((key === "ArrowUp" || key === "Up") && canScrollUp) {
+        event.preventDefault();
+        finish("up");
+        return;
+      }
+      if ((key === "ArrowDown" || key === "Down") && canScrollDown) {
+        event.preventDefault();
+        finish("down");
+        return;
+      }
+      if (allowMap && (lower === "m")) {
+        event.preventDefault();
+        finish("map");
+        return;
+      }
+      if (allowDescend && (lower === "s")) {
+        event.preventDefault();
+        finish("subcases");
+        return;
+      }
+      if (
+        key === "Enter" ||
+        key === "Return" ||
+        key === "NumpadEnter" ||
+        key === "Escape" ||
+        lower === "b" ||
+        lower === "x"
+      ) {
+        event.preventDefault();
+        finish("back");
+      }
+    };
+
+    const tapHandler = (event) => {
+      if (event.pointerType !== "touch") return;
+      event.preventDefault();
+      finish("back");
+    };
+
+    document.addEventListener("keydown", keyHandler, options);
+    if (allowTap) {
+      const terminal = document.querySelector(".terminal");
+      if (terminal) terminal.addEventListener("pointerdown", tapHandler, options);
+    }
+  });
+}
+
 async function renderCaseDetails(item, evaluation, cases, poisIndex) {
   const canDescend = (getNodeType(item) === "container" || getNodeType(item) === "mixed") && hasChildren(cases, item.id);
   const relatedPoiIds = resolveCaseLocations(item, poisIndex).map((entry) => entry.poiId);
   const hasCaseMap = relatedPoiIds.length > 0;
+  const detailLines = buildDetailBody(item, evaluation, cases, poisIndex);
+  const capacity = getTerminalLineCapacity(24);
+  let offset = 0;
   while (true) {
+    const staticFooterLines = [{
+      parts: [
+        { text: "ACTIONS: ", className: "tui-system" },
+        ...(hasCaseMap
+          ? [
+              { text: "M", className: "tui-accent" },
+              { text: " mapa | ", className: "tui-muted" },
+            ]
+          : []),
+        ...(canDescend
+          ? [
+              { text: "S", className: "tui-accent" },
+              { text: " subcasos | ", className: "tui-muted" },
+            ]
+          : []),
+        { text: "B", className: "tui-accent" },
+        { text: " volver", className: "tui-muted" },
+      ],
+    }];
+    const reserved = countVisualLines(staticFooterLines) + 1;
+    const viewport = Math.max(6, capacity - reserved);
+    const maxOffset = Math.max(0, detailLines.length - viewport);
+    const safeOffset = Math.max(0, Math.min(offset, maxOffset));
+    const visibleLines = detailLines.slice(safeOffset, safeOffset + viewport);
+    const footerLines = [
+      ...(maxOffset > 0
+        ? [{
+            parts: [
+              { text: "SCROLL ", className: "tui-system" },
+              { text: `${safeOffset + 1}-${Math.min(detailLines.length, safeOffset + visibleLines.length)}`, className: "tui-muted" },
+              { text: " / ", className: "tui-muted" },
+              { text: String(detailLines.length), className: "tui-muted" },
+              { text: " | ", className: "tui-muted" },
+              { text: "↑/↓", className: "tui-accent" },
+              { text: " desplazar", className: "tui-muted" },
+            ],
+          }]
+        : []),
+      ...staticFooterLines,
+    ];
     clear();
     await renderSelectableLines(
       {
-        lines: buildDetailBody(item, evaluation, cases, poisIndex),
-        footerLines: [{
-          parts: [
-            { text: "ACTIONS: ", className: "tui-system" },
-            ...(hasCaseMap
-              ? [
-                  { text: "M", className: "tui-accent" },
-                  { text: " mapa | ", className: "tui-muted" },
-                ]
-              : []),
-            ...(canDescend
-              ? [
-                  { text: "S", className: "tui-accent" },
-                  { text: " subcasos | ", className: "tui-muted" },
-                ]
-              : []),
-            { text: "B", className: "tui-accent" },
-            { text: " volver", className: "tui-muted" },
-          ],
-        }],
+        lines: visibleLines,
+        footerLines,
         chips: [
+          ...(maxOffset > 0 && safeOffset > 0 ? [{ label: "ARRIBA", action: "input", value: "UP" }] : []),
+          ...(maxOffset > 0 && safeOffset < maxOffset ? [{ label: "ABAJO", action: "input", value: "DOWN" }] : []),
           ...(hasCaseMap ? [{ label: "MAPA", action: "input", value: "M" }] : []),
           ...(canDescend ? [{ label: "SUBCASOS", action: "input", value: "S" }] : []),
           { label: "VOLVER", action: "input", value: "B" },
@@ -507,24 +610,30 @@ async function renderCaseDetails(item, evaluation, cases, poisIndex) {
       fastRender
     );
     markSeen("cases", item.id, Number(item.updatedAt || Date.now()));
-    const choice = isPortraitNarrow()
-      ? (await waitForSelection())?.dataset?.value || ""
-      : await input(false, {
-          hint: hasCaseMap
-            ? canDescend
-              ? "AUX-01 > M map | S subcases | B back"
-              : "AUX-01 > M map | B back"
-            : canDescend
-              ? "AUX-01 > S subcases | B back"
-              : "AUX-01 > B back",
+    const action = isPortraitNarrow()
+      ? String((await waitForSelection())?.dataset?.value || "").trim().toUpperCase()
+      : await waitForCaseDetailAction({
+          allowMap: hasCaseMap,
+          allowDescend: canDescend,
+          allowTap: document.body.classList.contains("touch-mode"),
+          canScrollUp: maxOffset > 0 && safeOffset > 0,
+          canScrollDown: maxOffset > 0 && safeOffset < maxOffset,
         });
-    const normalized = String(choice || "").trim().toUpperCase();
-    if (!normalized || normalized === "B" || normalized === "X") return { action: "back" };
+    const normalized = String(action || "").trim().toUpperCase();
+    if (normalized === "UP") {
+      offset = Math.max(0, safeOffset - Math.max(1, Math.floor(viewport / 2)));
+      continue;
+    }
+    if (normalized === "DOWN") {
+      offset = Math.min(maxOffset, safeOffset + Math.max(1, Math.floor(viewport / 2)));
+      continue;
+    }
+    if (!normalized || normalized === "B" || normalized === "BACK" || normalized === "X") return { action: "back" };
     if (hasCaseMap && (normalized === "M" || normalized === "MAP" || normalized === "MAPA")) {
       await parse(`map ${relatedPoiIds.join(" ")}`);
       continue;
     }
-    if (canDescend && (normalized === "S" || normalized === "SUBCASOS")) return { action: "descend" };
+    if (canDescend && (normalized === "S" || normalized === "SUBCASES" || normalized === "SUBCASOS")) return { action: "descend" };
     await type([" ", "COMANDO NO DISPONIBLE EN DOSSIER.", " "], { stopBlinking: true });
   }
 }

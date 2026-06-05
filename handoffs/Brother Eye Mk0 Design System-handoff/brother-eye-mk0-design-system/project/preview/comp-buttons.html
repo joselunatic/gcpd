@@ -1,0 +1,33 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:24px;display:flex;flex-direction:column;gap:16px}
+  .hd{font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--bem-phosphor-mute)}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  button{font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+    padding:.6rem 1.4rem;border-radius:var(--bem-radius-md);min-height:44px;font-size:.85rem;letter-spacing:.08em;text-transform:uppercase}
+  .primary{border:1px solid var(--bem-phosphor);color:var(--bem-phosphor-soft);
+    background:var(--bem-grad-primary);box-shadow:var(--bem-glow-md);white-space:nowrap}
+  .secondary{border:1px solid var(--bem-phosphor);color:var(--bem-phosphor);background:transparent}
+  .ghost{border:1px solid rgba(125,182,195,.35);color:var(--bem-phosphor-dim);background:transparent}
+  .danger{border:1px solid rgba(255,107,107,.45);color:#ffb6b6;background:transparent}
+  .disabled{border:1px solid var(--bem-border);color:var(--bem-phosphor-dim);opacity:.35;cursor:not-allowed}
+</style>
+</head>
+<body>
+  <div class="hd">Buttons — gradient reserved for primary action only</div>
+  <div class="row">
+    <button class="primary">Publicar</button>
+    <button class="secondary">Guardar</button>
+    <button class="ghost">Cancelar</button>
+    <button class="danger">Eliminar</button>
+    <button class="disabled">Bloqueado</button>
+  </div>
+</body>
+</html>

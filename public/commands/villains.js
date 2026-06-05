@@ -17,7 +17,7 @@ import { getStatusContext } from "/utils/status.js";
 import { getDeltaMarker } from "/utils/delta.js";
 import { isPortraitNarrow, getWrapLimit } from "/utils/portrait.js";
 import { waitForSelection } from "/utils/selection.js";
-import { paginateItems } from "/utils/pagination.js";
+import { paginateSelectableItems, getTerminalLineCapacity, countVisualLines } from "/utils/pagination.js";
 import {
   SYMBOLS,
   buildHeaderLines,
@@ -116,9 +116,7 @@ const fetchGallery = async () => {
 };
 
 const fastRender = { wait: false, initialWait: false, finalWait: false };
-const detailRender = { wait: 8, initialWait: false, finalWait: false };
 const COLUMN = { left: 38, right: 51, divider: "│" };
-const VILLAINS_PAGE_SIZE = 10;
 
 const mergeLine = (left = "", right = "") =>
   mergePartsLine(left, right, {
@@ -135,14 +133,16 @@ const labelValueLine = (label, value, valueClass = "tui-primary") => ({
   ],
 });
 
-const renderDetails = async (villain, evaluation, poisIndex = new Map()) => {
+const buildDetailLines = (villain, evaluation, poisIndex = new Map()) => {
   const locations = resolveVillainLocations(villain, poisIndex);
   const detailLine = (text) => wrapLine(text, 80);
   const hasValue = (value) =>
     value !== null && value !== undefined && String(value).trim() !== "";
   const lines = [
     " ",
+    ...detailLine(`ARCHIVO: ${villain.id}`),
     ...detailLine(`ALIAS: ${villain.alias}`),
+    ...detailLine(`ACCESO: ${statusLabel(evaluation)}`),
     ...(villain.threatLevel ? detailLine(`AMENAZA: ${villain.threatLevel}`) : []),
     ...(villain.lastSeen
       ? detailLine(`ULTIMO AVISTAMIENTO: ${villain.lastSeen}`)
@@ -150,7 +150,6 @@ const renderDetails = async (villain, evaluation, poisIndex = new Map()) => {
     ...(villain.summary ? detailLine(`RESUMEN: ${villain.summary}`) : []),
   ].filter(Boolean);
   lines.push(" ");
-  await type(lines, { stopBlinking: true, ...detailRender });
 
   const profileLines = [];
   if (hasValue(villain.realName)) {
@@ -174,50 +173,40 @@ const renderDetails = async (villain, evaluation, poisIndex = new Map()) => {
     );
   }
   if (profileLines.length) {
-    await type(["PERFIL", " "], { stopBlinking: true, ...detailRender });
-    await type(profileLines, { stopBlinking: true, ...detailRender });
+    lines.push("PERFIL", " ", ...profileLines, " ");
   }
 
   if (locations.length) {
-    await type(["RED OPERATIVA"], { stopBlinking: true, ...detailRender });
-    const locationLines = [];
+    const locationLines = ["RED OPERATIVA"];
     locations.forEach((entry) => {
       const roleLabel = (entry.role || "related").replace(/_/g, " ").toUpperCase();
       const suffix = entry.district ? ` · ${entry.district}` : "";
       locationLines.push(`> ${roleLabel}: ${entry.label}${suffix}`);
     });
-    await type(locationLines, { stopBlinking: true, ...detailRender });
+    lines.push(...locationLines, " ");
   }
 
   if (villain.patterns?.length) {
-    await type(["PATRONES"], { stopBlinking: true, ...detailRender });
+    lines.push("PATRONES");
     const patternLines = [];
     villain.patterns.forEach((entry) => {
       wrapLine(`> ${entry}`, 80).forEach((line, idx) => {
         patternLines.push(idx === 0 ? line : `  ${line}`);
       });
     });
-    await type(patternLines, { stopBlinking: true, ...detailRender });
+    lines.push(...patternLines, " ");
   }
   if (villain.knownAssociates?.length) {
-    await type(["ASOCIADOS"], { stopBlinking: true, ...detailRender });
-    await type(villain.knownAssociates.map((entry) => `> ${entry}`), {
-      stopBlinking: true,
-      ...detailRender,
-    });
+    lines.push("ASOCIADOS", ...villain.knownAssociates.map((entry) => `> ${entry}`), " ");
   }
   if (villain.notes?.length) {
-    await type(["ANALISIS"], { stopBlinking: true, ...detailRender });
-    await type(villain.notes.map((entry) => `> ${entry}`), {
-      stopBlinking: true,
-      ...detailRender,
-    });
+    lines.push("ANALISIS", ...villain.notes.map((entry) => `> ${entry}`), " ");
   }
-  await type([" "], { stopBlinking: true, ...detailRender });
-  markSeen("villains", villain.id, Number(villain.updatedAt || Date.now()));
+  lines.push(" ");
+  return lines;
 };
 
-function waitForReturn({ allowTap = false } = {}) {
+function waitForVillainDetailAction({ allowTap = false, canScrollUp = false, canScrollDown = false } = {}) {
   return new Promise((resolve) => {
     const options = { capture: true };
     let resolved = false;
@@ -234,30 +223,137 @@ function waitForReturn({ allowTap = false } = {}) {
       }
     };
 
+    const finish = (value) => {
+      cleanup();
+      resolve(value);
+    };
+
     const keyHandler = (event) => {
       const key = event?.key || event?.code || "";
-      if (key === "Enter" || key === "Return" || key === "NumpadEnter") {
+      if ((key === "ArrowUp" || key === "Up") && canScrollUp) {
         event.preventDefault();
-        cleanup();
-        resolve();
+        finish("up");
+        return;
+      }
+      if ((key === "ArrowDown" || key === "Down") && canScrollDown) {
+        event.preventDefault();
+        finish("down");
+        return;
+      }
+      if (
+        key === "Enter" ||
+        key === "Return" ||
+        key === "NumpadEnter" ||
+        key === "Escape" ||
+        key.toLowerCase() === "b" ||
+        key.toLowerCase() === "x"
+      ) {
+        event.preventDefault();
+        finish("back");
       }
     };
 
     const tapHandler = (event) => {
       if (event.pointerType !== "touch") return;
       event.preventDefault();
-      cleanup();
-      resolve();
+      finish("back");
     };
 
     document.addEventListener("keydown", keyHandler, options);
     if (allowTap) {
       const terminal = document.querySelector(".terminal");
-      if (terminal) {
-        terminal.addEventListener("pointerdown", tapHandler, options);
-      }
+      if (terminal) terminal.addEventListener("pointerdown", tapHandler, options);
     }
   });
+}
+
+async function renderDetails(villain, evaluation, poisIndex = new Map()) {
+  const detailLines = buildDetailLines(villain, evaluation, poisIndex);
+  const headerLines = [
+    { parts: [{ text: titleLine(`VILLAIN DOSSIER :: ${String(villain.alias || villain.id || "PROFILE").toUpperCase()}`), className: "tui-system" }] },
+  ];
+  const baseFooterLines = [
+    { parts: [{ text: "RETURN / B / ESC", className: "tui-accent" }, { text: " volver", className: "tui-muted" }] },
+  ];
+  const capacity = getTerminalLineCapacity(24);
+  let offset = 0;
+
+  while (true) {
+    const reserved = countVisualLines(headerLines) + countVisualLines(baseFooterLines) + 1;
+    const viewport = Math.max(6, capacity - reserved);
+    const maxOffset = Math.max(0, detailLines.length - viewport);
+    const safeOffset = Math.max(0, Math.min(offset, maxOffset));
+    const visibleLines = detailLines.slice(safeOffset, safeOffset + viewport);
+    const footerLines = [
+      {
+        parts: [
+          { text: "SCROLL ", className: "tui-system" },
+          { text: `${safeOffset + 1}-${Math.min(detailLines.length, safeOffset + visibleLines.length)}`, className: "tui-muted" },
+          { text: " / ", className: "tui-muted" },
+          { text: String(detailLines.length), className: "tui-muted" },
+          ...(maxOffset > 0
+            ? [
+                { text: " | ", className: "tui-muted" },
+                { text: "↑/↓", className: "tui-accent" },
+                { text: " desplazar", className: "tui-muted" },
+              ]
+            : []),
+        ],
+      },
+      ...baseFooterLines,
+    ];
+
+    clear();
+    await renderSelectableLines(
+      {
+        lines: [...headerLines, ...visibleLines],
+        footerLines,
+        chips: isPortraitNarrow() && maxOffset > 0
+          ? [
+              ...(safeOffset > 0 ? [{ label: "ARRIBA", action: "select", value: "UP" }] : []),
+              ...(safeOffset < maxOffset ? [{ label: "ABAJO", action: "select", value: "DOWN" }] : []),
+              { label: "VOLVER", action: "select", value: "BACK" },
+            ]
+          : isPortraitNarrow()
+            ? [{ label: "VOLVER", action: "select", value: "BACK" }]
+            : [],
+        items: [],
+        context: { backValue: "BACK", backAction: "input" },
+      },
+      fastRender
+    );
+
+    if (isPortraitNarrow()) {
+      const selected = await waitForSelection();
+      const value = String(selected?.dataset?.value || "").toUpperCase();
+      if (value === "UP" && safeOffset > 0) {
+        offset = Math.max(0, safeOffset - Math.max(1, Math.floor(viewport / 2)));
+        continue;
+      }
+      if (value === "DOWN" && safeOffset < maxOffset) {
+        offset = Math.min(maxOffset, safeOffset + Math.max(1, Math.floor(viewport / 2)));
+        continue;
+      }
+      break;
+    }
+
+    const action = await waitForVillainDetailAction({
+      allowTap: document.body.classList.contains("touch-mode"),
+      canScrollUp: safeOffset > 0,
+      canScrollDown: safeOffset < maxOffset,
+    });
+    if (action === "up") {
+      offset = Math.max(0, safeOffset - Math.max(1, Math.floor(viewport / 2)));
+      continue;
+    }
+    if (action === "down") {
+      offset = Math.min(maxOffset, safeOffset + Math.max(1, Math.floor(viewport / 2)));
+      continue;
+    }
+    break;
+  }
+
+  markSeen("villains", villain.id, Number(villain.updatedAt || Date.now()));
 }
 
 const needsChildren = (villains, id) =>
@@ -391,6 +487,67 @@ const buildPreviewLines = (villain, evaluation, campaignState, breadcrumb = [], 
   return lines;
 };
 
+function buildWorkspaceLines(villain, evaluation, crumbs = [], poisIndex = new Map()) {
+  if (!villain) return [mergeLine("FOCO", "SIN PERFIL")];
+  const locations = resolveVillainLocations(villain, poisIndex);
+  const primary = locations.find((entry) => entry.role === "primary") || locations[0] || null;
+  const pathText = crumbs.length ? crumbs.join(" > ") : "VILLAINS";
+  const poiText = primary
+    ? primary.district
+      ? `${primary.label} · ${primary.district}`
+      : primary.label
+    : locations.length
+      ? `${locations.length} POIS RELACIONADOS`
+      : "SIN INFORMACION";
+  const leadText = villain.lastSeen || villain.summary || villain.patterns?.[0] || villain.knownAssociates?.[0] || "";
+  const tags = [
+    villain.threatLevel ? `THREAT:${String(villain.threatLevel).toUpperCase()}` : "",
+    locations.length ? `${locations.length} POI` : "",
+    villain.patterns?.length ? "PATTERNS" : "",
+    villain.knownAssociates?.length ? "NETWORK" : "",
+    !evaluation.unlocked && evaluation.config?.unlockMode !== "none" ? "LOCKED" : "",
+  ].filter(Boolean);
+  const lines = [
+    mergeLine(
+      { parts: [{ text: String(villain.alias || villain.id || "SIN PERFIL").slice(0, 36), className: "tui-primary" }] },
+      {
+        parts: [
+          { text: statusLabel(evaluation), className: getStateTone(statusLabel(evaluation)) },
+          { text: " | ", className: "tui-muted" },
+          { text: villain.id || "NO ID", className: "tui-muted" },
+        ],
+      }
+    ),
+    mergeLine(
+      { parts: [{ text: "RUTA", className: "tui-system" }] },
+      { parts: [{ text: pathText.slice(0, 48) || "ROOT", className: "tui-muted tui-panel-right" }] }
+    ),
+    mergeLine(
+      { parts: [{ text: "POI", className: "tui-system" }] },
+      { parts: [{ text: poiText.slice(0, 48), className: primary ? "tui-primary tui-panel-right" : "tui-muted tui-panel-right" }] }
+    ),
+  ];
+  if (leadText) {
+    wrapLine(leadText, 82).slice(0, 2).forEach((line, idx) => {
+      lines.push(
+        mergeLine(
+          { parts: [{ text: idx === 0 ? "CLAVE" : "", className: "tui-system" }] },
+          { parts: [{ text: line, className: "tui-primary tui-panel-right" }] }
+        )
+      );
+    });
+  }
+  if (tags.length) {
+    lines.push(
+      mergeLine(
+        { parts: [{ text: "TIPOS", className: "tui-system" }] },
+        { parts: [{ text: tags.join(" · ").slice(0, 48), className: "tui-muted tui-panel-right" }] }
+      )
+    );
+  }
+  return lines;
+}
+
 const mergeItemsWithPreview = (items, previewLines) => {
   const totalLines = items.reduce((sum, item) => {
     const list = Array.isArray(item.lines) ? item.lines : [item.lines];
@@ -488,6 +645,9 @@ function flashPanelNode(node) {
 function installVillainsLivePreview({
   headerLines,
   pageItems,
+  footerPrefixLines,
+  footerSuffixLines,
+  chips,
   terminal,
   campaignState,
   crumbs,
@@ -495,6 +655,8 @@ function installVillainsLivePreview({
 }) {
   const itemLineCount = countRenderedItemLines(pageItems);
   const headerCount = headerLines.length;
+  const chipsOffset = chips.length ? 1 : 0;
+  const footerStart = headerCount + itemLineCount + chipsOffset;
 
   return ({ index }) => {
     const liveTerminal = terminal || document.querySelector(".terminal");
@@ -507,8 +669,9 @@ function installVillainsLivePreview({
       headerCount,
       headerCount + itemLineCount
     );
+    const footerNodes = terminalLines.slice(footerStart);
     const selected = pageItems[index] || pageItems[0] || null;
-    if (!selected || !itemNodes.length) return;
+    if (!selected || !itemNodes.length || !footerNodes.length) return;
 
     const mergedItems = mergeItemsWithPreview(
       pageItems,
@@ -520,6 +683,14 @@ function installVillainsLivePreview({
         poisIndex
       )
     );
+    const footerLines = [
+      ...footerPrefixLines,
+      ...buildWorkspaceLines(selected?._villain, selected?._evaluation, crumbs, poisIndex),
+      ...footerSuffixLines,
+    ];
+    const nextFooterLines = footerLines.slice();
+    while (nextFooterLines.length < footerNodes.length) nextFooterLines.push("");
+    if (nextFooterLines.length > footerNodes.length) nextFooterLines.length = footerNodes.length;
 
     let itemCursor = 0;
     mergedItems.forEach((item) => {
@@ -529,6 +700,10 @@ function installVillainsLivePreview({
         flashPanelNode(itemNodes[itemCursor]);
         itemCursor += 1;
       });
+    });
+    nextFooterLines.forEach((line, footerIndex) => {
+      fillLineNode(footerNodes[footerIndex], line);
+      flashPanelNode(footerNodes[footerIndex]);
     });
   };
 }
@@ -619,23 +794,25 @@ async function browseVillains(villains) {
       );
     }
 
+    const baseHintLine = mergeLine(
+      {
+        parts: [
+          { text: "HINTS: ", className: "tui-system" },
+          { text: "ENTER", className: "tui-accent" },
+          { text: " abrir | ", className: "tui-muted" },
+          { text: "/", className: "tui-accent" },
+          { text: " buscar | ", className: "tui-muted" },
+          { text: "B", className: "tui-accent" },
+          { text: " back | ", className: "tui-muted" },
+          { text: "EXIT", className: "tui-accent" },
+          { text: " remote", className: "tui-muted" },
+        ],
+      },
+      { parts: [{ text: "BASE DE INTEL", className: "tui-muted tui-panel-right" }] }
+    );
     const baseFooterLines = [
-      mergeLine(
-        {
-          parts: [
-            { text: "HINTS: ", className: "tui-system" },
-            { text: "ENTER", className: "tui-accent" },
-            { text: " abrir | ", className: "tui-muted" },
-            { text: "/", className: "tui-accent" },
-            { text: " buscar | ", className: "tui-muted" },
-            { text: "B", className: "tui-accent" },
-            { text: " back | ", className: "tui-muted" },
-            { text: "EXIT", className: "tui-accent" },
-            { text: " remote", className: "tui-muted" },
-          ],
-        },
-        ""
-      ),
+      ...buildWorkspaceLines(nodes[0]?.villain, nodes[0]?.evaluation, crumbs, poisIndex),
+      baseHintLine,
       ...buildFooterLines({
         mode: "INTEL",
         link: "SECURE",
@@ -647,8 +824,12 @@ async function browseVillains(villains) {
       { label: "VILLANOS", action: "command", value: "villains" },
       { label: "DIALER", action: "command", value: "dialer" },
     ];
-    const pages = paginateItems(items, VILLAINS_PAGE_SIZE);
-    const pageCount = pages.length;
+    const { pages, pageCount } = paginateSelectableItems({
+      lines: headerLines,
+      items,
+      footerLines: baseFooterLines,
+      chips: baseChips,
+    });
     const pageIndex = Math.max(
       0,
       Math.min(stack[stack.length - 1].pageIndex || 0, pageCount - 1)
@@ -665,13 +846,46 @@ async function browseVillains(villains) {
       poisIndex
     );
     const pageItemsMerged = mergeItemsWithPreview(pageItems, previewLines);
-    const footerLines =
-      pageCount > 1
-        ? [
-            mergeLine(`PAGINA ${pageIndex + 1}/${pageCount} (N/P)`, ""),
-            ...baseFooterLines,
-          ]
-        : baseFooterLines;
+    const finalHintLine = mergeLine(
+      {
+        parts: [
+          { text: "HINTS: ", className: "tui-system" },
+          { text: "ENTER", className: "tui-accent" },
+          { text: " abrir | ", className: "tui-muted" },
+          { text: "/", className: "tui-accent" },
+          { text: " buscar | ", className: "tui-muted" },
+          { text: "B", className: "tui-accent" },
+          { text: " back | ", className: "tui-muted" },
+          { text: "EXIT", className: "tui-accent" },
+          { text: " remote", className: "tui-muted" },
+        ],
+      },
+      {
+        parts: pageCount > 1
+          ? [
+              { text: "N/P", className: "tui-accent tui-panel-right" },
+              { text: " pagina", className: "tui-muted tui-panel-right" },
+            ]
+          : [{ text: "BASE DE INTEL", className: "tui-muted tui-panel-right" }],
+      }
+    );
+    const footerLines = [
+      ...(pageCount > 1 ? [mergeLine(`PAGINA ${pageIndex + 1}/${pageCount} (N/P)`, "")] : []),
+      ...buildWorkspaceLines(focusItem?._villain, focusItem?._evaluation, crumbs, poisIndex),
+      finalHintLine,
+      ...buildFooterLines({
+        mode: "INTEL",
+        link: "SECURE",
+      }).map((line) => ({ parts: [{ text: line, className: "tui-muted" }] })),
+    ];
+    const footerPrefixLines = pageCount > 1 ? [mergeLine(`PAGINA ${pageIndex + 1}/${pageCount} (N/P)`, "")] : [];
+    const footerSuffixLines = [
+      finalHintLine,
+      ...buildFooterLines({
+        mode: "INTEL",
+        link: "SECURE",
+      }).map((line) => ({ parts: [{ text: line, className: "tui-muted" }] })),
+    ];
     const chips =
       pageCount > 1 && isPortraitNarrow()
         ? [
@@ -687,18 +901,21 @@ async function browseVillains(villains) {
       items: pageItemsMerged,
       footerLines,
       chips,
-      context: {
-        backValue: "B",
-        backAction: "input",
-        onSelectionChange: installVillainsLivePreview({
-          headerLines,
-          pageItems,
-          terminal: document.querySelector(".terminal"),
-          campaignState,
-          crumbs,
-          poisIndex,
-        }),
-      },
+        context: {
+          backValue: "B",
+          backAction: "input",
+          onSelectionChange: installVillainsLivePreview({
+            headerLines,
+            pageItems,
+            footerPrefixLines,
+            footerSuffixLines,
+            chips,
+            terminal: document.querySelector(".terminal"),
+            campaignState,
+            crumbs,
+            poisIndex,
+          }),
+        },
       defaultIndex: pageDefaultIndex,
     }, fastRender);
 
@@ -795,14 +1012,6 @@ async function browseVillains(villains) {
         continue;
       }
     }
-    await type(["PULSA RETURN PARA VOLVER AL MENU", " "], {
-      stopBlinking: true,
-      ...fastRender,
-    });
-    await waitForReturn({
-      allowTap:
-        isPortraitNarrow() || document.body.classList.contains("touch-mode"),
-    });
     clear();
   }
 }

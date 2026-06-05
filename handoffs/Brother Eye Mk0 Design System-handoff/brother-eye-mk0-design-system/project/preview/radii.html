@@ -1,0 +1,23 @@
+<!-- @dsCard group="Spacing" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:24px;display:flex;gap:18px;align-items:flex-end;justify-content:center}
+  .item{display:flex;flex-direction:column;gap:10px;align-items:center}
+  .box{width:96px;height:72px;background:var(--bem-bg-surface);border:1px solid var(--bem-border-strong)}
+  .tok{font-size:.66rem;color:var(--bem-phosphor-bright)}
+  .px{font-size:.6rem;color:var(--bem-phosphor-mute)}
+</style>
+</head>
+<body>
+  <div class="item"><div class="box" style="border-radius:4px"></div><span class="tok">radius-sm</span><span class="px">4px · chips</span></div>
+  <div class="item"><div class="box" style="border-radius:8px"></div><span class="tok">radius-md</span><span class="px">8px · buttons</span></div>
+  <div class="item"><div class="box" style="border-radius:12px"></div><span class="tok">radius-lg</span><span class="px">12px · modals</span></div>
+  <div class="item"><div class="box" style="border-radius:999px;width:120px"></div><span class="tok">radius-pill</span><span class="px">999px · tabs</span></div>
+</body>
+</html>

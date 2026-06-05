@@ -1,0 +1,34 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0}
+  body{background:var(--bem-bg-void);color:var(--bem-phosphor-text);
+    font-family:var(--bem-font-mono);padding:22px 24px}
+  .nav{display:flex;flex-wrap:wrap;gap:.7rem .9rem;padding:.7rem .8rem;border:1px solid var(--bem-border);
+    border-radius:var(--bem-radius-lg);background:var(--bem-bg-elevated)}
+  .group{display:flex;flex-direction:column;gap:.4rem;padding-right:.9rem;border-right:1px solid var(--bem-border-faint)}
+  .group:last-child{border:none;padding-right:0}
+  .glab{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--bem-phosphor-mute);padding:.2rem .6rem 0}
+  .btns{display:flex;flex-wrap:wrap;gap:.4rem}
+  .tab{border-radius:var(--bem-radius-pill);padding:.5rem 1rem;font-size:.8rem;letter-spacing:.06em;
+    border:1px solid rgba(125,182,195,.3);color:var(--bem-phosphor-dim);background:transparent;font-family:inherit;cursor:pointer}
+  .tab.active{border-color:rgba(80,255,190,.8);color:var(--bem-phosphor-soft);
+    background:var(--bem-grad-primary);box-shadow:var(--bem-glow-md)}
+</style>
+</head>
+<body>
+  <div class="nav">
+    <div class="group"><span class="glab">Data</span><div class="btns">
+      <button class="tab active">Casos</button><button class="tab">POIs</button>
+      <button class="tab">Villanos</button><button class="tab">Evidencias</button></div></div>
+    <div class="group"><span class="glab">Ops</span><div class="btns">
+      <button class="tab">Tracer</button><button class="tab">Mapa Live</button><button class="tab">Efectos RT</button></div></div>
+    <div class="group"><span class="glab">Config</span><div class="btns">
+      <button class="tab">Accesos</button><button class="tab">Campaña</button></div></div>
+  </div>
+</body>
+</html>
