@@ -15,6 +15,12 @@ const EFFECT_LABELS = {
   clear: 'CLEAR',
 };
 
+const getMediaTitle = (media = {}) =>
+  String(media.title || media.originalName || media.filename || media.id || 'VIDEO SIN NOMBRE').trim();
+
+const getMediaDescription = (media = {}) =>
+  String(media.description || media.url || 'Sin descripción').trim();
+
 const toEffectLabel = (raw = '') => EFFECT_LABELS[raw] ?? String(raw || '').toUpperCase();
 
 const EfectosMobile = () => {
@@ -379,7 +385,7 @@ const EfectosMobile = () => {
                 {[
                   { id: 'triggers', label: 'DISPARADORES' },
                   { id: 'library', label: 'BIBLIOTECA' },
-                  { id: 'direct', label: 'DIRECTO' },
+                  { id: 'direct', label: 'EMISION' },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -440,8 +446,11 @@ const EfectosMobile = () => {
                       return (
                         <div key={media.id} className={`ep-media-item${isSelected ? ' ep-media-item--selected' : ''}`}>
                           <div className="ep-media-item__info">
-                            <strong className="ep-media-item__title">{media.title}</strong>
-                            {media.description && <span className="ep-media-item__desc">{media.description}</span>}
+                            <div className="ep-media-item__eyebrow">
+                              {media.kind === 'video' ? 'VIDEO GUARDADO' : 'RECURSO GUARDADO'}
+                            </div>
+                            <strong className="ep-media-item__title">{getMediaTitle(media)}</strong>
+                            <span className="ep-media-item__desc">{getMediaDescription(media)}</span>
                           </div>
                           <div className="ep-media-item__actions">
                             <button
@@ -469,7 +478,7 @@ const EfectosMobile = () => {
                     {libraryMessage && <div className="ep-empty">{libraryMessage}</div>}
 
                     <button className="ep-btn ep-btn--ghost ep-library__upload-toggle" onClick={() => setUploadOpen((value) => !value)}>
-                      {uploadOpen ? '▲ Cerrar' : '⬆ Subir video a biblioteca'}
+                      {uploadOpen ? '▲ CERRAR SUBIDA' : '⬆ SUBIR VIDEO'}
                     </button>
 
                     {uploadOpen && (
@@ -511,6 +520,7 @@ const EfectosMobile = () => {
 
                 {activeTab === 'direct' && (
                   <div className="ep-direct">
+                    <div className="ep-section-kicker">EMISION DIRECTA</div>
                     <label className="ep-label">URL del recurso (relativa al servidor)</label>
                     <input
                       className="ep-input"
@@ -553,7 +563,7 @@ const EfectosMobile = () => {
                     </button>
 
                     <div className="ep-note">
-                      La pestaña de agente no puede cerrar ni anular efectos. Control exclusivo del DM.
+                      Envía una imagen o vídeo del servidor al monitor del agente. El control de limpieza sigue siendo exclusivo del DM.
                     </div>
                   </div>
                 )}

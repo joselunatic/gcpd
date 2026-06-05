@@ -17,6 +17,7 @@ import { waitForSelection } from "/utils/selection.js";
 import { paginateSelectableItems, getTerminalLineCapacity, countVisualLines } from "/utils/pagination.js";
 import { SYMBOLS, buildHeaderLines, buildFooterLines, titleLine, mergePartsLine, toParts, trimParts, padParts } from "/utils/tui.js";
 import { normalizePoisClient, getPoiName } from "/utils/poiContract.js";
+import { pushKeymap } from "/utils/keymap.js";
 
 const fastRender = { wait: false, initialWait: false, finalWait: false };
 const COLUMN = { left: 38, right: 51, divider: "│" };
@@ -476,16 +477,16 @@ function waitForCaseDetailAction({
   canScrollDown = false,
 } = {}) {
   return new Promise((resolve) => {
-    const options = { capture: true };
     let resolved = false;
+    let releaseKeymap = () => {};
 
     const cleanup = () => {
       if (resolved) return;
       resolved = true;
-      document.removeEventListener("keydown", keyHandler, options);
+      releaseKeymap();
       if (allowTap) {
         const terminal = document.querySelector(".terminal");
-        if (terminal) terminal.removeEventListener("pointerdown", tapHandler, options);
+        if (terminal) terminal.removeEventListener("pointerdown", tapHandler, true);
       }
     };
 
@@ -498,22 +499,18 @@ function waitForCaseDetailAction({
       const key = event?.key || event?.code || "";
       const lower = String(key).toLowerCase();
       if ((key === "ArrowUp" || key === "Up") && canScrollUp) {
-        event.preventDefault();
         finish("up");
         return;
       }
       if ((key === "ArrowDown" || key === "Down") && canScrollDown) {
-        event.preventDefault();
         finish("down");
         return;
       }
       if (allowMap && (lower === "m")) {
-        event.preventDefault();
         finish("map");
         return;
       }
       if (allowDescend && (lower === "s")) {
-        event.preventDefault();
         finish("subcases");
         return;
       }
@@ -525,9 +522,10 @@ function waitForCaseDetailAction({
         lower === "b" ||
         lower === "x"
       ) {
-        event.preventDefault();
         finish("back");
+        return;
       }
+      return false;
     };
 
     const tapHandler = (event) => {
@@ -536,10 +534,32 @@ function waitForCaseDetailAction({
       finish("back");
     };
 
-    document.addEventListener("keydown", keyHandler, options);
+    releaseKeymap = pushKeymap(
+      {
+        ArrowUp: keyHandler,
+        Up: keyHandler,
+        ArrowDown: keyHandler,
+        Down: keyHandler,
+        m: keyHandler,
+        M: keyHandler,
+        s: keyHandler,
+        S: keyHandler,
+        b: keyHandler,
+        B: keyHandler,
+        x: keyHandler,
+        X: keyHandler,
+        Enter: keyHandler,
+        Return: keyHandler,
+        NumpadEnter: keyHandler,
+        Escape: keyHandler,
+      },
+      {
+        shouldHandle: () => true,
+      }
+    );
     if (allowTap) {
       const terminal = document.querySelector(".terminal");
-      if (terminal) terminal.addEventListener("pointerdown", tapHandler, options);
+      if (terminal) terminal.addEventListener("pointerdown", tapHandler, true);
     }
   });
 }

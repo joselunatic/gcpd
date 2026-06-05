@@ -263,7 +263,7 @@ function injectStyles() {
     /* ── MEDIA ── */
     .rt-effect--media {
       z-index: 90;
-      pointer-events: all;
+      pointer-events: none;
       background: rgba(0, 0, 0, 0.92);
       overflow: hidden;
       cursor: default;
@@ -547,12 +547,17 @@ function triggerMedia({ url, mediaType = 'image', caption = '', loop = false, du
 
   const safeUrl = String(url).replace(/['"]/g, '');
   const mediaEl = mediaType === 'video'
-    ? Object.assign(document.createElement('video'), { src: safeUrl, autoplay: true, loop: Boolean(loop), controls: true })
+    ? Object.assign(document.createElement('video'), { src: safeUrl, autoplay: true, loop: Boolean(loop), controls: false })
     : Object.assign(document.createElement('img'), { src: safeUrl, alt: caption || 'GCPD MEDIA' });
   if (mediaType === 'video') {
     mediaEl.muted = false;
     mediaEl.playsInline = true;
     mediaEl.preload = 'auto';
+    mediaEl.disablePictureInPicture = true;
+    mediaEl.controlsList = 'nodownload nofullscreen noremoteplayback';
+    mediaEl.setAttribute('controlsList', 'nodownload nofullscreen noremoteplayback');
+    mediaEl.setAttribute('disablePictureInPicture', '');
+    mediaEl.setAttribute('tabindex', '-1');
   }
   overlay.appendChild(mediaEl);
 
