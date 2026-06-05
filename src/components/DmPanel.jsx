@@ -16,6 +16,7 @@ const VILLAINS_ENDPOINT = '/api/villains-data';
 const AUTH_ENDPOINT = '/api/auth';
 const CAMPAIGN_ENDPOINT = '/api/campaign-state';
 const GLOBAL_COMMANDS_ENDPOINT = '/api/global-commands';
+const TUI_COMMAND_LOCKS_ENDPOINT = '/api/tui-command-locks';
 const EVIDENCE_ENDPOINT = '/api/evidence';
 const EVIDENCE_UPLOAD_ENDPOINT = '/api/evidence-upload';
 const BALLISTICS_ENDPOINT = '/api/ballistics';
@@ -1056,6 +1057,12 @@ const DmPanel = () => {
   const [globalCommandsText, setGlobalCommandsText] = useState('[]');
   const [globalCommandsMessage, setGlobalCommandsMessage] = useState('');
   const [globalCommandsLoading, setGlobalCommandsLoading] = useState(false);
+  const [tuiCommands, setTuiCommands] = useState([]);
+  const [tuiCommandLocks, setTuiCommandLocks] = useState({});
+  const [tuiCommandSelected, setTuiCommandSelected] = useState('');
+  const [tuiCommandLockedDraft, setTuiCommandLockedDraft] = useState(false);
+  const [tuiCommandMessage, setTuiCommandMessage] = useState('');
+  const [tuiCommandLoading, setTuiCommandLoading] = useState(false);
   const [evidenceModels, setEvidenceModels] = useState([]);
   const [evidenceForm, setEvidenceForm] = useState(initialEvidenceForm);
   const [evidenceProfile, setEvidenceProfile] = useState('default');
@@ -1513,6 +1520,34 @@ const DmPanel = () => {
         setGlobalCommandsMessage('No se pudieron cargar los comandos globales.');
       });
   }, [authorized, sessionToken]);
+
+  useEffect(() => {
+    if (!authorized || !sessionToken) return;
+    fetch(TUI_COMMAND_LOCKS_ENDPOINT, { cache: 'no-store' })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        const commands = Array.isArray(data?.commands) ? data.commands : [];
+        const locks = data?.locks && typeof data.locks === 'object' ? data.locks : {};
+        setTuiCommands(commands);
+        setTuiCommandLocks(locks);
+        const selected = tuiCommandSelected || commands[0]?.command || '';
+        setTuiCommandSelected(selected);
+        setTuiCommandLockedDraft(Boolean(locks[selected]));
+        setTuiCommandMessage('');
+      })
+      .catch((error) => {
+        console.error('Load TUI command locks error', error);
+        setTuiCommandMessage('No se pudieron cargar los bloqueos TUI.');
+      });
+  }, [authorized, sessionToken]);
+
+  useEffect(() => {
+    if (!tuiCommandSelected) return;
+    setTuiCommandLockedDraft(Boolean(tuiCommandLocks[tuiCommandSelected]));
+  }, [tuiCommandLocks, tuiCommandSelected]);
 
   useEffect(() => {
     if (activeView !== 'evidence') return;
@@ -3099,6 +3134,62 @@ const DmPanel = () => {
       setGlobalCommandsMessage(error.message || 'No se pudieron guardar los comandos.');
     } finally {
       setGlobalCommandsLoading(false);
+    }
+  };
+
+  const refreshTuiCommandLocks = async () => {
+    setTuiCommandLoading(true);
+    setTuiCommandMessage('');
+    try {
+      const res = await fetch(TUI_COMMAND_LOCKS_ENDPOINT, { cache: 'no-store' });
+      if (!res.ok) throw new Error('No se pudieron cargar los bloqueos TUI.');
+      const data = await res.json();
+      const commands = Array.isArray(data?.commands) ? data.commands : [];
+      const locks = data?.locks && typeof data.locks === 'object' ? data.locks : {};
+      setTuiCommands(commands);
+      setTuiCommandLocks(locks);
+      const selected = tuiCommandSelected || commands[0]?.command || '';
+      setTuiCommandSelected(selected);
+      setTuiCommandLockedDraft(Boolean(locks[selected]));
+    } catch (error) {
+      setTuiCommandMessage(error.message || 'No se pudieron cargar los bloqueos TUI.');
+    } finally {
+      setTuiCommandLoading(false);
+    }
+  };
+
+  const saveTuiCommandLock = async (event) => {
+    event.preventDefault();
+    if (!tuiCommandSelected) return;
+    setTuiCommandLoading(true);
+    setTuiCommandMessage('');
+    try {
+      const nextLocks = {
+        ...tuiCommandLocks,
+        [tuiCommandSelected]: tuiCommandLockedDraft,
+      };
+      const res = await fetch(TUI_COMMAND_LOCKS_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ locks: nextLocks }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'No se pudo guardar el bloqueo TUI.');
+      }
+      const locks = data?.locks && typeof data.locks === 'object' ? data.locks : nextLocks;
+      setTuiCommands(Array.isArray(data?.commands) ? data.commands : tuiCommands);
+      setTuiCommandLocks(locks);
+      setTuiCommandMessage(
+        `${tuiCommandSelected.toUpperCase()} ${locks[tuiCommandSelected] ? 'bloqueado' : 'desbloqueado'}.`
+      );
+    } catch (error) {
+      setTuiCommandMessage(error.message || 'No se pudo guardar el bloqueo TUI.');
+    } finally {
+      setTuiCommandLoading(false);
     }
   };
 
@@ -8129,6 +8220,12 @@ const DmPanel = () => {
     const accessDirty = JSON.stringify(accessMatrix) !== accessBaseline;
     const runtimeUnlocked =
       campaignSnapshot?.unlockedAttributes?.villains?.[accessVillainId] || [];
+    const selectedTuiCommand = tuiCommands.find(
+      (command) => command.command === tuiCommandSelected
+    );
+    const selectedTuiCommandLocked = Boolean(tuiCommandLocks[tuiCommandSelected]);
+    const tuiCommandDirty =
+      Boolean(tuiCommandLockedDraft) !== selectedTuiCommandLocked;
     return (
       <section className="dm-panel__section">
         <h2 className="dm-panel__section-title">Accesos por atributo (Villanos)</h2>
@@ -8276,6 +8373,70 @@ const DmPanel = () => {
                 </button>
                 <span className="dm-panel__save-state">
                   {accessDirty ? 'Cambios sin guardar' : 'Sin cambios'}
+                </span>
+              </div>
+            </form>
+          </div>
+          <div className="dm-panel__card">
+            <form onSubmit={saveTuiCommandLock} className="dm-panel__form">
+              <div className="dm-panel__form-group">
+                <h4>Bloqueo de comandos TUI</h4>
+                <p className="dm-panel__hint">
+                  Controla que ordenes puede ejecutar la vista de agente. El HELP no revela
+                  el estado; el bloqueo solo aparece al ejecutar el comando.
+                </p>
+                <label>
+                  {labelRow('Comando', 'Selecciona la orden TUI a bloquear o liberar.')}
+                  <select
+                    className={selectedTuiCommandLocked ? 'is-locked' : 'is-unlocked'}
+                    value={tuiCommandSelected}
+                    onChange={(e) => setTuiCommandSelected(e.target.value)}
+                    disabled={tuiCommandLoading || !tuiCommands.length}
+                  >
+                    {tuiCommands.map((command) => (
+                      <option key={command.command} value={command.command}>
+                        {command.label} - {command.description}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div
+                className={`dm-panel__tui-command-card ${
+                  tuiCommandLockedDraft ? 'is-locked' : 'is-unlocked'
+                }`}
+              >
+                <div>
+                  <span className="dm-panel__tui-command-kicker">
+                    {selectedTuiCommand?.category || 'TUI'}
+                  </span>
+                  <strong>{selectedTuiCommand?.label || 'Sin comando'}</strong>
+                  <p>{selectedTuiCommand?.description || 'Carga la lista para editar.'}</p>
+                </div>
+                <label className="dm-panel__tui-command-toggle">
+                  <input
+                    type="checkbox"
+                    checked={tuiCommandLockedDraft}
+                    onChange={(e) => setTuiCommandLockedDraft(e.target.checked)}
+                    disabled={tuiCommandLoading || !tuiCommandSelected}
+                  />
+                  <span>{tuiCommandLockedDraft ? 'Bloqueado' : 'Desbloqueado'}</span>
+                </label>
+              </div>
+              {tuiCommandMessage && <p className="dm-panel__hint">{tuiCommandMessage}</p>}
+              <div className="dm-panel__actions">
+                <button type="submit" disabled={tuiCommandLoading || !tuiCommandSelected}>
+                  {tuiCommandLoading ? 'Guardando...' : 'Guardar bloqueo'}
+                </button>
+                <button
+                  type="button"
+                  onClick={refreshTuiCommandLocks}
+                  disabled={tuiCommandLoading}
+                >
+                  Recargar
+                </button>
+                <span className="dm-panel__save-state">
+                  {tuiCommandDirty ? 'Cambios sin guardar' : 'Sin cambios'}
                 </span>
               </div>
             </form>

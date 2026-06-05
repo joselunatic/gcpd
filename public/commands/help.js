@@ -1,4 +1,7 @@
-const output = [
+import { type } from "/utils/io.js";
+import { TUI_COMMANDS } from "/utils/tuiCommandRegistry.js";
+
+const HEADER = [
   " ",
   "══════════════════════════════════════════════════",
   "DOCUMENTO INTERNO // GCPD RELAY 03",
@@ -11,28 +14,29 @@ const output = [
   " ",
   "ORDENES DISPONIBLES PARA AGENTES AUTORIZADOS:",
   " ",
-  "NAVEGACION:",
-  "MAP       - MATRIZ CARTOGRAFICA",
-  "CASES     - EXPEDIENTES ACTIVOS",
-  "CASE <ID> - ABRE UN EXPEDIENTE",
-  "VILLAINS  - GALERIA DE OBJETIVOS",
-  "TACTICAL  - MAPA TACTICO EN VIVO",
-  " ",
-  "VISUAL / MEDIA:",
-  "SHOW W | SHOW JOKER | SHOW BALA",
-  "SHOW IMAGE <CODIGO> | SHOW <EVIDENCIA-ID>",
-  "AUDIO [ID] | BALLISTICA",
-  " ",
-  "COMUNICACIONES:",
-  "DIAL <TELEFONO> | DIALER | TRACER <TELEFONO>",
-  " ",
-  "SISTEMA:",
-  "HELP | STATUS | TOUCH [ON|OFF]",
-  "LOGOUT | EXIT | QUIT | HELLO",
+];
+
+const FOOTER = [
   " ",
   "NOTA DE ARCHIVO:",
   "\"CONOCE CADA CALLE Y A CADA ENEMIGO.\"",
   " ",
 ];
 
-export { output };
+const CATEGORY_ORDER = ["Navegacion", "Visual / media", "Comunicaciones", "Sistema"];
+
+export default async () => {
+  const lines = [...HEADER];
+
+  CATEGORY_ORDER.forEach((category) => {
+    const entries = TUI_COMMANDS.filter((entry) => entry.category === category);
+    if (!entries.length) return;
+    lines.push(`${category.toUpperCase()}:`);
+    entries.forEach((entry) => {
+      lines.push(`${entry.label.padEnd(12, " ")} - ${entry.description.toUpperCase()}`);
+    });
+    lines.push(" ");
+  });
+
+  await type([...lines, ...FOOTER], { stopBlinking: true });
+};

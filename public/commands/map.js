@@ -576,6 +576,10 @@ function ensureMapStyles() {
     }
     .terminal-map-loupe {
       position: fixed;
+      --map-tooltip-bg: var(--tooltip-bg, rgba(3, 12, 16, 0.94));
+      --map-tooltip-border: var(--tooltip-border, rgba(45, 220, 147, 0.56));
+      --map-tooltip-color: var(--tooltip-color, #b4ffe4);
+      --map-tooltip-shadow: var(--tooltip-shadow, 0 10px 22px rgba(0, 0, 0, 0.42));
       right: 18px;
       top: 72px;
       width: min(44vw, 560px);
@@ -684,6 +688,30 @@ function ensureMapStyles() {
       border-color: rgba(255, 224, 152, 0.98);
       color: #fff3d8;
       box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.72), 0 0 18px rgba(255, 207, 103, 0.36);
+    }
+    .terminal-map-loupe__tooltip {
+      position: absolute;
+      z-index: 4;
+      pointer-events: none;
+      max-width: min(280px, calc(100% - 24px));
+      padding: 5px 8px;
+      border: 1px solid var(--map-tooltip-border);
+      border-radius: 5px;
+      background: var(--map-tooltip-bg);
+      color: var(--map-tooltip-color);
+      box-shadow: var(--map-tooltip-shadow);
+      font: 600 9px/1.25 "Courier New", monospace;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      opacity: 0;
+      transform: translate(-50%, calc(-100% - 10px));
+      transition: opacity 100ms ease;
+    }
+    .terminal-map-loupe__tooltip.is-visible {
+      opacity: 1;
     }
     .terminal-map-loupe__empty {
       position: absolute;
@@ -1175,6 +1203,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
     <div class="terminal-map-loupe__body">
       <div class="terminal-map-loupe__surface"></div>
       <div class="terminal-map-loupe__empty" data-role="empty">SIN DATOS</div>
+      <div class="terminal-map-loupe__tooltip" data-role="tooltip"></div>
     </div>
     <div class="terminal-map-loupe__foot" data-role="foot">HOVER PARA DESPLEGAR POIS EN ZOOM REAL</div>
     <div class="terminal-map-loupe__resize" aria-hidden="true"></div>
@@ -1195,6 +1224,7 @@ async function showMapOverlay({ pois, hotspotsData }) {
   const loupeState = loupe.querySelector("[data-role='state']");
   const loupeFoot = loupe.querySelector("[data-role='foot']");
   const loupeEmpty = loupe.querySelector("[data-role='empty']");
+  const loupeTooltip = loupe.querySelector("[data-role='tooltip']");
   const loupeSurface = loupe.querySelector(".terminal-map-loupe__surface");
   const loupeHead = loupe.querySelector(".terminal-map-loupe__head");
   const loupeResizeHandle = loupe.querySelector(".terminal-map-loupe__resize");
@@ -1635,6 +1665,27 @@ async function showMapOverlay({ pois, hotspotsData }) {
     if (!loupe.classList.contains("is-hidden")) {
       loupe.classList.add("is-hidden");
     }
+    hideLoupeTooltip();
+  };
+
+  const hideLoupeTooltip = () => {
+    if (!loupeTooltip) return;
+    loupeTooltip.classList.remove("is-visible");
+    loupeTooltip.textContent = "";
+  };
+
+  const showLoupeTooltip = (node, text) => {
+    if (!loupeTooltip || !node || !text) return;
+    const body = loupe.querySelector(".terminal-map-loupe__body");
+    const bodyRect = body?.getBoundingClientRect();
+    const nodeRect = node.getBoundingClientRect();
+    if (!bodyRect || !nodeRect.width) return;
+    loupeTooltip.textContent = text;
+    loupeTooltip.classList.add("is-visible");
+    const x = clamp(nodeRect.left + nodeRect.width / 2 - bodyRect.left, 16, bodyRect.width - 16);
+    const y = clamp(nodeRect.top - bodyRect.top, 18, bodyRect.height - 8);
+    loupeTooltip.style.left = `${Math.round(x)}px`;
+    loupeTooltip.style.top = `${Math.round(y)}px`;
   };
 
   const getTargetFromPointer = (event) => {
@@ -1779,10 +1830,16 @@ async function showMapOverlay({ pois, hotspotsData }) {
       const yPx = pctToPx(entry.spot.y, MAP4X_HEIGHT);
       node.style.left = `${clamp((xPx - cropLeft) * zoom, 12, stageWidth - 12)}px`;
       node.style.top = `${clamp((yPx - cropTop) * zoom, 12, stageHeight - 12)}px`;
-      node.title = `${entry.poi.name || entry.poi.id} (${entry.spot.x}%, ${entry.spot.y}%)`;
-      node.setAttribute("aria-label", node.title);
+      const tooltipText = `${entry.poi.name || entry.poi.id} (${entry.spot.x}%, ${entry.spot.y}%)`;
+      node.dataset.tooltip = tooltipText;
+      node.setAttribute("aria-label", tooltipText);
+      node.addEventListener("mouseenter", () => showLoupeTooltip(node, tooltipText));
+      node.addEventListener("focus", () => showLoupeTooltip(node, tooltipText));
+      node.addEventListener("mouseleave", hideLoupeTooltip);
+      node.addEventListener("blur", hideLoupeTooltip);
       node.addEventListener("click", (event) => {
         event.stopPropagation();
+        hideLoupeTooltip();
         selectPoiFromNode(node, entry.poi, entry.evaluation, target.cluster || null);
       });
       loupeSurface.appendChild(node);

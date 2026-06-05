@@ -1374,6 +1374,87 @@
   min-width: 0;
 }
 
+.dm-panel__form select.is-unlocked {
+  border-color: rgba(45, 220, 147, 0.75);
+  color: #9affcf;
+}
+
+.dm-panel__form select.is-locked {
+  border-color: rgba(255, 88, 88, 0.8);
+  color: #ff9a9a;
+}
+
+.dm-panel__tui-command-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  border: 1px solid rgba(45, 220, 147, 0.35);
+  border-radius: 10px;
+  padding: 1rem;
+  background:
+    linear-gradient(135deg, rgba(45, 220, 147, 0.08), rgba(4, 14, 17, 0.94)),
+    #041116;
+}
+
+.dm-panel__tui-command-card.is-locked {
+  border-color: rgba(255, 88, 88, 0.55);
+  background:
+    linear-gradient(135deg, rgba(255, 88, 88, 0.12), rgba(4, 14, 17, 0.94)),
+    #14090b;
+}
+
+.dm-panel__tui-command-card strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: #d8fff0;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.dm-panel__tui-command-card.is-locked strong {
+  color: #ffd1d1;
+}
+
+.dm-panel__tui-command-card p {
+  margin: 0.35rem 0 0;
+  color: rgba(180, 255, 228, 0.72);
+  font-size: 0.82rem;
+}
+
+.dm-panel__tui-command-kicker {
+  color: rgba(127, 255, 208, 0.64);
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.dm-panel__tui-command-toggle {
+  flex: 0 0 auto;
+  display: inline-flex !important;
+  align-items: center;
+  flex-direction: row !important;
+  gap: 0.55rem !important;
+  border: 1px solid rgba(122, 195, 255, 0.45);
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+  color: #b9d8f5;
+  background: rgba(3, 16, 22, 0.82);
+}
+
+.dm-panel__tui-command-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #ff5858;
+}
+
+@media (max-width: 720px) {
+  .dm-panel__tui-command-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 980px) {
   .dm-panel__access-row {
     grid-template-columns: 1fr 0.4fr 0.4fr 0.4fr 1fr 1fr;
@@ -2328,15 +2409,15 @@
   position: absolute;
   pointer-events: none;
   z-index: 10;
-  background: rgba(3, 12, 16, 0.88);
-  border: 1px solid rgba(45, 220, 147, 0.5);
-  color: #b4ffe4;
+  background: var(--tooltip-bg, rgba(3, 12, 16, 0.88));
+  border: 1px solid var(--tooltip-border, rgba(45, 220, 147, 0.5));
+  color: var(--tooltip-color, #b4ffe4);
   font-size: 0.72rem;
   letter-spacing: 0.05em;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  box-shadow: var(--tooltip-shadow, 0 2px 8px rgba(0,0,0,0.4));
   backdrop-filter: blur(4px);
 }
 

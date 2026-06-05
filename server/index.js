@@ -10,6 +10,7 @@ import multer from 'multer';
 import { spawn } from 'child_process';
 import { WebSocketServer } from 'ws';
 import { clampPercent, normalizeTokenKind, normalizeTrail } from '../public/utils/liveMapContract.js';
+import { TUI_COMMANDS, normalizeTuiCommandLocks } from '../public/utils/tuiCommandRegistry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,6 +21,7 @@ const DEFAULT_PASSWORD = process.env.DM_DEFAULT_PASSWORD || 'brother';
 const BACKDOOR_PASSWORD = process.env.DM_BACKDOOR_PASSWORD || '1234';
 const SESSION_DURATION_MS = Number(process.env.DM_SESSION_DURATION_MS || 1000 * 60 * 60 * 6);
 const GLOBAL_COMMANDS_KEY = 'global_commands';
+const TUI_COMMAND_LOCKS_KEY = 'tui_command_locks';
 const TRACER_CONFIG_KEY = 'tracer_config';
 const HIDDEN_IMAGES_KEY = 'hidden_poi_images';
 const LIVE_MAP_STATE_KEY = 'live_map_state';
@@ -1690,6 +1692,16 @@ function setGlobalCommands(commands) {
   return normalized;
 }
 
+function getTuiCommandLocks() {
+  return normalizeTuiCommandLocks(parseJSON(getSetting(TUI_COMMAND_LOCKS_KEY), {}));
+}
+
+function setTuiCommandLocks(locks) {
+  const normalized = normalizeTuiCommandLocks(locks);
+  setSetting(TUI_COMMAND_LOCKS_KEY, stringify(normalized));
+  return normalized;
+}
+
 const normalizeUnlockConditions = (value, fallbackPassword = '') => {
   if (!value && fallbackPassword) {
     return { ...defaultAccessConfig, unlockMode: 'password', password: fallbackPassword };
@@ -2405,6 +2417,29 @@ app.post('/api/global-commands', authMiddleware, (req, res) => {
   const payload = req.body?.commands ?? req.body ?? [];
   const saved = setGlobalCommands(payload);
   res.json({ commands: saved });
+});
+
+app.get('/api/tui-command-locks', (req, res) => {
+  const locks = getTuiCommandLocks();
+  res.json({
+    commands: TUI_COMMANDS.map((entry) => ({
+      ...entry,
+      locked: Boolean(locks[entry.command]),
+    })),
+    locks,
+  });
+});
+
+app.post('/api/tui-command-locks', authMiddleware, (req, res) => {
+  const payload = req.body?.locks ?? req.body ?? {};
+  const saved = setTuiCommandLocks(payload);
+  res.json({
+    commands: TUI_COMMANDS.map((entry) => ({
+      ...entry,
+      locked: Boolean(saved[entry.command]),
+    })),
+    locks: saved,
+  });
 });
 
 app.get('/api/hidden-images', (req, res) => {

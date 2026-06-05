@@ -7,6 +7,8 @@ import {
   activateSelection,
   getSelectedElement,
 } from "/utils/selection.js";
+import { COMMAND_ALIASES } from "/utils/tuiCommandRegistry.js";
+import { isRuntimeCommandLocked } from "/utils/tuiCommandLocks.js";
 
 // Command history
 let prev = getHistory();
@@ -663,20 +665,6 @@ async function parse(input) {
     return;
   }
   // Only allow words, separated by space
-  const COMMAND_ALIASES = {
-    mapa: "map",
-    casos: "cases",
-    modulos: "modules",
-    modulo: "modules",
-    caso: "case",
-    villanos: "villains",
-    villano: "villains",
-    ayuda: "help",
-    salir: "exit",
-    limpiar: "clear",
-    estado: "status",
-  };
-
   let matches = String(input).match(/^(\w+)(?:\s([A-Za-z0-9\s\-()+#]+))?$/);
   if (!matches) {
     const invalid = await importRuntimeModule("/commands/__invalid.js");
@@ -690,6 +678,14 @@ async function parse(input) {
   let naughty = ["fuck", "shit", "die", "ass", "cunt", "asshole", "idiot"];
   if (naughty.some((word) => command.includes(word))) {
     command = "__language";
+  }
+
+  if (await isRuntimeCommandLocked(command)) {
+    const locked = await importRuntimeModule("/commands/__locked.js");
+    if (locked?.default) {
+      return locked.default(command);
+    }
+    return;
   }
 
   console.log("Matches: ", matches[0]);
