@@ -36,6 +36,7 @@ const LIVE_MAP_BACKGROUNDS_ENDPOINT = '/api/live-map-backgrounds';
 const LIVE_MAP_BACKGROUND_UPLOAD_ENDPOINT = '/api/live-map-background-upload';
 const LIVE_MAP_BACKGROUND_DELETE_ENDPOINT = '/api/live-map-backgrounds';
 const RT_EFFECTS_MEDIA_ENDPOINT = '/api/rt-effects-media';
+const BIOMETRICS_CONFIG_ENDPOINT = '/api/biometrics-config';
 const RT_EFFECTS_DURATION_INFINITY_SEC = 60;
 
 const initialCaseForm = {
@@ -441,6 +442,7 @@ const SECTION_TABS = {
   OPS: [
     { id: 'tracer', label: 'Tracer' },
     { id: 'liveMap', label: 'Mapa Live' },
+    { id: 'biolink', label: 'BioLink' },
     { id: 'rtEffects', label: 'Efectos RT' },
   ],
   CONFIG: [
@@ -1112,6 +1114,11 @@ const DmPanel = () => {
   const [liveMapBackgroundUploading, setLiveMapBackgroundUploading] = useState(false);
   const [liveMapBackgroundDraft, setLiveMapBackgroundDraft] = useState('');
   const [liveMapBackgroundLabelDraft, setLiveMapBackgroundLabelDraft] = useState('');
+  const [biometricsConfig, setBiometricsConfig] = useState(null);
+  const [biometricsDevices, setBiometricsDevices] = useState([]);
+  const [biometricsSelectedDevice, setBiometricsSelectedDevice] = useState('');
+  const [biometricsWsState, setBiometricsWsState] = useState('offline');
+  const [biometricsMessage, setBiometricsMessage] = useState('');
   const evidencePreviewRef = useRef(null);
   const evidenceViewerRef = useRef(null);
   const evidenceMeshRef = useRef(null);
@@ -1121,6 +1128,7 @@ const DmPanel = () => {
   const ballisticsPreviewRightRef = useRef(null);
   const liveMapSocketRef = useRef(null);
   const liveMapDragRef = useRef(null);
+  const biometricsSocketRef = useRef(null);
   const rtEffectsSocketRef = useRef(null);
   const rtEffectsAlarmInputRef = useRef(null);
   const [rtEffectsWsState, setRtEffectsWsState] = useState('offline');
@@ -3468,6 +3476,95 @@ const DmPanel = () => {
     }
   }, [normalizeLiveMapState]);
 
+  const normalizeBiometricsDevice = useCallback((device = {}) => {
+    const source = device && typeof device === 'object' ? device : {};
+    const samples = Array.isArray(source.samples)
+      ? source.samples
+          .map((sample) => ({
+            bpm: Number(sample?.bpm) || 0,
+            liveBpm: Number(sample?.liveBpm) || 0,
+            rawBpm: Number(sample?.rawBpm) || 0,
+            filteredBpm: Number(sample?.filteredBpm) || 0,
+            quality: String(sample?.quality || '').trim(),
+            timestamp: Number(sample?.timestamp) || 0,
+          }))
+          .filter((sample) => sample.timestamp > 0)
+          .slice(-12)
+      : [];
+    return {
+      device: String(source.device || '').trim(),
+      player: String(source.player || '').trim(),
+      phase: String(source.phase || 'waiting_calm').trim(),
+      unlocked: source.unlocked === true || String(source.phase || '').trim() === 'unlocked',
+      calmAt: Number(source.calmAt) || 0,
+      calmCount: Number(source.calmCount) || 0,
+      spikeCount: Number(source.spikeCount) || 0,
+      lastBpm: Number(source.lastBpm ?? source.bpm) || 0,
+      lastRawBpm: Number(source.lastRawBpm ?? source.rawBpm) || 0,
+      lastFilteredBpm: Number(source.lastFilteredBpm ?? source.filteredBpm) || 0,
+      lastDetectionBpm: Number(source.lastDetectionBpm ?? source.detectionBpm) || 0,
+      lastAverageBpm: Number(source.lastAverageBpm ?? source.averageBpm) || 0,
+      updatedAt: Number(source.updatedAt || source.timestamp) || 0,
+      samples,
+    };
+  }, []);
+
+  const sortBiometricsDevices = useCallback((devices = []) => {
+    return [...devices].sort((a, b) => {
+      const byUpdated = (Number(b.updatedAt) || 0) - (Number(a.updatedAt) || 0);
+      if (byUpdated !== 0) return byUpdated;
+      return String(a.device || '').localeCompare(String(b.device || ''), 'es');
+    });
+  }, []);
+
+  const replaceBiometricsDevices = useCallback(
+    (devices = []) => {
+      setBiometricsDevices(sortBiometricsDevices(devices.map((entry) => normalizeBiometricsDevice(entry)).filter((entry) => entry.device)));
+    },
+    [normalizeBiometricsDevice, sortBiometricsDevices]
+  );
+
+  const mergeBiometricsDevice = useCallback(
+    (device) => {
+      const normalized = normalizeBiometricsDevice(device);
+      if (!normalized.device) return;
+      setBiometricsDevices((prev) => {
+        const existing = prev.find((entry) => entry.device === normalized.device);
+        const next = existing
+          ? {
+              ...existing,
+              ...normalized,
+              samples: normalized.samples.length ? normalized.samples : existing.samples,
+            }
+          : normalized;
+        return sortBiometricsDevices([
+          ...prev.filter((entry) => entry.device !== normalized.device),
+          next,
+        ]);
+      });
+    },
+    [normalizeBiometricsDevice, sortBiometricsDevices]
+  );
+
+  const loadBiometricsConfig = useCallback(async () => {
+    setBiometricsMessage('');
+    try {
+      const res = await fetch(BIOMETRICS_CONFIG_ENDPOINT, { cache: 'no-store' });
+      if (!res.ok) throw new Error('No se pudo cargar BioLink.');
+      const data = await res.json();
+      setBiometricsConfig(data?.config || null);
+    } catch (error) {
+      setBiometricsMessage(error.message || 'No se pudo cargar BioLink.');
+    }
+  }, []);
+
+  const sendBiometricsSocket = useCallback((payload) => {
+    const socket = biometricsSocketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+    socket.send(JSON.stringify(payload));
+    return true;
+  }, []);
+
   const sendLiveMapSocket = useCallback((payload) => {
     const socket = liveMapSocketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return false;
@@ -4459,6 +4556,12 @@ const DmPanel = () => {
   }, [authorized, activeView, loadLiveMapBackgrounds, loadLiveMapState]);
 
   useEffect(() => {
+    if (!authorized) return;
+    if (activeView !== 'biolink') return;
+    loadBiometricsConfig();
+  }, [authorized, activeView, loadBiometricsConfig]);
+
+  useEffect(() => {
     setLiveMapBackgroundDraft(
       liveMapState.backgroundLoaded && liveMapState.backgroundImagePath
         ? liveMapState.backgroundImagePath
@@ -4549,6 +4652,79 @@ const DmPanel = () => {
       socket.close();
     };
   }, [activeView, authorized, sessionToken]);
+
+  useEffect(() => {
+    if (!authorized || !sessionToken || activeView !== 'biolink') return undefined;
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const encodedToken = encodeURIComponent(sessionToken);
+    const socket = new WebSocket(
+      `${protocol}://${window.location.host}/ws/biometrics?role=dm&token=${encodedToken}`
+    );
+    biometricsSocketRef.current = socket;
+    setBiometricsWsState('connecting');
+    socket.onopen = () => setBiometricsWsState('online');
+    socket.onerror = () => setBiometricsWsState('error');
+    socket.onclose = () => {
+      if (biometricsSocketRef.current === socket) biometricsSocketRef.current = null;
+      setBiometricsWsState('offline');
+    };
+    socket.onmessage = (event) => {
+      let payload;
+      try {
+        payload = JSON.parse(String(event.data || '{}'));
+      } catch {
+        return;
+      }
+      if (payload.type === 'biometrics:snapshot') {
+        setBiometricsConfig(payload.config || null);
+        replaceBiometricsDevices(Array.isArray(payload.devices) ? payload.devices : []);
+        return;
+      }
+      if (payload.type === 'biometrics:status') {
+        mergeBiometricsDevice(payload);
+        return;
+      }
+      if (payload.type === 'secret_unlocked') {
+        mergeBiometricsDevice({
+          device: payload.device,
+          player: payload.player,
+          phase: 'unlocked',
+          unlocked: true,
+          lastBpm: payload.bpm,
+          lastRawBpm: payload.rawBpm,
+          lastFilteredBpm: payload.filteredBpm,
+          lastDetectionBpm: payload.detectionBpm,
+          lastAverageBpm: payload.averageBpm,
+          updatedAt: payload.timestamp,
+        });
+        setBiometricsMessage(`${payload.title || 'ACCESS GRANTED'} · ${payload.device || 'device'}`);
+        return;
+      }
+      if (payload.type === 'biometrics:error') {
+        setBiometricsMessage(payload.message || 'Error BioLink.');
+      }
+    };
+    return () => {
+      if (biometricsSocketRef.current === socket) biometricsSocketRef.current = null;
+      socket.close();
+    };
+  }, [
+    activeView,
+    authorized,
+    mergeBiometricsDevice,
+    replaceBiometricsDevices,
+    sessionToken,
+  ]);
+
+  useEffect(() => {
+    if (!biometricsDevices.length) {
+      if (biometricsSelectedDevice) setBiometricsSelectedDevice('');
+      return;
+    }
+    if (!biometricsSelectedDevice || !biometricsDevices.some((entry) => entry.device === biometricsSelectedDevice)) {
+      setBiometricsSelectedDevice(biometricsDevices[0].device);
+    }
+  }, [biometricsDevices, biometricsSelectedDevice]);
 
   const getRtEffectsDurationMs = useCallback(() => {
     const seconds = Number(rtEffectsDurationSec);
@@ -5259,6 +5435,7 @@ const DmPanel = () => {
       audioMessage,
       phoneMessage,
       tracerMessage,
+      biometricsMessage,
       accessMessage,
       campaignMessage,
       globalCommandsMessage,
@@ -5288,6 +5465,7 @@ const DmPanel = () => {
     audioMessage,
     phoneMessage,
     tracerMessage,
+    biometricsMessage,
     accessMessage,
     campaignMessage,
     globalCommandsMessage,
@@ -7921,6 +8099,200 @@ const DmPanel = () => {
     );
   };
 
+  const renderBiolinkView = () => {
+    const selectedDevice =
+      biometricsDevices.find((entry) => entry.device === biometricsSelectedDevice) ||
+      biometricsDevices[0] ||
+      null;
+    const phaseLabel = (phase = '') => {
+      if (phase === 'calm_detected') return 'CALMA FIJADA';
+      if (phase === 'unlocked') return 'SECRET UNLOCKED';
+      return 'ESPERANDO CALMA';
+    };
+    const phaseTone = (phase = '') => {
+      if (phase === 'unlocked') return 'success';
+      if (phase === 'calm_detected') return 'warning';
+      return 'idle';
+    };
+    const formatTimestamp = (value) => {
+      const ts = Number(value) || 0;
+      if (!ts) return 'SIN DATOS';
+      return new Date(ts).toLocaleString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+    };
+    const renderBpm = (value) => {
+      const bpm = Number(value) || 0;
+      return bpm > 0 ? `${bpm} BPM` : '---';
+    };
+    const config = biometricsConfig || {};
+
+    return (
+      <section className="dm-panel__section">
+        <h2 className="dm-panel__section-title">BioLink</h2>
+        <p className="dm-panel__hint">
+          Monitor en vivo para relojes Pebble. Permite verificar muestras HR, fase actual y unlock biométrico.
+        </p>
+        {biometricsMessage && <p className="dm-panel__hint">{biometricsMessage}</p>}
+        <div className="dm-panel__grid dm-panel__grid--two">
+          <div className="dm-panel__card biometrics-panel">
+            <div className="dm-panel__panel-title">
+              BioLink telemetry
+              <span className={`biometrics-status-pill biometrics-status-pill--${biometricsWsState}`}>
+                WS {biometricsWsState}
+              </span>
+            </div>
+
+            <div className="biometrics-config-grid">
+              <div className="biometrics-stat-card">
+                <span>Calma</span>
+                <strong>{config.calmBpmThreshold || 65} BPM</strong>
+              </div>
+              <div className="biometrics-stat-card">
+                <span>Pico</span>
+                <strong>{config.spikeBpmThreshold || 115} BPM</strong>
+              </div>
+              <div className="biometrics-stat-card">
+                <span>Ventana</span>
+                <strong>{config.timeWindowSeconds || 120}s</strong>
+              </div>
+              <div className="biometrics-stat-card">
+                <span>Muestras</span>
+                <strong>{config.consecutiveSamples || 3} / AVG {config.movingAverageSamples || 3}</strong>
+              </div>
+            </div>
+
+            <div className="biometrics-actions">
+              <button
+                type="button"
+                className="dm-panel__button"
+                onClick={loadBiometricsConfig}
+              >
+                Recargar config
+              </button>
+              <button
+                type="button"
+                className="dm-panel__button danger"
+                onClick={() => {
+                  if (!sendBiometricsSocket({ type: 'biometrics:reset' })) {
+                    setBiometricsMessage('Socket BioLink no disponible.');
+                  }
+                }}
+              >
+                Reset global
+              </button>
+            </div>
+
+            <div className="dm-panel__list dm-panel__list--compact biometrics-device-list">
+              {biometricsDevices.length ? (
+                biometricsDevices.map((device) => (
+                  <button
+                    key={device.device}
+                    type="button"
+                    className={selectedDevice?.device === device.device ? 'active' : ''}
+                    onClick={() => setBiometricsSelectedDevice(device.device)}
+                    title={`${device.device} · ${device.player || 'sin jugador'} · ${phaseLabel(device.phase)}`}
+                  >
+                    <strong>{device.player || device.device}</strong>
+                    <span>{device.device}</span>
+                    <span>{renderBpm(device.lastBpm)} · AVG {renderBpm(device.lastAverageBpm)}</span>
+                    <span>{phaseLabel(device.phase)}</span>
+                  </button>
+                ))
+              ) : (
+                <p className="dm-panel__hint">Todavía no hay relojes conectados.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="dm-panel__card biometrics-detail">
+            <div className="dm-panel__panel-title">Dispositivo seleccionado</div>
+            {selectedDevice ? (
+              <>
+                <div className="biometrics-detail__header">
+                  <div>
+                    <strong>{selectedDevice.player || selectedDevice.device}</strong>
+                    <p>{selectedDevice.device}</p>
+                  </div>
+                  <span className={`biometrics-status-pill biometrics-status-pill--${phaseTone(selectedDevice.phase)}`}>
+                    {phaseLabel(selectedDevice.phase)}
+                  </span>
+                </div>
+
+                <div className="biometrics-config-grid">
+                  <div className="biometrics-stat-card">
+                    <span>Live</span>
+                    <strong>{renderBpm(selectedDevice.lastBpm)}</strong>
+                  </div>
+                  <div className="biometrics-stat-card">
+                    <span>Raw</span>
+                    <strong>{renderBpm(selectedDevice.lastRawBpm)}</strong>
+                  </div>
+                  <div className="biometrics-stat-card">
+                    <span>Filtrado</span>
+                    <strong>{renderBpm(selectedDevice.lastFilteredBpm)}</strong>
+                  </div>
+                  <div className="biometrics-stat-card">
+                    <span>AVG</span>
+                    <strong>{renderBpm(selectedDevice.lastAverageBpm)}</strong>
+                  </div>
+                </div>
+
+                <div className="biometrics-detail__meta">
+                  <span>Detección: {renderBpm(selectedDevice.lastDetectionBpm)}</span>
+                  <span>Calma: {selectedDevice.calmCount}</span>
+                  <span>Pico: {selectedDevice.spikeCount}</span>
+                  <span>Actualizado: {formatTimestamp(selectedDevice.updatedAt)}</span>
+                </div>
+
+                <div className="biometrics-detail__actions">
+                  <button
+                    type="button"
+                    className="dm-panel__button danger"
+                    onClick={() => {
+                      if (!sendBiometricsSocket({ type: 'biometrics:reset', device: selectedDevice.device })) {
+                        setBiometricsMessage('Socket BioLink no disponible.');
+                      }
+                    }}
+                  >
+                    Reset dispositivo
+                  </button>
+                </div>
+
+                <div className="biometrics-sample-list">
+                  <div className="dm-panel__panel-title">Últimas muestras</div>
+                  {selectedDevice.samples.length ? (
+                    selectedDevice.samples
+                      .slice()
+                      .reverse()
+                      .map((sample) => (
+                        <div key={`${selectedDevice.device}-${sample.timestamp}`} className="biometrics-sample-row">
+                          <span>{formatTimestamp(sample.timestamp)}</span>
+                          <span>DET {renderBpm(sample.bpm)}</span>
+                          <span>LIVE {renderBpm(sample.liveBpm)}</span>
+                          <span>RAW {renderBpm(sample.rawBpm)}</span>
+                          <span>FIL {renderBpm(sample.filteredBpm)}</span>
+                          <span>{sample.quality || 'n/a'}</span>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="dm-panel__hint">Sin muestras todavía.</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="dm-panel__hint">Selecciona un dispositivo o espera a que un reloj envíe muestras.</p>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
   const renderTracerView = () => (
     <section className="dm-panel__section">
       <h2 className="dm-panel__section-title">Tracer</h2>
@@ -8637,6 +9009,7 @@ const DmPanel = () => {
             {activeView === 'evidence' && renderEvidenceView()}
             {activeView === 'tracer' && renderTracerView()}
             {activeView === 'liveMap' && renderLiveMapView()}
+            {activeView === 'biolink' && renderBiolinkView()}
             {activeView === 'rtEffects' && renderRtEffectsView()}
             {activeView === 'access' && renderAccessView()}
             {activeView === 'campaign' && renderCampaignView()}

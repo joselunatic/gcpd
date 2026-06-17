@@ -13,7 +13,7 @@ import {
 import { attemptEntityUnlock } from "/utils/accessFlow.js";
 import { getStatusContext } from "/utils/status.js";
 import { isPortraitNarrow, getWrapLimit } from "/utils/portrait.js";
-import { waitForSelection } from "/utils/selection.js";
+import { waitForSelection, clearSelectables } from "/utils/selection.js";
 import { paginateSelectableItems, getTerminalLineCapacity, countVisualLines } from "/utils/pagination.js";
 import { SYMBOLS, buildHeaderLines, buildFooterLines, titleLine, mergePartsLine, toParts, trimParts, padParts } from "/utils/tui.js";
 import { normalizePoisClient, getPoiName } from "/utils/poiContract.js";
@@ -76,11 +76,13 @@ const trimInline = (value = "", limit = 48) => {
 const getCaseLocationRefs = (item = {}) =>
   Array.isArray(item?.commands?.locationRefs) ? item.commands.locationRefs : [];
 
-function resolveCaseLocations(item = {}, poisIndex = new Map()) {
+function resolveCaseLocations(item = {}, poisIndex = new Map(), campaignState = loadCampaignState()) {
   return getCaseLocationRefs(item)
     .map((entry) => {
       const poi = poisIndex.get(entry.poiId);
       if (!poi) return null;
+      const access = evaluateAccess(poi, campaignState);
+      if (!access.visible && !access.listed) return null;
       return {
         poiId: entry.poiId,
         role: entry.role || "related",
@@ -483,6 +485,7 @@ function waitForCaseDetailAction({
   allowTap = false,
   canScrollUp = false,
   canScrollDown = false,
+  allowSelection = false,
 } = {}) {
   return new Promise((resolve) => {
     let resolved = false;
@@ -565,6 +568,12 @@ function waitForCaseDetailAction({
         shouldHandle: () => true,
       }
     );
+    if (allowSelection) {
+      waitForSelection().then((selected) => {
+        if (resolved) return;
+        finish(String(selected?.dataset?.value || ""));
+      });
+    }
     if (allowTap) {
       const terminal = document.querySelector(".terminal");
       if (terminal) terminal.addEventListener("pointerdown", tapHandler, true);
@@ -574,7 +583,7 @@ function waitForCaseDetailAction({
 
 async function renderCaseDetails(item, evaluation, cases, poisIndex) {
   const canDescend = (getNodeType(item) === "container" || getNodeType(item) === "mixed") && hasChildren(cases, item.id);
-  const relatedPoiIds = resolveCaseLocations(item, poisIndex).map((entry) => entry.poiId);
+  const relatedPoiIds = resolveCaseLocations(item, poisIndex, loadCampaignState()).map((entry) => entry.poiId);
   const hasCaseMap = relatedPoiIds.length > 0;
   const detailLines = buildDetailBody(item, evaluation, cases, poisIndex);
   const capacity = getTerminalLineCapacity(24);
@@ -638,15 +647,14 @@ async function renderCaseDetails(item, evaluation, cases, poisIndex) {
       fastRender
     );
     markSeen("cases", item.id, Number(item.updatedAt || Date.now()));
-    const action = isPortraitNarrow()
-      ? String((await waitForSelection())?.dataset?.value || "").trim().toUpperCase()
-      : await waitForCaseDetailAction({
-          allowMap: hasCaseMap,
-          allowDescend: canDescend,
-          allowTap: document.body.classList.contains("touch-mode"),
-          canScrollUp: maxOffset > 0 && safeOffset > 0,
-          canScrollDown: maxOffset > 0 && safeOffset < maxOffset,
-        });
+    const action = await waitForCaseDetailAction({
+      allowMap: hasCaseMap,
+      allowDescend: canDescend,
+      allowTap: document.body.classList.contains("touch-mode"),
+      canScrollUp: maxOffset > 0 && safeOffset > 0,
+      canScrollDown: maxOffset > 0 && safeOffset < maxOffset,
+      allowSelection: true,
+    });
     const normalized = String(action || "").trim().toUpperCase();
     if (normalized === "UP") {
       offset = Math.max(0, safeOffset - Math.max(1, Math.floor(viewport / 2)));
@@ -765,6 +773,10 @@ async function browseCases(cases) {
     const paginationProbeFooter = [
       ...buildWorkspaceLines(nodes[defaultIndex]?.item || nodes[0]?.item, nodes[defaultIndex]?.evaluation || nodes[0]?.evaluation, cases, poisIndex),
       footerHintLine,
+      ...buildFooterLines({
+        mode: "INVESTIGATION",
+        link: "SECURE",
+      }).map((line) => mergeLine(line, "")),
     ];
 
     const { pages, pageCount } = paginateSelectableItems({ lines: headerLines, items, footerLines: paginationProbeFooter, chips: baseChips });
@@ -799,9 +811,19 @@ async function browseCases(cases) {
       ...(pageCount > 1 ? [mergeLine(`PAGINA ${pageIndex + 1}/${pageCount} (N/P)`, "")] : []),
       ...buildWorkspaceLines(focusItem?._item, focusItem?._evaluation, cases, poisIndex),
       finalHintLine,
+      ...buildFooterLines({
+        mode: "INVESTIGATION",
+        link: "SECURE",
+      }).map((line) => mergeLine(line, "")),
     ];
     const footerPrefixLines = pageCount > 1 ? [mergeLine(`PAGINA ${pageIndex + 1}/${pageCount} (N/P)`, "")] : [];
-    const footerSuffixLines = [finalHintLine];
+    const footerSuffixLines = [
+      finalHintLine,
+      ...buildFooterLines({
+        mode: "INVESTIGATION",
+        link: "SECURE",
+      }).map((line) => mergeLine(line, "")),
+    ];
     clear();
     await renderSelectableLines(
       {
@@ -833,6 +855,7 @@ async function browseCases(cases) {
     if (isPortraitNarrow()) {
       const node = await waitForSelection();
       if (node?.dataset?.action === "command" && node?.dataset?.value) {
+        clearSelectables();
         await parse(node.dataset.value);
         return;
       }

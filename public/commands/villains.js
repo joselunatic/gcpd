@@ -16,7 +16,7 @@ import { attemptEntityUnlock } from "/utils/accessFlow.js";
 import { getStatusContext } from "/utils/status.js";
 import { getDeltaMarker } from "/utils/delta.js";
 import { isPortraitNarrow, getWrapLimit } from "/utils/portrait.js";
-import { waitForSelection } from "/utils/selection.js";
+import { waitForSelection, clearSelectables } from "/utils/selection.js";
 import { paginateSelectableItems, getTerminalLineCapacity, countVisualLines } from "/utils/pagination.js";
 import {
   SYMBOLS,
@@ -824,7 +824,7 @@ async function browseVillains(villains) {
       ...buildFooterLines({
         mode: "INTEL",
         link: "SECURE",
-      }).map((line) => ({ parts: [{ text: line, className: "tui-muted" }] })),
+      }).map((line) => mergeLine(line, "")),
     ];
     const baseChips = [
       { label: "MAPA", action: "command", value: "map" },
@@ -885,7 +885,7 @@ async function browseVillains(villains) {
       ...buildFooterLines({
         mode: "INTEL",
         link: "SECURE",
-      }).map((line) => ({ parts: [{ text: line, className: "tui-muted" }] })),
+      }).map((line) => mergeLine(line, "")),
     ];
     const footerPrefixLines = pageCount > 1 ? [mergeLine(`PAGINA ${pageIndex + 1}/${pageCount} (N/P)`, "")] : [];
     const footerSuffixLines = [
@@ -893,7 +893,7 @@ async function browseVillains(villains) {
       ...buildFooterLines({
         mode: "INTEL",
         link: "SECURE",
-      }).map((line) => ({ parts: [{ text: line, className: "tui-muted" }] })),
+      }).map((line) => mergeLine(line, "")),
     ];
     const chips =
       pageCount > 1 && isPortraitNarrow()
@@ -934,6 +934,7 @@ async function browseVillains(villains) {
       const action = selected?.dataset?.action || "";
       const value = selected?.dataset?.value || "";
       if (action === "command" && value) {
+        clearSelectables();
         await parse(value);
         return;
       }

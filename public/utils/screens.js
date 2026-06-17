@@ -103,6 +103,7 @@ function triggerSelectedAction(element) {
     return true;
   }
   if (action === "command") {
+    if (submitInput(value)) return true;
     parse(value);
     if (isInputActive()) {
       setTimeout(() => focusInput(), 0);

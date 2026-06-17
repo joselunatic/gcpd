@@ -3259,6 +3259,146 @@
   width: auto;
 }
 
+.biometrics-panel,
+.biometrics-detail {
+  min-width: 0;
+}
+
+.biometrics-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(180, 255, 228, 0.22);
+  background: rgba(180, 255, 228, 0.06);
+  color: rgba(180, 255, 228, 0.7);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.biometrics-status-pill--online,
+.biometrics-status-pill--success {
+  color: #2ddc93;
+  border-color: rgba(45, 220, 147, 0.48);
+  background: rgba(45, 220, 147, 0.08);
+}
+
+.biometrics-status-pill--connecting,
+.biometrics-status-pill--warning {
+  color: #e8c96a;
+  border-color: rgba(232, 201, 106, 0.45);
+  background: rgba(232, 201, 106, 0.08);
+}
+
+.biometrics-status-pill--error {
+  color: #ff8f8f;
+  border-color: rgba(255, 107, 107, 0.45);
+  background: rgba(255, 107, 107, 0.08);
+}
+
+.biometrics-config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.7rem;
+}
+
+.biometrics-stat-card {
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(124, 255, 178, 0.18);
+  background: rgba(3, 12, 16, 0.52);
+  border-radius: 10px;
+  display: grid;
+  gap: 0.18rem;
+}
+
+.biometrics-stat-card span {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(180, 255, 228, 0.55);
+}
+
+.biometrics-stat-card strong {
+  font-size: 1rem;
+  color: #d6fff0;
+  overflow-wrap: anywhere;
+}
+
+.biometrics-actions,
+.biometrics-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.biometrics-device-list {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.biometrics-device-list button {
+  width: 100%;
+  min-width: 0;
+}
+
+.biometrics-device-list button strong,
+.biometrics-device-list button span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.biometrics-detail__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+.biometrics-detail__header p {
+  margin: 0.25rem 0 0;
+  color: rgba(180, 255, 228, 0.6);
+  overflow-wrap: anywhere;
+}
+
+.biometrics-detail__meta {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(124, 255, 178, 0.18);
+  background: rgba(3, 12, 16, 0.42);
+  border-radius: 10px;
+  color: rgba(214, 255, 240, 0.82);
+  overflow-wrap: anywhere;
+}
+
+.biometrics-sample-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.biometrics-sample-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.25fr) repeat(5, minmax(0, 1fr));
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(124, 255, 178, 0.12);
+  background: rgba(3, 12, 16, 0.42);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: rgba(214, 255, 240, 0.82);
+}
+
+.biometrics-sample-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 /* Global Search Overlay */
 .dm-panel__global-search {
   position: fixed;

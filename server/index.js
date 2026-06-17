@@ -26,10 +26,21 @@ const TRACER_CONFIG_KEY = 'tracer_config';
 const HIDDEN_IMAGES_KEY = 'hidden_poi_images';
 const LIVE_MAP_STATE_KEY = 'live_map_state';
 const LIVE_MAP_BACKGROUNDS_KEY = 'live_map_backgrounds';
+const BIOMETRICS_CONFIG_KEY = 'biometrics_config';
 const LIVE_MAP_FALLBACK_PATH = '/assets/livemap/gcpd_live_map_fallback_unavailable.png';
 const TRACER_RING_TIMEOUT_MS = 60_000;
 const TRACER_STEP_MS = 15_000;
 const TRACER_EXACT_MS = 45_000;
+const BIOMETRICS_DEFAULT_CONFIG = {
+  calmBpmThreshold: Number(process.env.BIOMETRICS_CALM_BPM_THRESHOLD || 65),
+  spikeBpmThreshold: Number(process.env.BIOMETRICS_SPIKE_BPM_THRESHOLD || 115),
+  timeWindowSeconds: Number(process.env.BIOMETRICS_TIME_WINDOW_SECONDS || 120),
+  consecutiveSamples: Number(process.env.BIOMETRICS_CONSECUTIVE_SAMPLES || 3),
+  movingAverageSamples: Number(process.env.BIOMETRICS_MOVING_AVERAGE_SAMPLES || 3),
+  unlockFlag: process.env.BIOMETRICS_UNLOCK_FLAG || 'biometric_secret_unlocked',
+  secretTitle: process.env.BIOMETRICS_SECRET_TITLE || 'ACCESS GRANTED',
+  secretMessage: process.env.BIOMETRICS_SECRET_MESSAGE || 'Password: SOMBRA-17',
+};
 
 const dbPath = path.join(__dirname, 'batconsole.db');
 const db = new Database(dbPath);
@@ -956,6 +967,9 @@ const tracerAgentSockets = new Set();
 const tracerCalls = new Map();
 const liveMapDmSockets = new Set();
 const liveMapAgentSockets = new Set();
+const biometricsDmSockets = new Set();
+const biometricsDeviceSockets = new Set();
+const biometricsDevices = new Map();
 
 function wsSend(socket, payload) {
   if (!socket || socket.readyState !== 1) return;
@@ -968,6 +982,233 @@ function wsSend(socket, payload) {
 
 function broadcastLiveMapToAgents(payload) {
   liveMapAgentSockets.forEach((socket) => wsSend(socket, payload));
+}
+
+function normalizeBiometricsConfig(source = {}) {
+  const merged = { ...BIOMETRICS_DEFAULT_CONFIG, ...(source && typeof source === 'object' ? source : {}) };
+  return {
+    calmBpmThreshold: Math.max(30, Math.min(220, Number(merged.calmBpmThreshold) || BIOMETRICS_DEFAULT_CONFIG.calmBpmThreshold)),
+    spikeBpmThreshold: Math.max(30, Math.min(240, Number(merged.spikeBpmThreshold) || BIOMETRICS_DEFAULT_CONFIG.spikeBpmThreshold)),
+    timeWindowSeconds: Math.max(10, Math.min(900, Number(merged.timeWindowSeconds) || BIOMETRICS_DEFAULT_CONFIG.timeWindowSeconds)),
+    consecutiveSamples: Math.max(1, Math.min(10, Number(merged.consecutiveSamples) || BIOMETRICS_DEFAULT_CONFIG.consecutiveSamples)),
+    movingAverageSamples: Math.max(1, Math.min(10, Number(merged.movingAverageSamples) || BIOMETRICS_DEFAULT_CONFIG.movingAverageSamples)),
+    unlockFlag: String(merged.unlockFlag || BIOMETRICS_DEFAULT_CONFIG.unlockFlag).trim() || BIOMETRICS_DEFAULT_CONFIG.unlockFlag,
+    secretTitle: String(merged.secretTitle || BIOMETRICS_DEFAULT_CONFIG.secretTitle).trim() || BIOMETRICS_DEFAULT_CONFIG.secretTitle,
+    secretMessage: String(merged.secretMessage || BIOMETRICS_DEFAULT_CONFIG.secretMessage).trim() || BIOMETRICS_DEFAULT_CONFIG.secretMessage,
+  };
+}
+
+function getBiometricsConfig() {
+  const stored = parseJSON(getSetting(BIOMETRICS_CONFIG_KEY), {});
+  return normalizeBiometricsConfig(stored);
+}
+
+function setBiometricsConfig(config = {}) {
+  const normalized = normalizeBiometricsConfig({ ...getBiometricsConfig(), ...config });
+  setSetting(BIOMETRICS_CONFIG_KEY, stringify(normalized));
+  return normalized;
+}
+
+function getBiometricsDeviceState(deviceId) {
+  const id = String(deviceId || 'unknown').trim() || 'unknown';
+  if (!biometricsDevices.has(id)) {
+    biometricsDevices.set(id, {
+      device: id,
+      player: '',
+      samples: [],
+      phase: 'waiting_calm',
+      calmAt: 0,
+      calmCount: 0,
+      spikeCount: 0,
+      unlocked: false,
+      lastBpm: 0,
+      lastRawBpm: 0,
+      lastFilteredBpm: 0,
+      lastDetectionBpm: 0,
+      lastAverageBpm: 0,
+      updatedAt: 0,
+    });
+  }
+  return biometricsDevices.get(id);
+}
+
+function movingAverage(samples, count) {
+  const recent = samples.slice(Math.max(0, samples.length - count));
+  if (!recent.length) return 0;
+  return Math.round(recent.reduce((sum, sample) => sum + sample.bpm, 0) / recent.length);
+}
+
+function isValidBiometricBpm(value) {
+  const bpm = Math.round(Number(value));
+  if (!Number.isFinite(bpm) || bpm < 20 || bpm > 240) return null;
+  return bpm;
+}
+
+function logBiometrics(message, extra = {}) {
+  try {
+    const suffix = Object.keys(extra).length ? ` ${JSON.stringify(extra)}` : '';
+    console.info(`[biometrics] ${message}${suffix}`);
+  } catch {
+    console.info(`[biometrics] ${message}`);
+  }
+}
+
+function broadcastBiometricsStatus(deviceState, extra = {}) {
+  const payload = {
+    type: 'biometrics:status',
+    device: deviceState.device,
+    player: deviceState.player || '',
+    phase: deviceState.phase,
+    bpm: deviceState.lastBpm,
+    rawBpm: deviceState.lastRawBpm,
+    filteredBpm: deviceState.lastFilteredBpm,
+    detectionBpm: deviceState.lastDetectionBpm,
+    averageBpm: deviceState.lastAverageBpm,
+    updatedAt: deviceState.updatedAt,
+    devices: biometricsDeviceSockets.size,
+    ...extra,
+  };
+  biometricsDmSockets.forEach((socket) => wsSend(socket, payload));
+}
+
+function markBiometricUnlock(flag) {
+  const { state } = getCampaignState();
+  const flags = Array.isArray(state.flags) ? state.flags : [];
+  if (!flags.includes(flag)) {
+    setCampaignState({ ...state, flags: [...flags, flag], alertLevel: 'high' });
+  }
+}
+
+function setBiometricsPhase(state, nextPhase, reason) {
+  if (state.phase === nextPhase) return;
+  const previous = state.phase;
+  state.phase = nextPhase;
+  logBiometrics('phase_change', {
+    device: state.device,
+    player: state.player || '',
+    from: previous,
+    to: nextPhase,
+    reason,
+    bpm: state.lastBpm,
+    rawBpm: state.lastRawBpm,
+    filteredBpm: state.lastFilteredBpm,
+    detectionBpm: state.lastDetectionBpm,
+    averageBpm: state.lastAverageBpm,
+  });
+}
+
+function processBiometricsSample(deviceId, payload = {}) {
+  const config = getBiometricsConfig();
+  const state = getBiometricsDeviceState(deviceId);
+  const rawBpm = isValidBiometricBpm(payload.raw_bpm);
+  const filteredBpm = isValidBiometricBpm(payload.bpm);
+  const liveBpm = rawBpm ?? filteredBpm;
+  const detectionBpm = filteredBpm ?? rawBpm;
+  const timestamp = Number(payload.timestamp) || Date.now();
+  const quality = String(payload.quality || (filteredBpm != null ? 'filtered' : rawBpm != null ? 'raw' : 'unknown')).trim() || 'unknown';
+  const player = String(payload.player || payload.agent || '').trim();
+
+  if (liveBpm == null || detectionBpm == null) {
+    return {
+      error: {
+        type: 'biometrics:error',
+        code: 'invalid_bpm',
+        message: 'BPM fuera de rango.',
+      },
+    };
+  }
+
+  if (player) state.player = player;
+  const sample = {
+    bpm: detectionBpm,
+    liveBpm,
+    rawBpm: rawBpm ?? 0,
+    filteredBpm: filteredBpm ?? 0,
+    quality,
+    timestamp,
+  };
+  const cutoff = sample.timestamp - config.timeWindowSeconds * 1000;
+  state.samples = [...state.samples, sample].filter((entry) => entry.timestamp >= cutoff);
+  state.lastBpm = liveBpm;
+  state.lastRawBpm = rawBpm ?? 0;
+  state.lastFilteredBpm = filteredBpm ?? 0;
+  state.lastDetectionBpm = detectionBpm;
+  state.lastAverageBpm = movingAverage(state.samples, config.movingAverageSamples);
+  state.updatedAt = Date.now();
+  logBiometrics('sample', {
+    device: state.device,
+    player: state.player || '',
+    liveBpm,
+    rawBpm: rawBpm ?? null,
+    filteredBpm: filteredBpm ?? null,
+    detectionBpm,
+    averageBpm: state.lastAverageBpm,
+    quality,
+    phase: state.phase,
+  });
+
+  if (state.unlocked) {
+    broadcastBiometricsStatus(state);
+    return null;
+  }
+
+  if (state.lastAverageBpm <= config.calmBpmThreshold) {
+    state.calmCount += 1;
+  } else {
+    state.calmCount = 0;
+  }
+
+  if (state.phase === 'waiting_calm' && state.calmCount >= config.consecutiveSamples) {
+    setBiometricsPhase(state, 'calm_detected', 'calm_threshold_reached');
+    state.calmAt = sample.timestamp;
+    state.spikeCount = 0;
+  }
+
+  if (state.phase === 'calm_detected') {
+    if (sample.timestamp - state.calmAt > config.timeWindowSeconds * 1000) {
+      setBiometricsPhase(state, 'waiting_calm', 'time_window_expired');
+      state.calmAt = 0;
+      state.calmCount = 0;
+      state.spikeCount = 0;
+    } else if (state.lastAverageBpm >= config.spikeBpmThreshold) {
+      state.spikeCount += 1;
+    } else if (state.lastAverageBpm < config.spikeBpmThreshold - 5) {
+      state.spikeCount = 0;
+    }
+  }
+
+  if (state.phase === 'calm_detected' && state.spikeCount >= config.consecutiveSamples) {
+    setBiometricsPhase(state, 'unlocked', 'spike_threshold_reached');
+    state.unlocked = true;
+    markBiometricUnlock(config.unlockFlag);
+    logBiometrics('unlock', {
+      device: state.device,
+      player: state.player || '',
+      code: config.unlockFlag,
+      liveBpm,
+      rawBpm: rawBpm ?? null,
+      filteredBpm: filteredBpm ?? null,
+      detectionBpm,
+      averageBpm: state.lastAverageBpm,
+    });
+    return {
+      type: 'secret_unlocked',
+      title: config.secretTitle,
+      message: config.secretMessage,
+      code: config.unlockFlag,
+      device: state.device,
+      player: state.player || '',
+      bpm: liveBpm,
+      rawBpm: rawBpm ?? null,
+      filteredBpm: filteredBpm ?? null,
+      detectionBpm,
+      averageBpm: state.lastAverageBpm,
+      timestamp: Date.now(),
+    };
+  }
+
+  broadcastBiometricsStatus(state);
+  return null;
 }
 
 function broadcastLiveMapState(state = getLiveMapState()) {
@@ -2663,6 +2904,14 @@ app.post('/api/tracer-config', authMiddleware, (req, res) => {
   res.json(saved);
 });
 
+app.get('/api/biometrics-config', (req, res) => {
+  res.json({ config: getBiometricsConfig() });
+});
+
+app.post('/api/biometrics-config', authMiddleware, (req, res) => {
+  res.json({ config: setBiometricsConfig(req.body || {}) });
+});
+
 app.get('/api/live-map', (req, res) => {
   res.json(getLiveMapState());
 });
@@ -3530,6 +3779,7 @@ const server = app.listen(PORT, () => {
 const tracerWss = new WebSocketServer({ noServer: true });
 const liveMapWss = new WebSocketServer({ noServer: true });
 const effectsWss = new WebSocketServer({ noServer: true });
+const biometricsWss = new WebSocketServer({ noServer: true });
 
 const effectsDmSockets = new Set();
 const effectsAgentSockets = new Set();
@@ -3628,6 +3878,77 @@ effectsWss.on('connection', (ws, request, url) => {
   });
 });
 
+biometricsWss.on('connection', (ws, request, url) => {
+  const role = String(url.searchParams.get('role') || 'device').toLowerCase();
+  const token = String(url.searchParams.get('token') || '');
+  const device = String(url.searchParams.get('device') || 'pebble_time_2').trim() || 'pebble_time_2';
+  const isDm = role === 'dm';
+
+  if (isDm) {
+    const session = validateToken(token);
+    if (!session) {
+      wsSend(ws, { type: 'biometrics:error', code: 'unauthorized', message: 'Sesion no valida.' });
+      ws.close(4401, 'unauthorized');
+      return;
+    }
+    biometricsDmSockets.add(ws);
+    wsSend(ws, {
+      type: 'biometrics:snapshot',
+      config: getBiometricsConfig(),
+      devices: Array.from(biometricsDevices.values()),
+    });
+  } else {
+    biometricsDeviceSockets.add(ws);
+    logBiometrics('device_connected', { device });
+    wsSend(ws, { type: 'hello', channel: 'biometrics', device, config: getBiometricsConfig() });
+  }
+
+  ws.on('message', (raw) => {
+    let payload;
+    try {
+      payload = JSON.parse(String(raw || '{}'));
+    } catch {
+      wsSend(ws, { type: 'biometrics:error', code: 'invalid_payload', message: 'Payload invalido.' });
+      return;
+    }
+
+    if (isDm) {
+      if (payload.type === 'biometrics:reset') {
+        const target = String(payload.device || '').trim();
+        if (target) biometricsDevices.delete(target);
+        else biometricsDevices.clear();
+        const snapshot = {
+          type: 'biometrics:snapshot',
+          config: getBiometricsConfig(),
+          devices: Array.from(biometricsDevices.values()),
+        };
+        biometricsDmSockets.forEach((socket) => wsSend(socket, snapshot));
+      }
+      return;
+    }
+
+    if (payload.type !== 'hr_sample') return;
+    const resolvedDevice = String(payload.device || device).trim() || device;
+    const event = processBiometricsSample(resolvedDevice, payload);
+    if (event?.error) {
+      wsSend(ws, event.error);
+      return;
+    }
+    if (event) {
+      wsSend(ws, event);
+      biometricsDmSockets.forEach((socket) => wsSend(socket, event));
+    }
+  });
+
+  ws.on('close', () => {
+    biometricsDmSockets.delete(ws);
+    biometricsDeviceSockets.delete(ws);
+    if (!isDm) {
+      logBiometrics('device_disconnected', { device });
+    }
+  });
+});
+
 server.on('upgrade', (request, socket, head) => {
   try {
     const base = `http://${request.headers.host || 'localhost'}`;
@@ -3647,6 +3968,12 @@ server.on('upgrade', (request, socket, head) => {
     if (url.pathname === '/ws/effects') {
       effectsWss.handleUpgrade(request, socket, head, (ws) => {
         effectsWss.emit('connection', ws, request, url);
+      });
+      return;
+    }
+    if (url.pathname === '/ws/biometrics') {
+      biometricsWss.handleUpgrade(request, socket, head, (ws) => {
+        biometricsWss.emit('connection', ws, request, url);
       });
       return;
     }
