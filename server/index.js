@@ -1103,7 +1103,7 @@ function processBiometricsSample(deviceId, payload = {}) {
   const rawBpm = isValidBiometricBpm(payload.raw_bpm);
   const filteredBpm = isValidBiometricBpm(payload.bpm);
   const liveBpm = rawBpm ?? filteredBpm;
-  const detectionBpm = filteredBpm ?? rawBpm;
+  const detectionBpm = rawBpm ?? filteredBpm;
   const timestamp = Number(payload.timestamp) || Date.now();
   const quality = String(payload.quality || (filteredBpm != null ? 'filtered' : rawBpm != null ? 'raw' : 'unknown')).trim() || 'unknown';
   const player = String(payload.player || payload.agent || '').trim();
