@@ -50,9 +50,10 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          RELEASE_DIR: ~/deploys/gcpd-${{ github.sha }}
+          RELEASE_NAME: gcpd-${{ github.sha }}
         run: |
           DEPLOY_PORT="${DEPLOY_PORT:-22}"
+          RELEASE_DIR="/home/$DEPLOY_USER/deploys/$RELEASE_NAME"
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$RELEASE_DIR'"
           tar \
             --exclude=.git \
@@ -67,9 +68,10 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          RELEASE_DIR: ~/deploys/gcpd-${{ github.sha }}
+          RELEASE_NAME: gcpd-${{ github.sha }}
         run: |
           DEPLOY_PORT="${DEPLOY_PORT:-22}"
+          RELEASE_DIR="/home/$DEPLOY_USER/deploys/$RELEASE_NAME"
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "cd '$RELEASE_DIR' && ./scripts/deploy-prod.sh --source '$RELEASE_DIR' --install"
 
@@ -81,5 +83,6 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
           DEPLOY_PORT="${DEPLOY_PORT:-22}"
+          RELEASE_ROOT="/home/$DEPLOY_USER/deploys"
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "find ~/deploys -maxdepth 1 -mindepth 1 -type d -name 'gcpd-*' -printf '%T@ %p\n' | sort -nr | awk 'NR>5 {print \$2}' | xargs -r rm -rf"
+            "find '$RELEASE_ROOT' -maxdepth 1 -mindepth 1 -type d -name 'gcpd-*' -printf '%T@ %p\n' | sort -nr | awk 'NR>5 {print \$2}' | xargs -r rm -rf"
