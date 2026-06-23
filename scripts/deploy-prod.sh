@@ -12,6 +12,8 @@ INSTALL_DEPS=0
 BUILD_FRONTEND=0
 RESTART_SERVICES=1
 RUN_HEALTHCHECKS=1
+HEALTHCHECK_RETRIES="${HEALTHCHECK_RETRIES:-20}"
+HEALTHCHECK_DELAY_SEC="${HEALTHCHECK_DELAY_SEC:-2}"
 
 usage() {
   cat <<'EOF'
@@ -29,7 +31,8 @@ Options:
   -h, --help          Show this help.
 
 Environment:
-  APP_DIR, SERVICE_USER, NPM_BIN, API_SERVICE, FRONTEND_SERVICE
+  APP_DIR, SERVICE_USER, NPM_BIN, API_SERVICE, FRONTEND_SERVICE,
+  HEALTHCHECK_RETRIES, HEALTHCHECK_DELAY_SEC
 
 Notes:
   - Requires passwordless sudo for rsync/chown/systemctl and sudo -u SERVICE_USER gcpd-npm.
@@ -127,8 +130,31 @@ fi
 if [[ "$RUN_HEALTHCHECKS" == "1" ]]; then
   echo "[deploy] healthchecks"
   sudo -n systemctl status "$API_SERVICE" "$FRONTEND_SERVICE" >/dev/null
-  curl -fsS "http://127.0.0.1:4000/api/health" >/dev/null || curl -fsS "http://127.0.0.1:4000/api/cases-data" >/dev/null
-  curl -fsS "http://127.0.0.1:5174" >/dev/null
+  api_ok=0
+  for _ in $(seq 1 "$HEALTHCHECK_RETRIES"); do
+    if curl -fsS "http://127.0.0.1:4000/api/cases-data" >/dev/null; then
+      api_ok=1
+      break
+    fi
+    sleep "$HEALTHCHECK_DELAY_SEC"
+  done
+  if [[ "$api_ok" != "1" ]]; then
+    echo "[deploy] api healthcheck failed after $HEALTHCHECK_RETRIES attempts" >&2
+    exit 7
+  fi
+
+  front_ok=0
+  for _ in $(seq 1 "$HEALTHCHECK_RETRIES"); do
+    if curl -fsS "http://127.0.0.1:5174" >/dev/null; then
+      front_ok=1
+      break
+    fi
+    sleep "$HEALTHCHECK_DELAY_SEC"
+  done
+  if [[ "$front_ok" != "1" ]]; then
+    echo "[deploy] frontend healthcheck failed after $HEALTHCHECK_RETRIES attempts" >&2
+    exit 8
+  fi
 fi
 
 echo "[deploy] done"
