@@ -191,6 +191,21 @@ sudo ./scripts/frontend-mode.sh dev --status
 sudo ./scripts/frontend-mode.sh prod --status
 ```
 
+## Deploy con GitHub Actions
+
+También queda preparado un flujo de despliegue por SSH desde GitHub Actions:
+
+- workflow: `.github/workflows/deploy.yml`
+- script remoto: `scripts/deploy-prod.sh`
+- guía: `docs/github-actions-deploy.md`
+
+El diseño evita tocar datos persistentes:
+
+- no copia `public/uploads`
+- compila `dist` en GitHub Actions
+- despliega el artefacto ya compilado en `/opt/gcpd`
+- asume DB y uploads fuera del árbol de código, por ejemplo en `/var/lib/gcpd`
+
 ## Variables de entorno útiles
 
 El backend usa estas variables:

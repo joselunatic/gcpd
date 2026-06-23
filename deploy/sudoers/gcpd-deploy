@@ -1,0 +1,21 @@
+# Install with visudo, adjusting DEPLOY_USER to your server.
+#
+# Example:
+#   sudo install -m 0440 deploy/sudoers/gcpd-deploy /etc/sudoers.d/gcpd-deploy
+#
+# This grants only the commands needed by scripts/deploy-prod.sh.
+
+Defaults:DEPLOY_USER !requiretty
+
+Cmnd_Alias GCPD_SYNC = /usr/bin/install -d -o gcpd -g gcpd /opt/gcpd, \
+  /usr/bin/rsync -a --delete --exclude .git --exclude .github --exclude .gitignore --exclude node_modules --exclude .codex --exclude .DS_Store --exclude public/uploads * /opt/gcpd/, \
+  /bin/chown -R gcpd:gcpd /opt/gcpd, \
+  /bin/rm -rf /opt/gcpd/node_modules
+
+Cmnd_Alias GCPD_BUILD = /usr/local/bin/gcpd-npm *
+
+Cmnd_Alias GCPD_RESTART = /bin/systemctl restart gcpd-api gcpd-frontend, \
+  /bin/systemctl status gcpd-api gcpd-frontend
+
+DEPLOY_USER ALL=(root) NOPASSWD: GCPD_SYNC, GCPD_RESTART
+DEPLOY_USER ALL=(gcpd) NOPASSWD: GCPD_BUILD

@@ -42,28 +42,33 @@ const BIOMETRICS_DEFAULT_CONFIG = {
   secretMessage: process.env.BIOMETRICS_SECRET_MESSAGE || 'Password: SOMBRA-17',
 };
 
-const dbPath = path.join(__dirname, 'batconsole.db');
+const dataDir = path.resolve(process.env.GCPD_DATA_DIR || path.join(__dirname, '..', 'var'));
+const dbDir = path.resolve(process.env.GCPD_DB_DIR || path.join(dataDir, 'db'));
+const dbPath = path.resolve(process.env.GCPD_DB_PATH || path.join(dbDir, 'batconsole.db'));
+const uploadsDir = path.resolve(process.env.GCPD_UPLOADS_DIR || path.join(dataDir, 'uploads'));
+const runtimeAssetsDir = path.resolve(process.env.GCPD_ASSETS_DIR || path.join(dataDir, 'assets'));
+const ballisticsDir = path.join(runtimeAssetsDir, 'ballistics');
+const audioDir = path.join(runtimeAssetsDir, 'audio');
+const audioGarbledDir = path.join(audioDir, 'garbled');
+const phoneAudioDir = path.join(runtimeAssetsDir, 'phonelines');
+
+fs.mkdirSync(dbDir, { recursive: true });
+fs.mkdirSync(uploadsDir, { recursive: true });
+fs.mkdirSync(ballisticsDir, { recursive: true });
+fs.mkdirSync(audioDir, { recursive: true });
+fs.mkdirSync(audioGarbledDir, { recursive: true });
+fs.mkdirSync(phoneAudioDir, { recursive: true });
+
 const db = new Database(dbPath);
 
 app.use(cors());
 app.use(express.json());
 
-const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
-fs.mkdirSync(uploadsDir, { recursive: true });
 app.use('/uploads', express.static(uploadsDir));
 app.use('/api/uploads', express.static(uploadsDir));
 const rtEffectsMediaDir = path.join(uploadsDir, 'rt-effects-media');
 const rtEffectsVideoDir = path.join(rtEffectsMediaDir, 'videos');
 fs.mkdirSync(rtEffectsVideoDir, { recursive: true });
-
-const ballisticsDir = path.join(__dirname, '..', 'public', 'assets', 'ballistics');
-fs.mkdirSync(ballisticsDir, { recursive: true });
-const audioDir = path.join(__dirname, '..', 'public', 'assets', 'audio');
-const audioGarbledDir = path.join(audioDir, 'garbled');
-fs.mkdirSync(audioDir, { recursive: true });
-fs.mkdirSync(audioGarbledDir, { recursive: true });
-const phoneAudioDir = path.join(__dirname, '..', 'public', 'assets', 'phonelines');
-fs.mkdirSync(phoneAudioDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
