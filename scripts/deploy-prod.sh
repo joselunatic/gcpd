@@ -93,9 +93,10 @@ echo "[deploy] source: $SOURCE_DIR"
 echo "[deploy] target: $APP_DIR"
 echo "[deploy] service user: $SERVICE_USER"
 
-sudo install -d -o "$SERVICE_USER" -g "$SERVICE_USER" "$APP_DIR"
+sudo -n install -d -o "$SERVICE_USER" -g "$SERVICE_USER" "$APP_DIR"
+sudo -n rm -rf "$APP_DIR/.tmp"
 
-sudo rsync -a --delete \
+sudo -n rsync -a --delete \
   --exclude '.git' \
   --exclude '.github' \
   --exclude '.gitignore' \
@@ -105,27 +106,27 @@ sudo rsync -a --delete \
   --exclude 'public/uploads' \
   "$SOURCE_DIR"/ "$APP_DIR"/
 
-sudo chown -R "$SERVICE_USER:$SERVICE_USER" "$APP_DIR"
+sudo -n chown -R "$SERVICE_USER:$SERVICE_USER" "$APP_DIR"
 
 if [[ "$INSTALL_DEPS" == "1" ]]; then
   echo "[deploy] npm ci"
-  sudo rm -rf "$APP_DIR/node_modules"
-  sudo -u "$SERVICE_USER" "$NPM_BIN" --prefix "$APP_DIR" ci
+  sudo -n rm -rf "$APP_DIR/node_modules"
+  sudo -n -u "$SERVICE_USER" "$NPM_BIN" --prefix "$APP_DIR" ci
 fi
 
 if [[ "$BUILD_FRONTEND" == "1" ]]; then
   echo "[deploy] npm run build"
-  sudo -u "$SERVICE_USER" "$NPM_BIN" --prefix "$APP_DIR" run build
+  sudo -n -u "$SERVICE_USER" "$NPM_BIN" --prefix "$APP_DIR" run build
 fi
 
 if [[ "$RESTART_SERVICES" == "1" ]]; then
   echo "[deploy] restarting services"
-  sudo systemctl restart "$API_SERVICE" "$FRONTEND_SERVICE"
+  sudo -n systemctl restart "$API_SERVICE" "$FRONTEND_SERVICE"
 fi
 
 if [[ "$RUN_HEALTHCHECKS" == "1" ]]; then
   echo "[deploy] healthchecks"
-  sudo systemctl --no-pager --full status "$API_SERVICE" "$FRONTEND_SERVICE" >/dev/null
+  sudo -n systemctl status "$API_SERVICE" "$FRONTEND_SERVICE" >/dev/null
   curl -fsS "http://127.0.0.1:4000/api/health" >/dev/null || curl -fsS "http://127.0.0.1:4000/api/cases-data" >/dev/null
   curl -fsS "http://127.0.0.1:5174" >/dev/null
 fi
