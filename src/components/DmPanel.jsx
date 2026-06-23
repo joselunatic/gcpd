@@ -8193,8 +8193,9 @@ const DmPanel = () => {
                   <button
                     key={device.device}
                     type="button"
-                    className={selectedDevice?.device === device.device ? 'active' : ''}
+                    className={`biometrics-device-button${selectedDevice?.device === device.device ? ' active' : ''}`}
                     onClick={() => setBiometricsSelectedDevice(device.device)}
+                    aria-label={`Seleccionar ${device.player || device.device}`}
                     title={`${device.device} · ${device.player || 'sin jugador'} · ${phaseLabel(device.phase)}`}
                   >
                     <strong>{device.player || device.device}</strong>

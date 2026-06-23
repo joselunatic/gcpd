@@ -1076,6 +1076,22 @@ function broadcastBiometricsStatus(deviceState, extra = {}) {
   biometricsDmSockets.forEach((socket) => wsSend(socket, payload));
 }
 
+function buildBiometricsPhaseUpdate(deviceState, config = getBiometricsConfig()) {
+  const progress = config.consecutiveSamples > 0
+    ? Math.max(0, Math.min(100, Math.round((deviceState.calmCount / config.consecutiveSamples) * 100)))
+    : 0;
+  const remainingMs = deviceState.phase === 'calm_detected'
+    ? Math.max(0, deviceState.calmAt + config.timeWindowSeconds * 1000 - Date.now())
+    : 0;
+  return {
+    type: 'phase_update',
+    phase: deviceState.phase,
+    target: deviceState.phase === 'calm_detected' ? config.spikeBpmThreshold : config.calmBpmThreshold,
+    windowSeconds: Math.ceil(remainingMs / 1000),
+    progress,
+  };
+}
+
 function markBiometricUnlock(flag) {
   const { state } = getCampaignState();
   const flags = Array.isArray(state.flags) ? state.flags : [];
@@ -1108,7 +1124,7 @@ function processBiometricsSample(deviceId, payload = {}) {
   const rawBpm = isValidBiometricBpm(payload.raw_bpm);
   const filteredBpm = isValidBiometricBpm(payload.bpm);
   const liveBpm = rawBpm ?? filteredBpm;
-  const detectionBpm = rawBpm ?? filteredBpm;
+  const detectionBpm = filteredBpm ?? rawBpm;
   const timestamp = Number(payload.timestamp) || Date.now();
   const quality = String(payload.quality || (filteredBpm != null ? 'filtered' : rawBpm != null ? 'raw' : 'unknown')).trim() || 'unknown';
   const player = String(payload.player || payload.agent || '').trim();
@@ -1154,7 +1170,7 @@ function processBiometricsSample(deviceId, payload = {}) {
 
   if (state.unlocked) {
     broadcastBiometricsStatus(state);
-    return null;
+    return { deviceEvent: buildBiometricsPhaseUpdate(state, config) };
   }
 
   if (state.lastAverageBpm <= config.calmBpmThreshold) {
@@ -1175,14 +1191,18 @@ function processBiometricsSample(deviceId, payload = {}) {
       state.calmAt = 0;
       state.calmCount = 0;
       state.spikeCount = 0;
-    } else if (state.lastAverageBpm >= config.spikeBpmThreshold) {
+    } else if (detectionBpm >= config.spikeBpmThreshold) {
       state.spikeCount += 1;
-    } else if (state.lastAverageBpm < config.spikeBpmThreshold - 5) {
+    } else if (detectionBpm < config.spikeBpmThreshold - 5) {
       state.spikeCount = 0;
     }
   }
 
-  if (state.phase === 'calm_detected' && state.spikeCount >= config.consecutiveSamples) {
+  if (
+    state.phase === 'calm_detected' &&
+    state.spikeCount >= config.consecutiveSamples &&
+    state.lastAverageBpm >= config.spikeBpmThreshold
+  ) {
     setBiometricsPhase(state, 'unlocked', 'spike_threshold_reached');
     state.unlocked = true;
     markBiometricUnlock(config.unlockFlag);
@@ -1197,23 +1217,25 @@ function processBiometricsSample(deviceId, payload = {}) {
       averageBpm: state.lastAverageBpm,
     });
     return {
-      type: 'secret_unlocked',
-      title: config.secretTitle,
-      message: config.secretMessage,
-      code: config.unlockFlag,
-      device: state.device,
-      player: state.player || '',
-      bpm: liveBpm,
-      rawBpm: rawBpm ?? null,
-      filteredBpm: filteredBpm ?? null,
-      detectionBpm,
-      averageBpm: state.lastAverageBpm,
-      timestamp: Date.now(),
+      deviceEvent: {
+        type: 'secret_unlocked',
+        title: config.secretTitle,
+        message: config.secretMessage,
+        code: config.unlockFlag,
+        device: state.device,
+        player: state.player || '',
+        bpm: liveBpm,
+        rawBpm: rawBpm ?? null,
+        filteredBpm: filteredBpm ?? null,
+        detectionBpm,
+        averageBpm: state.lastAverageBpm,
+        timestamp: Date.now(),
+      },
     };
   }
 
   broadcastBiometricsStatus(state);
-  return null;
+  return { deviceEvent: buildBiometricsPhaseUpdate(state, config) };
 }
 
 function broadcastLiveMapState(state = getLiveMapState()) {
@@ -3939,9 +3961,11 @@ biometricsWss.on('connection', (ws, request, url) => {
       wsSend(ws, event.error);
       return;
     }
-    if (event) {
-      wsSend(ws, event);
-      biometricsDmSockets.forEach((socket) => wsSend(socket, event));
+    if (event?.deviceEvent) {
+      wsSend(ws, event.deviceEvent);
+      if (event.deviceEvent.type === 'secret_unlocked') {
+        biometricsDmSockets.forEach((socket) => wsSend(socket, event.deviceEvent));
+      }
     }
   });
 
