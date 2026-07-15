@@ -3264,66 +3264,80 @@
   min-width: 0;
 }
 
+.biometrics-detail {
+  display: grid;
+  gap: var(--bem-space-4, 0.9rem);
+  align-content: start;
+}
+
 .biometrics-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
   padding: 0.18rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid rgba(180, 255, 228, 0.22);
+  border-radius: var(--bem-radius-pill, 999px);
+  border: 1px solid var(--bem-phosphor-mute, rgba(180, 255, 228, 0.22));
   background: rgba(180, 255, 228, 0.06);
-  color: rgba(180, 255, 228, 0.7);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  color: var(--bem-phosphor-dim, rgba(180, 255, 228, 0.7));
+  font-size: var(--bem-text-xs, 0.75rem);
+  letter-spacing: var(--bem-track, 0.08em);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .biometrics-status-pill--online,
 .biometrics-status-pill--success {
-  color: #2ddc93;
+  color: var(--bem-ok, #2ddc93);
   border-color: rgba(45, 220, 147, 0.48);
-  background: rgba(45, 220, 147, 0.08);
+  background: var(--bem-ok-bg, rgba(45, 220, 147, 0.08));
 }
 
 .biometrics-status-pill--connecting,
 .biometrics-status-pill--warning {
-  color: #e8c96a;
+  color: var(--bem-warn, #e8c96a);
   border-color: rgba(232, 201, 106, 0.45);
-  background: rgba(232, 201, 106, 0.08);
+  background: var(--bem-warn-bg, rgba(232, 201, 106, 0.08));
 }
 
 .biometrics-status-pill--error {
-  color: #ff8f8f;
+  color: var(--bem-danger, #ff8f8f);
   border-color: rgba(255, 107, 107, 0.45);
-  background: rgba(255, 107, 107, 0.08);
+  background: var(--bem-danger-bg, rgba(255, 107, 107, 0.08));
+}
+
+.biometrics-status-pill--idle,
+.biometrics-status-pill--offline {
+  color: var(--bem-phosphor-mute, rgba(125, 182, 195, 0.6));
+  border-color: rgba(125, 182, 195, 0.28);
+  background: rgba(125, 182, 195, 0.06);
 }
 
 .biometrics-config-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0.7rem;
+  gap: var(--bem-space-3, 0.7rem);
 }
 
 .biometrics-stat-card {
   min-width: 0;
   padding: 0.8rem 0.9rem;
-  border: 1px solid rgba(124, 255, 178, 0.18);
-  background: rgba(3, 12, 16, 0.52);
-  border-radius: 10px;
+  border: 1px solid var(--bem-border-faint, rgba(124, 255, 178, 0.18));
+  background: var(--bem-bg-sunken, rgba(3, 12, 16, 0.52));
+  border-radius: var(--bem-radius-md, 10px);
   display: grid;
   gap: 0.18rem;
 }
 
 .biometrics-stat-card span {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
+  font-size: var(--bem-text-2xs, 0.72rem);
+  letter-spacing: var(--bem-track, 0.08em);
   text-transform: uppercase;
-  color: rgba(180, 255, 228, 0.55);
+  color: var(--bem-phosphor-faint, rgba(180, 255, 228, 0.55));
 }
 
 .biometrics-stat-card strong {
-  font-size: 1rem;
-  color: #d6fff0;
+  font-size: var(--bem-text-h2, 1rem);
+  color: var(--bem-phosphor-soft, #d6fff0);
   overflow-wrap: anywhere;
 }
 
@@ -3331,7 +3345,7 @@
 .biometrics-detail__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem;
+  gap: var(--bem-space-3, 0.6rem);
 }
 
 .biometrics-device-list {
@@ -3351,13 +3365,14 @@
   padding: 0.75rem 0.9rem;
   text-align: left;
   line-height: 1.25;
-  border-color: rgba(124, 255, 178, 0.22);
-  background: rgba(3, 12, 16, 0.42);
+  border-color: var(--bem-border-faint, rgba(124, 255, 178, 0.22));
+  background: var(--bem-bg-sunken, rgba(3, 12, 16, 0.42));
 }
 
 .biometrics-device-button.active {
-  border-color: rgba(45, 220, 147, 0.65);
-  background: rgba(45, 220, 147, 0.1);
+  border-color: var(--bem-phosphor, rgba(45, 220, 147, 0.65));
+  background: var(--bem-ok-bg, rgba(45, 220, 147, 0.1));
+  box-shadow: var(--bem-glow-sm, 0 0 10px rgba(45, 220, 147, 0.2));
 }
 
 .biometrics-device-button strong,
@@ -3368,8 +3383,8 @@
 }
 
 .biometrics-device-button span {
-  color: rgba(180, 255, 228, 0.68);
-  font-size: 0.78rem;
+  color: var(--bem-phosphor-dim, rgba(180, 255, 228, 0.68));
+  font-size: var(--bem-text-xs, 0.78rem);
 }
 
 .biometrics-detail__header {
@@ -3381,25 +3396,308 @@
 
 .biometrics-detail__header p {
   margin: 0.25rem 0 0;
-  color: rgba(180, 255, 228, 0.6);
+  color: var(--bem-phosphor-dim, rgba(180, 255, 228, 0.6));
   overflow-wrap: anywhere;
 }
 
-.biometrics-detail__meta {
+.biometrics-detail__updated {
+  font-size: var(--bem-text-2xs, 0.72rem);
+  letter-spacing: var(--bem-track, 0.08em);
+  color: var(--bem-phosphor-mute, rgba(125, 182, 195, 0.6));
+  white-space: nowrap;
+}
+
+/* ── Hero phase banner ─────────────────────────────────── */
+.biometrics-hero {
+  padding: var(--bem-space-4, 0.9rem) var(--bem-space-5, 1.1rem);
+  border: 1px solid var(--bem-border-faint, rgba(124, 255, 178, 0.18));
+  border-radius: var(--bem-radius-lg, 12px);
+  background: var(--bem-bg-sunken, rgba(3, 12, 16, 0.5));
   display: grid;
+  gap: 0.3rem;
+  transition: border-color var(--bem-dur, 180ms) var(--bem-ease, ease),
+    box-shadow var(--bem-dur, 180ms) var(--bem-ease, ease);
+}
+
+.biometrics-hero__phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--bem-text-h1, 1.25rem);
+  letter-spacing: var(--bem-track-wide, 0.12em);
+  text-transform: uppercase;
+  color: var(--bem-phosphor-bright, #7fffd0);
+}
+
+.biometrics-hero__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--bem-radius-pill, 999px);
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.biometrics-hero__hint {
+  margin: 0;
+  font-size: var(--bem-text-xs, 0.78rem);
+  color: var(--bem-phosphor-dim, rgba(180, 255, 228, 0.65));
+  letter-spacing: 0.02em;
+}
+
+.biometrics-hero--waiting {
+  color: var(--bem-phosphor-mute, rgba(125, 182, 195, 0.6));
+}
+.biometrics-hero--waiting .biometrics-hero__phase {
+  color: var(--bem-phosphor-mute, rgba(125, 182, 195, 0.8));
+}
+
+.biometrics-hero--calm {
+  border-color: rgba(232, 201, 106, 0.4);
+  color: var(--bem-warn, #e8c96a);
+}
+.biometrics-hero--calm .biometrics-hero__phase {
+  color: var(--bem-warn, #e8c96a);
+}
+
+.biometrics-hero--unlocked {
+  border-color: rgba(45, 220, 147, 0.6);
+  background: var(--bem-ok-bg, rgba(45, 220, 147, 0.08));
+  box-shadow: var(--bem-glow-md, 0 0 14px rgba(45, 220, 147, 0.26));
+}
+.biometrics-hero--unlocked .biometrics-hero__phase {
+  color: var(--bem-ok, #2ddc93);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .biometrics-hero--unlocked .biometrics-hero__dot {
+    animation: biometricsBlink 1s steps(1) infinite;
+  }
+}
+@keyframes biometricsBlink {
+  50% { opacity: 0.25; }
+}
+
+/* ── Live pulse readout ────────────────────────────────── */
+.biometrics-live {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--bem-space-4, 0.9rem);
+  padding: var(--bem-space-4, 0.9rem);
+  border: 1px solid var(--bem-border-faint, rgba(124, 255, 178, 0.18));
+  border-radius: var(--bem-radius-lg, 12px);
+  background: var(--bem-bg-sunken, rgba(3, 12, 16, 0.5));
+}
+
+.biometrics-live__heart {
+  display: inline-block;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--bem-danger, #ff6b6b);
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .biometrics-live__heart {
+    animation: biometricsBeat 1s ease-in-out infinite;
+  }
+}
+@keyframes biometricsBeat {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  15% { transform: scale(1.28); opacity: 1; }
+  30% { transform: scale(1); opacity: 0.85; }
+}
+
+.biometrics-live__label {
+  display: block;
+  font-size: var(--bem-text-2xs, 0.7rem);
+  letter-spacing: var(--bem-track, 0.08em);
+  text-transform: uppercase;
+  color: var(--bem-phosphor-faint, rgba(180, 255, 228, 0.5));
+}
+
+.biometrics-live__value {
+  display: flex;
+  align-items: baseline;
   gap: 0.35rem;
-  padding: 0.8rem 0.9rem;
-  border: 1px solid rgba(124, 255, 178, 0.18);
-  background: rgba(3, 12, 16, 0.42);
-  border-radius: 10px;
-  color: rgba(214, 255, 240, 0.82);
+  font-family: var(--bem-font-readout, 'VT323', monospace);
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--bem-phosphor-soft, #defff3);
+}
+.biometrics-live__value em {
+  font-family: var(--bem-font-mono, monospace);
+  font-style: normal;
+  font-size: var(--bem-text-sm, 0.85rem);
+  letter-spacing: var(--bem-track, 0.08em);
+  color: var(--bem-phosphor-dim, rgba(180, 255, 228, 0.6));
+}
+
+.biometrics-live__progress {
+  text-align: right;
+}
+.biometrics-live__pct {
+  display: block;
+  font-family: var(--bem-font-readout, 'VT323', monospace);
+  font-size: 1.7rem;
+  line-height: 1;
+  color: var(--bem-warn, #e8c96a);
+}
+
+/* ── Tension gauge ─────────────────────────────────────── */
+.biometrics-gauge {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.biometrics-gauge__track {
+  position: relative;
+  height: 16px;
+  border-radius: var(--bem-radius-pill, 999px);
+  border: 1px solid var(--bem-border-faint, rgba(124, 255, 178, 0.18));
+  background: var(--bem-bg-input, #031016);
+  overflow: hidden;
+}
+
+.biometrics-gauge__zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.biometrics-gauge__zone--calm {
+  left: 0;
+  background: rgba(125, 182, 195, 0.14);
+}
+.biometrics-gauge__zone--spike {
+  right: 0;
+  background: rgba(255, 107, 107, 0.16);
+}
+
+.biometrics-gauge__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--bem-radius-pill, 999px);
+  background: var(--bem-grad-primary, linear-gradient(90deg, rgba(45, 220, 147, 0.5), rgba(45, 220, 147, 0.2)));
+  transition: width var(--bem-dur-slow, 200ms) var(--bem-ease, ease);
+}
+.biometrics-gauge__fill--calm {
+  background: linear-gradient(90deg, rgba(232, 201, 106, 0.5), rgba(232, 201, 106, 0.22));
+}
+.biometrics-gauge__fill--unlocked {
+  background: linear-gradient(90deg, rgba(255, 107, 107, 0.6), rgba(255, 107, 107, 0.3));
+}
+
+.biometrics-gauge__marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  transform: translateX(-50%);
+}
+.biometrics-gauge__marker--calm { background: rgba(125, 182, 195, 0.7); }
+.biometrics-gauge__marker--spike { background: rgba(255, 107, 107, 0.85); }
+
+.biometrics-gauge__needle {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 3px;
+  transform: translateX(-50%);
+  background: var(--bem-phosphor-soft, #defff3);
+  box-shadow: 0 0 8px var(--bem-phosphor, rgba(45, 220, 147, 0.8));
+  transition: left var(--bem-dur-slow, 200ms) var(--bem-ease, ease);
+}
+.biometrics-gauge__needle span {
+  position: absolute;
+  top: -1.15rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--bem-text-2xs, 0.7rem);
+  color: var(--bem-phosphor-soft, #defff3);
+  white-space: nowrap;
+}
+
+.biometrics-gauge__scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--bem-text-2xs, 0.7rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bem-phosphor-faint, rgba(180, 255, 228, 0.5));
+}
+.biometrics-gauge__scale span:nth-child(2) {
+  color: var(--bem-phosphor-dim, rgba(180, 255, 228, 0.75));
+}
+
+/* ── HR trend sparkline ────────────────────────────────── */
+.biometrics-spark {
+  display: grid;
+  gap: 0.3rem;
+}
+.biometrics-spark__label {
+  font-size: var(--bem-text-2xs, 0.7rem);
+  letter-spacing: var(--bem-track, 0.08em);
+  text-transform: uppercase;
+  color: var(--bem-phosphor-faint, rgba(180, 255, 228, 0.5));
+}
+.biometrics-spark__svg {
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--bem-border-faint, rgba(124, 255, 178, 0.12));
+  border-radius: var(--bem-radius-md, 8px);
+  background: var(--bem-bg-input, #031016);
+}
+.biometrics-spark__svg polyline {
+  fill: none;
+  stroke: var(--bem-phosphor, #2ddc93);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 3px rgba(45, 220, 147, 0.5));
+}
+
+/* ── Secondary (debug) stats ───────────────────────────── */
+.biometrics-substats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--bem-space-2, 0.5rem);
+}
+.biometrics-substat {
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--bem-border-faint, rgba(124, 255, 178, 0.1));
+  background: var(--bem-bg-sunken, rgba(3, 12, 16, 0.4));
+  border-radius: var(--bem-radius-md, 8px);
+  display: grid;
+  gap: 0.1rem;
+}
+.biometrics-substat span {
+  font-size: var(--bem-text-2xs, 0.68rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bem-phosphor-faint, rgba(180, 255, 228, 0.45));
+}
+.biometrics-substat strong {
+  font-size: var(--bem-text-sm, 0.85rem);
+  color: var(--bem-phosphor-dim, rgba(214, 255, 240, 0.82));
   overflow-wrap: anywhere;
 }
 
+/* ── Sample list (collapsible) ─────────────────────────── */
 .biometrics-sample-list {
   display: grid;
   gap: 0.55rem;
 }
+.biometrics-sample-list > summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.biometrics-sample-list > summary::-webkit-details-marker { display: none; }
+.biometrics-sample-list > summary::before {
+  content: '▸ ';
+  color: var(--bem-phosphor-mute, rgba(125, 182, 195, 0.6));
+}
+.biometrics-sample-list[open] > summary::before { content: '▾ '; }
 
 .biometrics-sample-row {
   display: grid;
@@ -3407,11 +3705,11 @@
   gap: 0.45rem;
   align-items: center;
   padding: 0.55rem 0.7rem;
-  border: 1px solid rgba(124, 255, 178, 0.12);
-  background: rgba(3, 12, 16, 0.42);
-  border-radius: 8px;
-  font-size: 0.78rem;
-  color: rgba(214, 255, 240, 0.82);
+  border: 1px solid var(--bem-border-faint, rgba(124, 255, 178, 0.12));
+  background: var(--bem-bg-sunken, rgba(3, 12, 16, 0.42));
+  border-radius: var(--bem-radius-md, 8px);
+  font-size: var(--bem-text-xs, 0.78rem);
+  color: var(--bem-phosphor-dim, rgba(214, 255, 240, 0.82));
 }
 
 .biometrics-sample-row span {

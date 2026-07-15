@@ -8106,13 +8106,19 @@ const DmPanel = () => {
       null;
     const phaseLabel = (phase = '') => {
       if (phase === 'calm_detected') return 'CALMA FIJADA';
-      if (phase === 'unlocked') return 'SECRET UNLOCKED';
+      if (phase === 'unlocked') return 'SECRETO DESBLOQUEADO';
       return 'ESPERANDO CALMA';
     };
-    const phaseTone = (phase = '') => {
-      if (phase === 'unlocked') return 'success';
-      if (phase === 'calm_detected') return 'warning';
-      return 'idle';
+    // Hero-banner state key: waiting -> calm -> unlocked
+    const phaseState = (phase = '') => {
+      if (phase === 'unlocked') return 'unlocked';
+      if (phase === 'calm_detected') return 'calm';
+      return 'waiting';
+    };
+    const phaseHint = (phase = '') => {
+      if (phase === 'unlocked') return 'Flag biométrica emitida · alerta elevada.';
+      if (phase === 'calm_detected') return 'Calma fijada. Esperando el pico de pulso.';
+      return 'Esperando lecturas bajas y estables para fijar la calma.';
     };
     const formatTimestamp = (value) => {
       const ts = Number(value) || 0;
@@ -8130,12 +8136,48 @@ const DmPanel = () => {
       return bpm > 0 ? `${bpm} BPM` : '---';
     };
     const config = biometricsConfig || {};
+    const calmThreshold = Number(config.calmBpmThreshold) || 65;
+    const spikeThreshold = Number(config.spikeBpmThreshold) || 115;
+
+    // Tension gauge: map a BPM onto a display scale padded around the thresholds.
+    const gaugeLo = Math.max(30, calmThreshold - 20);
+    const gaugeHi = spikeThreshold + 25;
+    const gaugePct = (bpm) => {
+      const value = Number(bpm) || 0;
+      if (value <= 0) return 0;
+      return Math.min(100, Math.max(0, ((value - gaugeLo) / (gaugeHi - gaugeLo)) * 100));
+    };
+    // Progress toward the spike (only meaningful once calm is fixed).
+    const unlockProgress = (bpm) => {
+      const value = Number(bpm) || 0;
+      if (value <= calmThreshold) return 0;
+      return Math.min(100, Math.max(0, ((value - calmThreshold) / (spikeThreshold - calmThreshold)) * 100));
+    };
+    // Build an SVG polyline (viewBox 0 0 100 32) from the recent sample BPMs.
+    const sparkPoints = (samples = []) => {
+      const vals = samples
+        .slice(-24)
+        .map((sample) => Number(sample?.bpm) || Number(sample?.liveBpm) || Number(sample?.rawBpm) || 0)
+        .filter((value) => value > 0);
+      if (vals.length < 2) return null;
+      const min = Math.min(...vals);
+      const max = Math.max(...vals);
+      const span = max - min || 1;
+      return vals
+        .map((value, index) => {
+          const x = (index / (vals.length - 1)) * 100;
+          const y = 30 - ((value - min) / span) * 28;
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        })
+        .join(' ');
+    };
 
     return (
       <section className="dm-panel__section">
         <h2 className="dm-panel__section-title">BioLink</h2>
         <p className="dm-panel__hint">
-          Monitor en vivo para relojes Pebble. Permite verificar muestras HR, fase actual y unlock biométrico.
+          Monitor de pulso en vivo para relojes Pebble. Sigue la fase, la tensión hacia el pico y el
+          desbloqueo biométrico de cada agente.
         </p>
         {biometricsMessage && <p className="dm-panel__hint">{biometricsMessage}</p>}
         <div className="dm-panel__grid dm-panel__grid--two">
@@ -8213,78 +8255,171 @@ const DmPanel = () => {
           <div className="dm-panel__card biometrics-detail">
             <div className="dm-panel__panel-title">Dispositivo seleccionado</div>
             {selectedDevice ? (
-              <>
-                <div className="biometrics-detail__header">
-                  <div>
-                    <strong>{selectedDevice.player || selectedDevice.device}</strong>
-                    <p>{selectedDevice.device}</p>
-                  </div>
-                  <span className={`biometrics-status-pill biometrics-status-pill--${phaseTone(selectedDevice.phase)}`}>
-                    {phaseLabel(selectedDevice.phase)}
-                  </span>
-                </div>
+              (() => {
+                const state = phaseState(selectedDevice.phase);
+                const detectionBpm = Number(selectedDevice.lastDetectionBpm) || Number(selectedDevice.lastBpm) || 0;
+                const liveBpm = Number(selectedDevice.lastBpm) || 0;
+                const progress = unlockProgress(detectionBpm);
+                const points = sparkPoints(selectedDevice.samples);
+                const pulseSeconds = liveBpm > 0 ? Math.min(2, Math.max(0.32, 60 / liveBpm)) : 2;
+                return (
+                  <>
+                    <div className="biometrics-detail__header">
+                      <div>
+                        <strong>{selectedDevice.player || selectedDevice.device}</strong>
+                        <p>{selectedDevice.device}</p>
+                      </div>
+                      <span className="biometrics-detail__updated">
+                        {formatTimestamp(selectedDevice.updatedAt)}
+                      </span>
+                    </div>
 
-                <div className="biometrics-config-grid">
-                  <div className="biometrics-stat-card">
-                    <span>Live</span>
-                    <strong>{renderBpm(selectedDevice.lastBpm)}</strong>
-                  </div>
-                  <div className="biometrics-stat-card">
-                    <span>Raw</span>
-                    <strong>{renderBpm(selectedDevice.lastRawBpm)}</strong>
-                  </div>
-                  <div className="biometrics-stat-card">
-                    <span>Filtrado</span>
-                    <strong>{renderBpm(selectedDevice.lastFilteredBpm)}</strong>
-                  </div>
-                  <div className="biometrics-stat-card">
-                    <span>AVG</span>
-                    <strong>{renderBpm(selectedDevice.lastAverageBpm)}</strong>
-                  </div>
-                </div>
+                    {/* Hero: la fase es lo que importa de un vistazo */}
+                    <div className={`biometrics-hero biometrics-hero--${state}`}>
+                      <div className="biometrics-hero__phase">
+                        <span className="biometrics-hero__dot" />
+                        {phaseLabel(selectedDevice.phase)}
+                      </div>
+                      <p className="biometrics-hero__hint">{phaseHint(selectedDevice.phase)}</p>
+                    </div>
 
-                <div className="biometrics-detail__meta">
-                  <span>Detección: {renderBpm(selectedDevice.lastDetectionBpm)}</span>
-                  <span>Calma: {selectedDevice.calmCount}</span>
-                  <span>Pico: {selectedDevice.spikeCount}</span>
-                  <span>Actualizado: {formatTimestamp(selectedDevice.updatedAt)}</span>
-                </div>
+                    {/* Live BPM con latido sincronizado al pulso */}
+                    <div className="biometrics-live">
+                      <div className="biometrics-live__pulse">
+                        <span
+                          className="biometrics-live__heart"
+                          style={{ animationDuration: `${pulseSeconds}s` }}
+                          aria-hidden="true"
+                        >
+                          ♥
+                        </span>
+                      </div>
+                      <div className="biometrics-live__readout">
+                        <span className="biometrics-live__label">Pulso en vivo</span>
+                        <strong className="biometrics-live__value">
+                          {liveBpm > 0 ? liveBpm : '---'}
+                          <em>BPM</em>
+                        </strong>
+                      </div>
+                      <div className="biometrics-live__progress">
+                        <span className="biometrics-live__label">Hacia el pico</span>
+                        <strong className="biometrics-live__pct">{Math.round(progress)}%</strong>
+                      </div>
+                    </div>
 
-                <div className="biometrics-detail__actions">
-                  <button
-                    type="button"
-                    className="dm-panel__button danger"
-                    onClick={() => {
-                      if (!sendBiometricsSocket({ type: 'biometrics:reset', device: selectedDevice.device })) {
-                        setBiometricsMessage('Socket BioLink no disponible.');
-                      }
-                    }}
-                  >
-                    Reset dispositivo
-                  </button>
-                </div>
+                    {/* Medidor de tensión: BPM de detección vs calma / pico */}
+                    <div className="biometrics-gauge">
+                      <div className="biometrics-gauge__track">
+                        <div
+                          className="biometrics-gauge__zone biometrics-gauge__zone--calm"
+                          style={{ width: `${gaugePct(calmThreshold)}%` }}
+                        />
+                        <div
+                          className="biometrics-gauge__zone biometrics-gauge__zone--spike"
+                          style={{ left: `${gaugePct(spikeThreshold)}%` }}
+                        />
+                        <div
+                          className={`biometrics-gauge__fill biometrics-gauge__fill--${state}`}
+                          style={{ width: `${gaugePct(detectionBpm)}%` }}
+                        />
+                        <div
+                          className="biometrics-gauge__marker biometrics-gauge__marker--calm"
+                          style={{ left: `${gaugePct(calmThreshold)}%` }}
+                          title={`Calma ${calmThreshold} BPM`}
+                        />
+                        <div
+                          className="biometrics-gauge__marker biometrics-gauge__marker--spike"
+                          style={{ left: `${gaugePct(spikeThreshold)}%` }}
+                          title={`Pico ${spikeThreshold} BPM`}
+                        />
+                        {detectionBpm > 0 && (
+                          <div
+                            className="biometrics-gauge__needle"
+                            style={{ left: `${gaugePct(detectionBpm)}%` }}
+                          >
+                            <span>{detectionBpm}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="biometrics-gauge__scale">
+                        <span>Calma {calmThreshold}</span>
+                        <span>Detección {renderBpm(detectionBpm)}</span>
+                        <span>Pico {spikeThreshold}</span>
+                      </div>
+                    </div>
 
-                <div className="biometrics-sample-list">
-                  <div className="dm-panel__panel-title">Últimas muestras</div>
-                  {selectedDevice.samples.length ? (
-                    selectedDevice.samples
-                      .slice()
-                      .reverse()
-                      .map((sample) => (
-                        <div key={`${selectedDevice.device}-${sample.timestamp}`} className="biometrics-sample-row">
-                          <span>{formatTimestamp(sample.timestamp)}</span>
-                          <span>DET {renderBpm(sample.bpm)}</span>
-                          <span>LIVE {renderBpm(sample.liveBpm)}</span>
-                          <span>RAW {renderBpm(sample.rawBpm)}</span>
-                          <span>FIL {renderBpm(sample.filteredBpm)}</span>
-                          <span>{sample.quality || 'n/a'}</span>
-                        </div>
-                      ))
-                  ) : (
-                    <p className="dm-panel__hint">Sin muestras todavía.</p>
-                  )}
-                </div>
-              </>
+                    {/* Tendencia de las últimas muestras */}
+                    {points && (
+                      <div className="biometrics-spark">
+                        <span className="biometrics-spark__label">Tendencia HR</span>
+                        <svg
+                          className="biometrics-spark__svg"
+                          viewBox="0 0 100 32"
+                          preserveAspectRatio="none"
+                          aria-hidden="true"
+                        >
+                          <polyline points={points} />
+                        </svg>
+                      </div>
+                    )}
+
+                    {/* Detalle secundario (debug) */}
+                    <div className="biometrics-substats">
+                      <div className="biometrics-substat">
+                        <span>Raw</span>
+                        <strong>{renderBpm(selectedDevice.lastRawBpm)}</strong>
+                      </div>
+                      <div className="biometrics-substat">
+                        <span>Filtrado</span>
+                        <strong>{renderBpm(selectedDevice.lastFilteredBpm)}</strong>
+                      </div>
+                      <div className="biometrics-substat">
+                        <span>AVG</span>
+                        <strong>{renderBpm(selectedDevice.lastAverageBpm)}</strong>
+                      </div>
+                      <div className="biometrics-substat">
+                        <span>Calma / Pico</span>
+                        <strong>{selectedDevice.calmCount} / {selectedDevice.spikeCount}</strong>
+                      </div>
+                    </div>
+
+                    <div className="biometrics-detail__actions">
+                      <button
+                        type="button"
+                        className="dm-panel__button danger"
+                        onClick={() => {
+                          if (!sendBiometricsSocket({ type: 'biometrics:reset', device: selectedDevice.device })) {
+                            setBiometricsMessage('Socket BioLink no disponible.');
+                          }
+                        }}
+                      >
+                        Reset dispositivo
+                      </button>
+                    </div>
+
+                    <details className="biometrics-sample-list">
+                      <summary className="dm-panel__panel-title">Últimas muestras</summary>
+                      {selectedDevice.samples.length ? (
+                        selectedDevice.samples
+                          .slice()
+                          .reverse()
+                          .map((sample) => (
+                            <div key={`${selectedDevice.device}-${sample.timestamp}`} className="biometrics-sample-row">
+                              <span>{formatTimestamp(sample.timestamp)}</span>
+                              <span>DET {renderBpm(sample.bpm)}</span>
+                              <span>LIVE {renderBpm(sample.liveBpm)}</span>
+                              <span>RAW {renderBpm(sample.rawBpm)}</span>
+                              <span>FIL {renderBpm(sample.filteredBpm)}</span>
+                              <span>{sample.quality || 'n/a'}</span>
+                            </div>
+                          ))
+                      ) : (
+                        <p className="dm-panel__hint">Sin muestras todavía.</p>
+                      )}
+                    </details>
+                  </>
+                );
+              })()
             ) : (
               <p className="dm-panel__hint">Selecciona un dispositivo o espera a que un reloj envíe muestras.</p>
             )}
