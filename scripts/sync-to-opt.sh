@@ -9,10 +9,11 @@ NPM_BIN="${NPM_BIN:-/home/jose/.nvm/versions/node/v20.19.5/bin/npm}"
 INSTALL_DEPS="${INSTALL_DEPS:-0}"
 BUILD_FRONTEND="${BUILD_FRONTEND:-0}"
 RESTART_SERVICES="${RESTART_SERVICES:-0}"
+DRY_RUN="${DRY_RUN:-0}"
 
 usage() {
   cat <<'EOF'
-Usage: sudo ./scripts/sync-to-opt.sh [--install] [--build] [--restart]
+Usage: sudo ./scripts/sync-to-opt.sh [--install] [--build] [--restart] [--dry-run]
 
 Synchronizes the repository into /opt/gcpd for systemd deployment.
 
@@ -20,6 +21,7 @@ Options:
   --install   Run npm ci in the destination after syncing.
   --build     Run npm run build in the destination after syncing. Optional; normally dist/ comes from git.
   --restart   Restart gcpd-api and gcpd-frontend after syncing.
+  --dry-run   Show rsync changes without writing or restarting services.
 EOF
 }
 
@@ -33,6 +35,12 @@ while [[ $# -gt 0 ]]; do
       ;;
     --restart)
       RESTART_SERVICES=1
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      INSTALL_DEPS=0
+      BUILD_FRONTEND=0
+      RESTART_SERVICES=0
       ;;
     -h|--help)
       usage
@@ -64,17 +72,34 @@ if [[ ! -x "$NPM_BIN" ]]; then
 fi
 
 sync_tree() {
-  install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$DEST_DIR"
+  if [[ "$DRY_RUN" != "1" ]]; then
+    install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$DEST_DIR"
+  fi
 
-  rsync -a --delete \
-    --exclude '.git' \
-    --exclude '.gitignore' \
-    --exclude 'node_modules' \
-    --exclude '.codex' \
-    --exclude '.DS_Store' \
-    "$REPO_ROOT"/ "$DEST_DIR"/
+  local -a rsync_args=(
+    -a
+    --delete
+    --exclude '.git'
+    --exclude '.github'
+    --exclude '.gitignore'
+    --exclude 'node_modules'
+    --exclude '.codex'
+    --exclude '.DS_Store'
+    --exclude 'var'
+    --exclude 'server/batconsole.db'
+    --exclude 'public/assets'
+    --exclude 'public/uploads'
+  )
 
-  chown -R "$DEPLOY_USER:$DEPLOY_USER" "$DEST_DIR"
+  if [[ "$DRY_RUN" == "1" ]]; then
+    rsync_args+=(--dry-run --itemize-changes)
+  fi
+
+  rsync "${rsync_args[@]}" "$REPO_ROOT"/ "$DEST_DIR"/
+
+  if [[ "$DRY_RUN" != "1" ]]; then
+    chown -R "$DEPLOY_USER:$DEPLOY_USER" "$DEST_DIR"
+  fi
 }
 
 install_deps() {

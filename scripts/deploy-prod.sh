@@ -14,6 +14,7 @@ RESTART_SERVICES=1
 RUN_HEALTHCHECKS=1
 HEALTHCHECK_RETRIES="${HEALTHCHECK_RETRIES:-20}"
 HEALTHCHECK_DELAY_SEC="${HEALTHCHECK_DELAY_SEC:-2}"
+DRY_RUN=0
 
 usage() {
   cat <<'EOF'
@@ -28,6 +29,7 @@ Options:
   --build             Build frontend in the target. Disabled by default.
   --no-restart        Skip systemd restart.
   --no-healthcheck    Skip curl/systemctl verification after deploy.
+  --dry-run           Show rsync changes without writing or restarting anything.
   -h, --help          Show this help.
 
 Environment:
@@ -64,6 +66,11 @@ while [[ $# -gt 0 ]]; do
     --no-healthcheck)
       RUN_HEALTHCHECKS=0
       ;;
+    --dry-run)
+      DRY_RUN=1
+      RESTART_SERVICES=0
+      RUN_HEALTHCHECKS=0
+      ;;
     -h|--help)
       usage
       exit 0
@@ -92,22 +99,35 @@ if [[ ! -x "$NPM_BIN" ]]; then
   exit 1
 fi
 
+if [[ "$APP_DIR" != "/opt/gcpd" || "$SERVICE_USER" != "gcpd" || "$NPM_BIN" != "/usr/local/bin/gcpd-npm" ]]; then
+  echo "Refusing unexpected deploy configuration" >&2
+  exit 1
+fi
+
+if [[ "$API_SERVICE" != "gcpd-api" || "$FRONTEND_SERVICE" != "gcpd-frontend" ]]; then
+  echo "Refusing unexpected service names" >&2
+  exit 1
+fi
+
 echo "[deploy] source: $SOURCE_DIR"
 echo "[deploy] target: $APP_DIR"
 echo "[deploy] service user: $SERVICE_USER"
 
-sudo -n install -d -o "$SERVICE_USER" -g "$SERVICE_USER" "$APP_DIR"
-sudo -n rm -rf "$APP_DIR/.tmp"
+if [[ "$DRY_RUN" != "1" ]]; then
+  sudo -n install -d -o "$SERVICE_USER" -g "$SERVICE_USER" "$APP_DIR"
+  sudo -n rm -rf "$APP_DIR/.tmp"
+fi
 
-sudo -n rsync -a --delete \
-  --exclude '.git' \
-  --exclude '.github' \
-  --exclude '.gitignore' \
-  --exclude 'node_modules' \
-  --exclude '.codex' \
-  --exclude '.DS_Store' \
-  --exclude 'public/uploads' \
-  "$SOURCE_DIR"/ "$APP_DIR"/
+RSYNC_ARGS=(-a --delete --exclude .git --exclude .github --exclude .gitignore --exclude node_modules --exclude .codex --exclude .DS_Store --exclude var --exclude server/batconsole.db --exclude public/assets --exclude public/uploads)
+if [[ "$DRY_RUN" == "1" ]]; then
+  RSYNC_ARGS+=(--dry-run --itemize-changes)
+fi
+sudo -n rsync "${RSYNC_ARGS[@]}" "$SOURCE_DIR"/ "$APP_DIR"/
+
+if [[ "$DRY_RUN" == "1" ]]; then
+  echo "[deploy] dry run complete"
+  exit 0
+fi
 
 sudo -n chown -R "$SERVICE_USER:$SERVICE_USER" "$APP_DIR"
 

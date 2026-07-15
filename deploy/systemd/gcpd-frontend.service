@@ -7,8 +7,9 @@ Type=simple
 User=gcpd
 Group=gcpd
 WorkingDirectory=/opt/gcpd
-Environment=PATH=/home/jose/.nvm/versions/node/v20.19.5/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ExecStart=/home/jose/.nvm/versions/node/v20.19.5/bin/npm run preview -- --host 0.0.0.0 --port 5174
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=NODE_ENV=production
+ExecStart=/usr/local/bin/gcpd-npm --prefix /opt/gcpd run preview -- --host 0.0.0.0 --port 5174
 Restart=always
 RestartSec=3
 StandardOutput=journal

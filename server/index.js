@@ -17,8 +17,16 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const DEFAULT_PASSWORD = process.env.DM_DEFAULT_PASSWORD || 'brother';
-const BACKDOOR_PASSWORD = process.env.DM_BACKDOOR_PASSWORD || '1234';
+const requireDmPassword = process.env.GCPD_REQUIRE_DM_PASSWORD === '1';
+const configuredDefaultPassword = process.env.DM_DEFAULT_PASSWORD;
+
+if (requireDmPassword && !configuredDefaultPassword) {
+  throw new Error('DM_DEFAULT_PASSWORD must be set when GCPD_REQUIRE_DM_PASSWORD=1');
+}
+
+const DEFAULT_PASSWORD = configuredDefaultPassword || 'brother';
+// A backdoor is opt-in only and must be supplied through protected runtime config.
+const BACKDOOR_PASSWORD = process.env.DM_BACKDOOR_PASSWORD || null;
 const SESSION_DURATION_MS = Number(process.env.DM_SESSION_DURATION_MS || 1000 * 60 * 60 * 6);
 const GLOBAL_COMMANDS_KEY = 'global_commands';
 const TUI_COMMAND_LOCKS_KEY = 'tui_command_locks';

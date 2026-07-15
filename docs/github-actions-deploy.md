@@ -9,16 +9,19 @@ Separar siempre:
 - código y `dist`: `/opt/gcpd`
 - datos persistentes: `/var/lib/gcpd`
 
-El workflow y el script de deploy **nunca** copian:
+El workflow y el script de deploy **nunca** copian ni borran:
 
+- `var/`
+- `server/batconsole.db` (ubicación legacy)
 - `public/uploads`
+- `public/assets` (assets runtime legacy)
 
 `dist` sí forma parte del release generado en CI. No se construye en el VPS salvo que lo pidas explícitamente con `--build`.
 
 Por tanto:
 
 - la DB no debe vivir dentro de `/opt/gcpd`
-- los uploads no deben vivir dentro de `/opt/gcpd/public/uploads`
+- el servicio debe tener `GCPD_DATA_DIR=/var/lib/gcpd`
 
 ## Flujo
 
@@ -38,6 +41,7 @@ Por tanto:
 - `DEPLOY_PORT`: normalmente `22`
 - `DEPLOY_USER`: usuario SSH que ejecutará el deploy
 - `DEPLOY_SSH_KEY`: clave privada del usuario SSH
+- `DEPLOY_KNOWN_HOSTS`: entrada completa y verificada de `known_hosts` para el host y puerto de deploy. El workflow no usa `ssh-keyscan`.
 
 ## Requisito de sudoers
 
@@ -47,15 +51,19 @@ Hay una plantilla en:
 
 - `deploy/sudoers/gcpd-deploy`
 
-No la copies ciegamente. Debes ajustar:
-
-- `DEPLOY_USER`
-- y crear el wrapper `/usr/local/bin/gcpd-npm`
+La plantilla está restringida al usuario `deploy`; si cambias el usuario SSH, actualiza el archivo antes de instalarlo. Verifica también que el wrapper `/usr/local/bin/gcpd-npm` use exactamente el Node de producción.
 
 Instalación típica:
 
 ```bash
 sudo visudo -f /etc/sudoers.d/gcpd-deploy
+```
+
+Antes de cerrar la sesión, comprueba la regla instalada:
+
+```bash
+sudo visudo -cf /etc/sudoers.d/gcpd-deploy
+sudo -l -U deploy
 ```
 
 ## Validaciones previas en servidor
@@ -71,7 +79,7 @@ bash -n scripts/deploy-prod.sh
 Y desde el propio usuario de deploy, ya con `sudoers` aplicado:
 
 ```bash
-./scripts/deploy-prod.sh --source "$PWD" --install
+./scripts/deploy-prod.sh --source "$PWD" --dry-run
 ```
 
 ## Riesgos evitados
@@ -80,6 +88,7 @@ Este flujo evita:
 
 - sobreescribir la DB al copiar el repo
 - machacar `public/uploads`
+- borrar `var/` o las ubicaciones legacy por el `--delete` de rsync
 - depender de cambios manuales en `/opt/gcpd`
 - compilar el frontend en un VPS con poca RAM
 - recompilar módulos nativos con una ABI distinta a la del Node usado por `systemd`

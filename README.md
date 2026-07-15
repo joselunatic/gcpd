@@ -201,10 +201,10 @@ También queda preparado un flujo de despliegue por SSH desde GitHub Actions:
 
 El diseño evita tocar datos persistentes:
 
-- no copia `public/uploads`
+- no copia ni borra `var/`, `public/uploads` ni los assets runtime legacy
 - compila `dist` en GitHub Actions
 - despliega el artefacto ya compilado en `/opt/gcpd`
-- asume DB y uploads fuera del árbol de código, por ejemplo en `/var/lib/gcpd`
+- exige DB, uploads y assets runtime fuera del árbol de código, en `/var/lib/gcpd`
 
 ## Variables de entorno útiles
 

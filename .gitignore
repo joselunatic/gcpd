@@ -15,6 +15,7 @@ server/batconsole.db
 
 # API Keys
 .env
+/deploy/systemd/gcpd.env
 
 # Editor directories and files
 .vscode/*
