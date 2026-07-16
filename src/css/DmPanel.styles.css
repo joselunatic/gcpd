@@ -3718,10 +3718,12 @@
 .biometrics-sample-list[open] > summary::before { content: '▾ '; }
 
 .biometrics-sample-row {
-  display: grid;
-  grid-template-columns: minmax(140px, 1.25fr) repeat(5, minmax(0, 1fr));
-  gap: 0.45rem;
-  align-items: center;
+  /* Chips en flex-wrap: seis columnas de grid no caben en la columna del
+     detalle y forzaban el texto a partirse letra a letra. */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.8rem;
+  align-items: baseline;
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--bem-border-faint, rgba(124, 255, 178, 0.12));
   background: var(--bem-bg-sunken, rgba(3, 12, 16, 0.42));
@@ -3731,8 +3733,14 @@
 }
 
 .biometrics-sample-row span {
-  min-width: 0;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+}
+
+.biometrics-sample-row span:first-child {
+  flex-basis: 100%;
+  color: var(--bem-phosphor-faint, rgba(180, 255, 228, 0.5));
+  font-size: var(--bem-text-2xs, 0.7rem);
+  letter-spacing: 0.06em;
 }
 
 /* Global Search Overlay */

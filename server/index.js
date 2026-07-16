@@ -4012,6 +4012,16 @@ biometricsWss.on('connection', (ws, request, url) => {
       wsSend(ws, event.deviceEvent);
       if (event.deviceEvent.type === 'secret_unlocked') {
         biometricsDmSockets.forEach((socket) => wsSend(socket, event.deviceEvent));
+      } else if (event.deviceEvent.type === 'phase_update' && event.deviceEvent.message) {
+        // Mensaje de calma emitido por condición: avisar también al DM.
+        const notice = {
+          type: 'biometrics:notice-sent',
+          kind: 'calm',
+          device: resolvedDevice,
+          sent: 1,
+          origin: 'condition',
+        };
+        biometricsDmSockets.forEach((socket) => wsSend(socket, notice));
       }
     }
   });

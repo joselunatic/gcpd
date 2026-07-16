@@ -4769,15 +4769,25 @@ const DmPanel = () => {
           lastAverageBpm: payload.averageBpm,
           updatedAt: payload.timestamp,
         });
-        setBiometricsMessage(`${payload.title || 'ACCESS GRANTED'} · ${payload.device || 'device'}`);
+        setBiometricsMessage(
+          `${payload.title || 'ACCESS GRANTED'} · ${payload.device || 'device'} · mensaje de pico enviado al reloj`
+        );
+        addToast(`Condición de pico cumplida · ${payload.title || 'ACCESS GRANTED'} (${payload.device || 'device'})`, 'success');
         return;
       }
       if (payload.type === 'biometrics:notice-sent') {
         const kindLabel = payload.kind === 'calm' ? 'calma' : 'pico';
-        if (payload.sent > 0) {
-          setBiometricsMessage(`Mensaje de ${kindLabel} enviado a ${payload.sent} reloj(es).`);
+        if (payload.origin === 'condition') {
+          const text = `Condición de ${kindLabel} cumplida · mensaje enviado al reloj (${payload.device || 'device'})`;
+          setBiometricsMessage(text);
+          addToast(text, 'success');
+        } else if (payload.sent > 0) {
+          const text = `Mensaje de ${kindLabel} enviado a ${payload.sent} reloj(es).`;
+          setBiometricsMessage(text);
+          addToast(text, 'success');
         } else {
           setBiometricsMessage('No hay relojes conectados para recibir el mensaje.');
+          addToast('No hay relojes conectados para recibir el mensaje.', 'error');
         }
         return;
       }
@@ -4791,6 +4801,7 @@ const DmPanel = () => {
     };
   }, [
     activeView,
+    addToast,
     authorized,
     mergeBiometricsDevice,
     replaceBiometricsDevices,
