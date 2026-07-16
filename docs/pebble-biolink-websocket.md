@@ -82,12 +82,12 @@ Campos:
   "consecutiveSamples": 3,
   "movingAverageSamples": 3,
   "unlockFlag": "biometric_secret_unlocked",
-  "secretTitle": "ACCESS GRANTED",
-  "secretMessage": "Password: SOMBRA-17",
   "calmMessage": "Calma detectada. Mantén el ritmo.",
   "spikeMessage": "Pico detectado."
 }
 ```
+
+Los antiguos `secretTitle`/`secretMessage` se eliminaron: los mensajes al reloj se modelan solo con `calmMessage` y `spikeMessage`.
 
 `calmMessage` se envía al dispositivo cuando se cumple la condición de calma (transición a `calm_detected`); `spikeMessage` se envía al dispositivo junto al desbloqueo, cuando se cumple la condición de pico (transición a `unlocked`).
 
@@ -100,8 +100,6 @@ BIOMETRICS_TIME_WINDOW_SECONDS=120
 BIOMETRICS_CONSECUTIVE_SAMPLES=3
 BIOMETRICS_MOVING_AVERAGE_SAMPLES=3
 BIOMETRICS_UNLOCK_FLAG=biometric_secret_unlocked
-BIOMETRICS_SECRET_TITLE="ACCESS GRANTED"
-BIOMETRICS_SECRET_MESSAGE="Password: SOMBRA-17"
 BIOMETRICS_CALM_MESSAGE="Calma detectada. Mantén el ritmo."
 BIOMETRICS_SPIKE_MESSAGE="Pico detectado."
 ```
@@ -171,33 +169,42 @@ Además de `biometrics:status` (hacia el DM), el backend responde al dispositivo
   "type": "phase_update",
   "phase": "calm_detected",
   "target": 115,
-  "windowSeconds": 120,
+  "calmBpm": 65,
+  "spikeBpm": 115,
+  "windowSeconds": 0,
   "progress": 100
 }
 ```
 
-El campo `message` solo aparece **una vez**, en la muestra exacta donde se cumple la
-condición de calma (transición `waiting_calm` → `calm_detected`), con el valor de
-`calmMessage`:
+`calmBpm`/`spikeBpm` son los umbrales vigentes — la watchapp los usa para su gauge
+de zonas y así recoge cambios de config sin reconectar. `progress` es el % de la
+racha de muestras consecutivas hacia la condición más avanzada.
+
+Los campos `kind` y `message` solo aparecen **una vez**, en la muestra exacta donde
+se cumple la condición de calma, con el valor de `calmMessage`:
 
 ```json
 {
   "type": "phase_update",
   "phase": "calm_detected",
   "target": 115,
-  "windowSeconds": 120,
+  "calmBpm": 65,
+  "spikeBpm": 115,
+  "windowSeconds": 0,
   "progress": 100,
+  "kind": "calm",
   "message": "Calma detectada. Mantén el ritmo."
 }
 ```
 
-### Desbloqueo
+### Condición de pico (desbloqueo)
 
 ```json
 {
   "type": "secret_unlocked",
-  "title": "ACCESS GRANTED",
-  "message": "Password: SOMBRA-17",
+  "kind": "spike",
+  "title": "PICO DETECTADO",
+  "message": "Pico detectado.",
   "spikeMessage": "Pico detectado.",
   "code": "biometric_secret_unlocked",
   "device": "pebble_time_2",
@@ -211,8 +218,10 @@ condición de calma (transición `waiting_calm` → `calm_detected`), con el val
 }
 ```
 
-`spikeMessage` se envía junto al resto del payload de desbloqueo, en el mismo instante
-en que se cumple la condición de pico (transición `calm_detected` → `unlocked`).
+`message` lleva el `spikeMessage` configurado por el DM (el campo `spikeMessage`
+duplicado se conserva por compatibilidad con watchapps anteriores). El tipo
+`secret_unlocked` se mantiene por compatibilidad; sigue marcando la flag de
+campaña `unlockFlag` y elevando la alerta la primera vez.
 
 Además, el backend integra el desbloqueo en `campaign_state`:
 

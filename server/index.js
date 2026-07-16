@@ -46,8 +46,6 @@ const BIOMETRICS_DEFAULT_CONFIG = {
   consecutiveSamples: Number(process.env.BIOMETRICS_CONSECUTIVE_SAMPLES || 3),
   movingAverageSamples: Number(process.env.BIOMETRICS_MOVING_AVERAGE_SAMPLES || 3),
   unlockFlag: process.env.BIOMETRICS_UNLOCK_FLAG || 'biometric_secret_unlocked',
-  secretTitle: process.env.BIOMETRICS_SECRET_TITLE || 'ACCESS GRANTED',
-  secretMessage: process.env.BIOMETRICS_SECRET_MESSAGE || 'Password: SOMBRA-17',
   calmMessage: process.env.BIOMETRICS_CALM_MESSAGE || 'Calma detectada. Mantén el ritmo.',
   spikeMessage: process.env.BIOMETRICS_SPIKE_MESSAGE || 'Pico detectado.',
 };
@@ -1011,8 +1009,6 @@ function normalizeBiometricsConfig(source = {}) {
     consecutiveSamples: Math.max(1, Math.min(10, Number(merged.consecutiveSamples) || BIOMETRICS_DEFAULT_CONFIG.consecutiveSamples)),
     movingAverageSamples: Math.max(1, Math.min(10, Number(merged.movingAverageSamples) || BIOMETRICS_DEFAULT_CONFIG.movingAverageSamples)),
     unlockFlag: String(merged.unlockFlag || BIOMETRICS_DEFAULT_CONFIG.unlockFlag).trim() || BIOMETRICS_DEFAULT_CONFIG.unlockFlag,
-    secretTitle: String(merged.secretTitle || BIOMETRICS_DEFAULT_CONFIG.secretTitle).trim() || BIOMETRICS_DEFAULT_CONFIG.secretTitle,
-    secretMessage: String(merged.secretMessage || BIOMETRICS_DEFAULT_CONFIG.secretMessage).trim() || BIOMETRICS_DEFAULT_CONFIG.secretMessage,
     calmMessage: String(merged.calmMessage || BIOMETRICS_DEFAULT_CONFIG.calmMessage).trim() || BIOMETRICS_DEFAULT_CONFIG.calmMessage,
     spikeMessage: String(merged.spikeMessage || BIOMETRICS_DEFAULT_CONFIG.spikeMessage).trim() || BIOMETRICS_DEFAULT_CONFIG.spikeMessage,
   };
@@ -1101,6 +1097,10 @@ function buildBiometricsPhaseUpdate(deviceState, config = getBiometricsConfig())
     type: 'phase_update',
     phase: deviceState.phase,
     target: deviceState.phase === 'calm_detected' ? config.spikeBpmThreshold : config.calmBpmThreshold,
+    // Umbrales vigentes: el reloj los usa para su gauge de zonas y así
+    // recoge cambios de config sin tener que reconectar.
+    calmBpm: config.calmBpmThreshold,
+    spikeBpm: config.spikeBpmThreshold,
     windowSeconds: 0,
     progress,
   };
@@ -1233,8 +1233,10 @@ function processBiometricsSample(deviceId, payload = {}) {
     return {
       deviceEvent: {
         type: 'secret_unlocked',
-        title: config.secretTitle,
-        message: config.secretMessage,
+        kind: 'spike',
+        title: 'PICO DETECTADO',
+        message: config.spikeMessage,
+        // Compat: la watchapp instalada antes del cambio lee spikeMessage.
         spikeMessage: config.spikeMessage,
         code: config.unlockFlag,
         device: state.device,
@@ -1252,7 +1254,10 @@ function processBiometricsSample(deviceId, payload = {}) {
   state.unlocked = state.phase === 'unlocked';
   broadcastBiometricsStatus(state);
   const phaseUpdate = buildBiometricsPhaseUpdate(state, config);
-  if (justEnteredCalm) phaseUpdate.message = config.calmMessage;
+  if (justEnteredCalm) {
+    phaseUpdate.kind = 'calm';
+    phaseUpdate.message = config.calmMessage;
+  }
   return { deviceEvent: phaseUpdate };
 }
 

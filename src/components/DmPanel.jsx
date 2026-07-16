@@ -4770,9 +4770,9 @@ const DmPanel = () => {
           updatedAt: payload.timestamp,
         });
         setBiometricsMessage(
-          `${payload.title || 'ACCESS GRANTED'} · ${payload.device || 'device'} · mensaje de pico enviado al reloj`
+          `${payload.title || 'PICO DETECTADO'} · ${payload.device || 'device'} · mensaje de pico enviado al reloj`
         );
-        addToast(`Condición de pico cumplida · ${payload.title || 'ACCESS GRANTED'} (${payload.device || 'device'})`, 'success');
+        addToast(`Condición de pico cumplida · mensaje enviado al reloj (${payload.device || 'device'})`, 'success');
         return;
       }
       if (payload.type === 'biometrics:notice-sent') {
