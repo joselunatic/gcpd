@@ -219,6 +219,39 @@ Además, el backend integra el desbloqueo en `campaign_state`:
 - añade la flag `biometric_secret_unlocked`
 - eleva `alertLevel` a `high`
 
+## Mensajes a demanda desde DM
+
+El socket DM puede forzar el envío del mensaje de calma o de pico configurado,
+sin que se cumpla la condición biométrica:
+
+```json
+{
+  "type": "biometrics:send-message",
+  "kind": "calm",
+  "device": "pebble_time_2"
+}
+```
+
+- `kind`: `calm` o `spike`.
+- `device`: opcional; sin él, se envía a todos los relojes conectados.
+
+El dispositivo recibe un evento `notice` (el companion lo muestra como takeover
+con vibración, igual que los mensajes por condición):
+
+```json
+{
+  "type": "notice",
+  "kind": "calm",
+  "title": "CALMA FIJADA",
+  "message": "Calma detectada. Mantén el ritmo.",
+  "timestamp": 1710000000000
+}
+```
+
+El DM recibe un ack `biometrics:notice-sent` con `kind`, `device` y `sent`
+(número de relojes que lo recibieron). No toca fases, flags ni estado de
+campaña: es solo presentación.
+
 ## Reset desde DM
 
 El socket DM puede enviar:

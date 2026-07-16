@@ -3944,6 +3944,7 @@ biometricsWss.on('connection', (ws, request, url) => {
       devices: Array.from(biometricsDevices.values()),
     });
   } else {
+    ws.biometricsDevice = device;
     biometricsDeviceSockets.add(ws);
     logBiometrics('device_connected', { device });
     wsSend(ws, { type: 'hello', channel: 'biometrics', device, config: getBiometricsConfig() });
@@ -3969,6 +3970,33 @@ biometricsWss.on('connection', (ws, request, url) => {
           devices: Array.from(biometricsDevices.values()),
         };
         biometricsDmSockets.forEach((socket) => wsSend(socket, snapshot));
+      }
+      if (payload.type === 'biometrics:send-message') {
+        // Envío a demanda del mensaje de calma o pico configurado, sin
+        // exigir que se cumpla la condición biométrica correspondiente.
+        const kind = String(payload.kind || '').trim();
+        const target = String(payload.device || '').trim();
+        const config = getBiometricsConfig();
+        const message = kind === 'calm' ? config.calmMessage : kind === 'spike' ? config.spikeMessage : '';
+        if (!message) {
+          wsSend(ws, { type: 'biometrics:error', code: 'invalid_kind', message: 'Tipo de mensaje invalido.' });
+          return;
+        }
+        const notice = {
+          type: 'notice',
+          kind,
+          title: kind === 'calm' ? 'CALMA FIJADA' : 'PICO DETECTADO',
+          message,
+          timestamp: Date.now(),
+        };
+        let sent = 0;
+        biometricsDeviceSockets.forEach((socket) => {
+          if (target && socket.biometricsDevice !== target) return;
+          wsSend(socket, notice);
+          sent += 1;
+        });
+        logBiometrics('dm_notice', { kind, device: target || 'all', sent });
+        wsSend(ws, { type: 'biometrics:notice-sent', kind, device: target || '', sent });
       }
       return;
     }

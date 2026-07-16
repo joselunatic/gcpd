@@ -4772,6 +4772,15 @@ const DmPanel = () => {
         setBiometricsMessage(`${payload.title || 'ACCESS GRANTED'} · ${payload.device || 'device'}`);
         return;
       }
+      if (payload.type === 'biometrics:notice-sent') {
+        const kindLabel = payload.kind === 'calm' ? 'calma' : 'pico';
+        if (payload.sent > 0) {
+          setBiometricsMessage(`Mensaje de ${kindLabel} enviado a ${payload.sent} reloj(es).`);
+        } else {
+          setBiometricsMessage('No hay relojes conectados para recibir el mensaje.');
+        }
+        return;
+      }
       if (payload.type === 'biometrics:error') {
         setBiometricsMessage(payload.message || 'Error BioLink.');
       }
@@ -8519,6 +8528,30 @@ const DmPanel = () => {
                     </div>
 
                     <div className="biometrics-detail__actions">
+                      <button
+                        type="button"
+                        className="dm-panel__button"
+                        title="Envía el mensaje de calma configurado sin esperar a la condición"
+                        onClick={() => {
+                          if (!sendBiometricsSocket({ type: 'biometrics:send-message', kind: 'calm', device: selectedDevice.device })) {
+                            setBiometricsMessage('Socket BioLink no disponible.');
+                          }
+                        }}
+                      >
+                        Enviar calma
+                      </button>
+                      <button
+                        type="button"
+                        className="dm-panel__button"
+                        title="Envía el mensaje de pico configurado sin esperar a la condición"
+                        onClick={() => {
+                          if (!sendBiometricsSocket({ type: 'biometrics:send-message', kind: 'spike', device: selectedDevice.device })) {
+                            setBiometricsMessage('Socket BioLink no disponible.');
+                          }
+                        }}
+                      >
+                        Enviar pico
+                      </button>
                       <button
                         type="button"
                         className="dm-panel__button danger"
