@@ -48,6 +48,8 @@ const BIOMETRICS_DEFAULT_CONFIG = {
   unlockFlag: process.env.BIOMETRICS_UNLOCK_FLAG || 'biometric_secret_unlocked',
   secretTitle: process.env.BIOMETRICS_SECRET_TITLE || 'ACCESS GRANTED',
   secretMessage: process.env.BIOMETRICS_SECRET_MESSAGE || 'Password: SOMBRA-17',
+  calmMessage: process.env.BIOMETRICS_CALM_MESSAGE || 'Calma detectada. Mantén el ritmo.',
+  spikeMessage: process.env.BIOMETRICS_SPIKE_MESSAGE || 'Pico detectado.',
 };
 
 const dataDir = path.resolve(process.env.GCPD_DATA_DIR || path.join(__dirname, '..', 'var'));
@@ -1008,6 +1010,8 @@ function normalizeBiometricsConfig(source = {}) {
     unlockFlag: String(merged.unlockFlag || BIOMETRICS_DEFAULT_CONFIG.unlockFlag).trim() || BIOMETRICS_DEFAULT_CONFIG.unlockFlag,
     secretTitle: String(merged.secretTitle || BIOMETRICS_DEFAULT_CONFIG.secretTitle).trim() || BIOMETRICS_DEFAULT_CONFIG.secretTitle,
     secretMessage: String(merged.secretMessage || BIOMETRICS_DEFAULT_CONFIG.secretMessage).trim() || BIOMETRICS_DEFAULT_CONFIG.secretMessage,
+    calmMessage: String(merged.calmMessage || BIOMETRICS_DEFAULT_CONFIG.calmMessage).trim() || BIOMETRICS_DEFAULT_CONFIG.calmMessage,
+    spikeMessage: String(merged.spikeMessage || BIOMETRICS_DEFAULT_CONFIG.spikeMessage).trim() || BIOMETRICS_DEFAULT_CONFIG.spikeMessage,
   };
 }
 
@@ -1187,7 +1191,8 @@ function processBiometricsSample(deviceId, payload = {}) {
     state.calmCount = 0;
   }
 
-  if (state.phase === 'waiting_calm' && state.calmCount >= config.consecutiveSamples) {
+  const justEnteredCalm = state.phase === 'waiting_calm' && state.calmCount >= config.consecutiveSamples;
+  if (justEnteredCalm) {
     setBiometricsPhase(state, 'calm_detected', 'calm_threshold_reached');
     state.calmAt = sample.timestamp;
     state.spikeCount = 0;
@@ -1229,6 +1234,7 @@ function processBiometricsSample(deviceId, payload = {}) {
         type: 'secret_unlocked',
         title: config.secretTitle,
         message: config.secretMessage,
+        spikeMessage: config.spikeMessage,
         code: config.unlockFlag,
         device: state.device,
         player: state.player || '',
@@ -1243,7 +1249,9 @@ function processBiometricsSample(deviceId, payload = {}) {
   }
 
   broadcastBiometricsStatus(state);
-  return { deviceEvent: buildBiometricsPhaseUpdate(state, config) };
+  const phaseUpdate = buildBiometricsPhaseUpdate(state, config);
+  if (justEnteredCalm) phaseUpdate.message = config.calmMessage;
+  return { deviceEvent: phaseUpdate };
 }
 
 function broadcastLiveMapState(state = getLiveMapState()) {

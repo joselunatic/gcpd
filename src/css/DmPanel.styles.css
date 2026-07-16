@@ -3348,13 +3348,31 @@
   gap: var(--bem-space-3, 0.6rem);
 }
 
+.biometrics-messages-form {
+  display: grid;
+  gap: var(--bem-space-3, 0.6rem);
+  padding: var(--bem-space-3, 0.7rem) var(--bem-space-4, 0.9rem);
+  border: 1px solid var(--bem-border-faint, rgba(124, 255, 178, 0.18));
+  border-radius: var(--bem-radius-md, 10px);
+  background: var(--bem-bg-sunken, rgba(3, 12, 16, 0.42));
+}
+
+.biometrics-messages-form .dm-panel__hint {
+  margin: 0;
+}
+
 .biometrics-device-list {
   max-height: 420px;
   overflow-y: auto;
   padding-right: 0.2rem;
 }
 
-.biometrics-device-button {
+/* Qualified with .dm-panel so this beats the generic ".dm-panel button" rule
+   (class+element = higher specificity than this class alone), which was
+   otherwise winning on display/justify-content/padding/text-align/line-height/
+   min-height and forcing the button into an unwrapped centered row — the
+   cause of the garbled/overlapping text in the device list. */
+.dm-panel .biometrics-device-button {
   width: 100%;
   min-width: 0;
   align-self: stretch;
@@ -3369,7 +3387,7 @@
   background: var(--bem-bg-sunken, rgba(3, 12, 16, 0.42));
 }
 
-.biometrics-device-button.active {
+.dm-panel .biometrics-device-button.active {
   border-color: var(--bem-phosphor, rgba(45, 220, 147, 0.65));
   background: var(--bem-ok-bg, rgba(45, 220, 147, 0.1));
   box-shadow: var(--bem-glow-sm, 0 0 10px rgba(45, 220, 147, 0.2));

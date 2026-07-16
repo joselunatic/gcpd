@@ -1119,6 +1119,8 @@ const DmPanel = () => {
   const [biometricsSelectedDevice, setBiometricsSelectedDevice] = useState('');
   const [biometricsWsState, setBiometricsWsState] = useState('offline');
   const [biometricsMessage, setBiometricsMessage] = useState('');
+  const [biometricsMessagesForm, setBiometricsMessagesForm] = useState({ calmMessage: '', spikeMessage: '' });
+  const [biometricsMessagesSaving, setBiometricsMessagesSaving] = useState(false);
   const evidencePreviewRef = useRef(null);
   const evidenceViewerRef = useRef(null);
   const evidenceMeshRef = useRef(null);
@@ -3552,11 +3554,47 @@ const DmPanel = () => {
       const res = await fetch(BIOMETRICS_CONFIG_ENDPOINT, { cache: 'no-store' });
       if (!res.ok) throw new Error('No se pudo cargar BioLink.');
       const data = await res.json();
-      setBiometricsConfig(data?.config || null);
+      const config = data?.config || null;
+      setBiometricsConfig(config);
+      setBiometricsMessagesForm({
+        calmMessage: config?.calmMessage || '',
+        spikeMessage: config?.spikeMessage || '',
+      });
     } catch (error) {
       setBiometricsMessage(error.message || 'No se pudo cargar BioLink.');
     }
   }, []);
+
+  const saveBiometricsMessages = useCallback(async () => {
+    setBiometricsMessage('');
+    setBiometricsMessagesSaving(true);
+    try {
+      const res = await fetch(BIOMETRICS_CONFIG_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({
+          calmMessage: biometricsMessagesForm.calmMessage,
+          spikeMessage: biometricsMessagesForm.spikeMessage,
+        }),
+      });
+      if (!res.ok) throw new Error('No se pudo guardar la configuracion de BioLink.');
+      const data = await res.json();
+      const config = data?.config || null;
+      setBiometricsConfig(config);
+      setBiometricsMessagesForm({
+        calmMessage: config?.calmMessage || '',
+        spikeMessage: config?.spikeMessage || '',
+      });
+      setBiometricsMessage('Mensajes de BioLink guardados.');
+    } catch (error) {
+      setBiometricsMessage(error.message || 'No se pudo guardar la configuracion de BioLink.');
+    } finally {
+      setBiometricsMessagesSaving(false);
+    }
+  }, [biometricsMessagesForm, sessionToken]);
 
   const sendBiometricsSocket = useCallback((payload) => {
     const socket = biometricsSocketRef.current;
@@ -8206,6 +8244,45 @@ const DmPanel = () => {
                 <span>Muestras</span>
                 <strong>{config.consecutiveSamples || 3} / AVG {config.movingAverageSamples || 3}</strong>
               </div>
+            </div>
+
+            <div className="biometrics-messages-form">
+              <div className="dm-panel__panel-title">Mensajes para el reloj</div>
+              <p className="dm-panel__hint">
+                Se envían a la app Pebble cuando se cumple la condición de calma y la condición de pico.
+              </p>
+              <label>
+                Mensaje de calma
+                <textarea
+                  className="dm-panel__textarea--sm"
+                  rows={2}
+                  value={biometricsMessagesForm.calmMessage}
+                  onChange={(event) =>
+                    setBiometricsMessagesForm((prev) => ({ ...prev, calmMessage: event.target.value }))
+                  }
+                  placeholder="Calma detectada. Mantén el ritmo."
+                />
+              </label>
+              <label>
+                Mensaje de pico
+                <textarea
+                  className="dm-panel__textarea--sm"
+                  rows={2}
+                  value={biometricsMessagesForm.spikeMessage}
+                  onChange={(event) =>
+                    setBiometricsMessagesForm((prev) => ({ ...prev, spikeMessage: event.target.value }))
+                  }
+                  placeholder="Pico detectado."
+                />
+              </label>
+              <button
+                type="button"
+                className="dm-panel__button"
+                disabled={biometricsMessagesSaving}
+                onClick={saveBiometricsMessages}
+              >
+                {biometricsMessagesSaving ? 'Guardando...' : 'Guardar mensajes'}
+              </button>
             </div>
 
             <div className="biometrics-actions">

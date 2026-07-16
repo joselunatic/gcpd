@@ -83,9 +83,13 @@ Campos:
   "movingAverageSamples": 3,
   "unlockFlag": "biometric_secret_unlocked",
   "secretTitle": "ACCESS GRANTED",
-  "secretMessage": "Password: SOMBRA-17"
+  "secretMessage": "Password: SOMBRA-17",
+  "calmMessage": "Calma detectada. Mantén el ritmo.",
+  "spikeMessage": "Pico detectado."
 }
 ```
+
+`calmMessage` se envía al dispositivo cuando se cumple la condición de calma (transición a `calm_detected`); `spikeMessage` se envía al dispositivo junto al desbloqueo, cuando se cumple la condición de pico (transición a `unlocked`).
 
 ### Variables de entorno
 
@@ -98,7 +102,11 @@ BIOMETRICS_MOVING_AVERAGE_SAMPLES=3
 BIOMETRICS_UNLOCK_FLAG=biometric_secret_unlocked
 BIOMETRICS_SECRET_TITLE="ACCESS GRANTED"
 BIOMETRICS_SECRET_MESSAGE="Password: SOMBRA-17"
+BIOMETRICS_CALM_MESSAGE="Calma detectada. Mantén el ritmo."
+BIOMETRICS_SPIKE_MESSAGE="Pico detectado."
 ```
+
+También editables desde el panel DM (`BioLink` → "Mensajes para el reloj"), vía `POST /api/biometrics-config`.
 
 ### Ajuste en runtime
 
@@ -153,6 +161,36 @@ Fases:
 - `calm_detected`
 - `unlocked`
 
+### Mensajes de fase para el dispositivo
+
+Además de `biometrics:status` (hacia el DM), el backend responde al dispositivo con un
+`phase_update` en cada muestra:
+
+```json
+{
+  "type": "phase_update",
+  "phase": "calm_detected",
+  "target": 115,
+  "windowSeconds": 120,
+  "progress": 100
+}
+```
+
+El campo `message` solo aparece **una vez**, en la muestra exacta donde se cumple la
+condición de calma (transición `waiting_calm` → `calm_detected`), con el valor de
+`calmMessage`:
+
+```json
+{
+  "type": "phase_update",
+  "phase": "calm_detected",
+  "target": 115,
+  "windowSeconds": 120,
+  "progress": 100,
+  "message": "Calma detectada. Mantén el ritmo."
+}
+```
+
 ### Desbloqueo
 
 ```json
@@ -160,6 +198,7 @@ Fases:
   "type": "secret_unlocked",
   "title": "ACCESS GRANTED",
   "message": "Password: SOMBRA-17",
+  "spikeMessage": "Pico detectado.",
   "code": "biometric_secret_unlocked",
   "device": "pebble_time_2",
   "player": "agent_robin",
@@ -171,6 +210,9 @@ Fases:
   "timestamp": 1710000005000
 }
 ```
+
+`spikeMessage` se envía junto al resto del payload de desbloqueo, en el mismo instante
+en que se cumple la condición de pico (transición `calm_detected` → `unlocked`).
 
 Además, el backend integra el desbloqueo en `campaign_state`:
 
