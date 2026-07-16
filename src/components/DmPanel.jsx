@@ -1119,7 +1119,13 @@ const DmPanel = () => {
   const [biometricsSelectedDevice, setBiometricsSelectedDevice] = useState('');
   const [biometricsWsState, setBiometricsWsState] = useState('offline');
   const [biometricsMessage, setBiometricsMessage] = useState('');
-  const [biometricsMessagesForm, setBiometricsMessagesForm] = useState({ calmMessage: '', spikeMessage: '' });
+  const [biometricsMessagesForm, setBiometricsMessagesForm] = useState({
+    calmBpmThreshold: '',
+    spikeBpmThreshold: '',
+    timeWindowSeconds: '',
+    calmMessage: '',
+    spikeMessage: '',
+  });
   const [biometricsMessagesSaving, setBiometricsMessagesSaving] = useState(false);
   const evidencePreviewRef = useRef(null);
   const evidenceViewerRef = useRef(null);
@@ -3557,6 +3563,9 @@ const DmPanel = () => {
       const config = data?.config || null;
       setBiometricsConfig(config);
       setBiometricsMessagesForm({
+        calmBpmThreshold: config?.calmBpmThreshold != null ? String(config.calmBpmThreshold) : '',
+        spikeBpmThreshold: config?.spikeBpmThreshold != null ? String(config.spikeBpmThreshold) : '',
+        timeWindowSeconds: config?.timeWindowSeconds != null ? String(config.timeWindowSeconds) : '',
         calmMessage: config?.calmMessage || '',
         spikeMessage: config?.spikeMessage || '',
       });
@@ -3567,6 +3576,25 @@ const DmPanel = () => {
 
   const saveBiometricsMessages = useCallback(async () => {
     setBiometricsMessage('');
+    const calm = Number(biometricsMessagesForm.calmBpmThreshold);
+    const spike = Number(biometricsMessagesForm.spikeBpmThreshold);
+    const windowSeconds = Number(biometricsMessagesForm.timeWindowSeconds);
+    if (!Number.isFinite(calm) || calm < 30 || calm > 220) {
+      setBiometricsMessage('Umbral de calma invalido (30-220 BPM).');
+      return;
+    }
+    if (!Number.isFinite(spike) || spike < 30 || spike > 240) {
+      setBiometricsMessage('Umbral de pico invalido (30-240 BPM).');
+      return;
+    }
+    if (spike <= calm) {
+      setBiometricsMessage('El pico debe ser mayor que la calma.');
+      return;
+    }
+    if (!Number.isFinite(windowSeconds) || windowSeconds < 10 || windowSeconds > 900) {
+      setBiometricsMessage('Ventana invalida (10-900 segundos).');
+      return;
+    }
     setBiometricsMessagesSaving(true);
     try {
       const res = await fetch(BIOMETRICS_CONFIG_ENDPOINT, {
@@ -3576,6 +3604,9 @@ const DmPanel = () => {
           Authorization: `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({
+          calmBpmThreshold: calm,
+          spikeBpmThreshold: spike,
+          timeWindowSeconds: windowSeconds,
           calmMessage: biometricsMessagesForm.calmMessage,
           spikeMessage: biometricsMessagesForm.spikeMessage,
         }),
@@ -3585,10 +3616,13 @@ const DmPanel = () => {
       const config = data?.config || null;
       setBiometricsConfig(config);
       setBiometricsMessagesForm({
+        calmBpmThreshold: config?.calmBpmThreshold != null ? String(config.calmBpmThreshold) : '',
+        spikeBpmThreshold: config?.spikeBpmThreshold != null ? String(config.spikeBpmThreshold) : '',
+        timeWindowSeconds: config?.timeWindowSeconds != null ? String(config.timeWindowSeconds) : '',
         calmMessage: config?.calmMessage || '',
         spikeMessage: config?.spikeMessage || '',
       });
-      setBiometricsMessage('Mensajes de BioLink guardados.');
+      setBiometricsMessage('Configuracion de BioLink guardada.');
     } catch (error) {
       setBiometricsMessage(error.message || 'No se pudo guardar la configuracion de BioLink.');
     } finally {
@@ -8227,26 +8261,50 @@ const DmPanel = () => {
               </span>
             </div>
 
-            <div className="biometrics-config-grid">
-              <div className="biometrics-stat-card">
-                <span>Calma</span>
-                <strong>{config.calmBpmThreshold || 65} BPM</strong>
-              </div>
-              <div className="biometrics-stat-card">
-                <span>Pico</span>
-                <strong>{config.spikeBpmThreshold || 115} BPM</strong>
-              </div>
-              <div className="biometrics-stat-card">
-                <span>Ventana</span>
-                <strong>{config.timeWindowSeconds || 120}s</strong>
-              </div>
-              <div className="biometrics-stat-card">
-                <span>Muestras</span>
-                <strong>{config.consecutiveSamples || 3} / AVG {config.movingAverageSamples || 3}</strong>
-              </div>
-            </div>
-
             <div className="biometrics-messages-form">
+              <div className="dm-panel__panel-title">Detección</div>
+              <p className="dm-panel__hint">
+                Umbrales del patrón calma → pico. Muestras consecutivas: {config.consecutiveSamples || 3} · media móvil: {config.movingAverageSamples || 3}.
+              </p>
+              <div className="biometrics-config-grid">
+                <label>
+                  Calma (BPM)
+                  <input
+                    type="number"
+                    min={30}
+                    max={220}
+                    value={biometricsMessagesForm.calmBpmThreshold}
+                    onChange={(event) =>
+                      setBiometricsMessagesForm((prev) => ({ ...prev, calmBpmThreshold: event.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  Pico (BPM)
+                  <input
+                    type="number"
+                    min={30}
+                    max={240}
+                    value={biometricsMessagesForm.spikeBpmThreshold}
+                    onChange={(event) =>
+                      setBiometricsMessagesForm((prev) => ({ ...prev, spikeBpmThreshold: event.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  Ventana (s)
+                  <input
+                    type="number"
+                    min={10}
+                    max={900}
+                    value={biometricsMessagesForm.timeWindowSeconds}
+                    onChange={(event) =>
+                      setBiometricsMessagesForm((prev) => ({ ...prev, timeWindowSeconds: event.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+
               <div className="dm-panel__panel-title">Mensajes para el reloj</div>
               <p className="dm-panel__hint">
                 Se envían a la app Pebble cuando se cumple la condición de calma y la condición de pico.
@@ -8281,7 +8339,7 @@ const DmPanel = () => {
                 disabled={biometricsMessagesSaving}
                 onClick={saveBiometricsMessages}
               >
-                {biometricsMessagesSaving ? 'Guardando...' : 'Guardar mensajes'}
+                {biometricsMessagesSaving ? 'Guardando...' : 'Guardar configuración'}
               </button>
             </div>
 

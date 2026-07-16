@@ -106,7 +106,7 @@ BIOMETRICS_CALM_MESSAGE="Calma detectada. Mantén el ritmo."
 BIOMETRICS_SPIKE_MESSAGE="Pico detectado."
 ```
 
-También editables desde el panel DM (`BioLink` → "Mensajes para el reloj"), vía `POST /api/biometrics-config`.
+Los umbrales de calma/pico, la ventana y los mensajes son editables desde el panel DM (`BioLink` → "Detección" / "Mensajes para el reloj"), vía `POST /api/biometrics-config`. El servidor fuerza que el pico quede al menos 10 BPM por encima de la calma.
 
 ### Ajuste en runtime
 

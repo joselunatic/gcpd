@@ -1001,9 +1001,12 @@ function broadcastLiveMapToAgents(payload) {
 
 function normalizeBiometricsConfig(source = {}) {
   const merged = { ...BIOMETRICS_DEFAULT_CONFIG, ...(source && typeof source === 'object' ? source : {}) };
+  const calmBpmThreshold = Math.max(30, Math.min(220, Number(merged.calmBpmThreshold) || BIOMETRICS_DEFAULT_CONFIG.calmBpmThreshold));
+  const spikeRequested = Math.max(30, Math.min(240, Number(merged.spikeBpmThreshold) || BIOMETRICS_DEFAULT_CONFIG.spikeBpmThreshold));
   return {
-    calmBpmThreshold: Math.max(30, Math.min(220, Number(merged.calmBpmThreshold) || BIOMETRICS_DEFAULT_CONFIG.calmBpmThreshold)),
-    spikeBpmThreshold: Math.max(30, Math.min(240, Number(merged.spikeBpmThreshold) || BIOMETRICS_DEFAULT_CONFIG.spikeBpmThreshold)),
+    calmBpmThreshold,
+    // El pico debe quedar por encima de la calma o la mecánica no puede dispararse.
+    spikeBpmThreshold: Math.max(spikeRequested, calmBpmThreshold + 10),
     timeWindowSeconds: Math.max(10, Math.min(900, Number(merged.timeWindowSeconds) || BIOMETRICS_DEFAULT_CONFIG.timeWindowSeconds)),
     consecutiveSamples: Math.max(1, Math.min(10, Number(merged.consecutiveSamples) || BIOMETRICS_DEFAULT_CONFIG.consecutiveSamples)),
     movingAverageSamples: Math.max(1, Math.min(10, Number(merged.movingAverageSamples) || BIOMETRICS_DEFAULT_CONFIG.movingAverageSamples)),
