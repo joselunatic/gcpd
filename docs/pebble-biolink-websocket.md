@@ -8,12 +8,12 @@ Flujo operativo completo:
 
 `Pebble HR real/raw -> PKJS -> /ws/biometrics -> detector backend -> secret_unlocked -> PKJS / DM`
 
-El backend mantiene estado por dispositivo, conserva una ventana temporal de muestras y evalúa un patrón:
+El backend mantiene estado por dispositivo, conserva una ventana temporal de muestras y evalúa **dos condiciones independientes** — no hace falta pasar por una para disparar la otra:
 
-1. fase de calma por debajo de umbral
-2. seguida de fase de pico por encima de umbral
-3. dentro de una ventana temporal configurable
-4. exigiendo muestras consecutivas y media móvil
+- **Calma**: media móvil ≤ `calmBpmThreshold` durante `consecutiveSamples` muestras → se envía el mensaje de calma al reloj (una vez por entrada en la condición).
+- **Pico**: BPM de detección ≥ `spikeBpmThreshold` durante `consecutiveSamples` muestras, con media móvil también por encima → se envía `secret_unlocked` (mensaje de pico + secreto) y se marca la flag de campaña.
+
+La ventana temporal (`timeWindowSeconds`) solo delimita cuántas muestras entran en la media móvil. Hay una histéresis de 5 BPM alrededor de cada umbral para no rebotar entre estados; al salir de una condición y volver a entrar, el mensaje se reenvía.
 
 ## Endpoints
 
@@ -155,11 +155,11 @@ curl -X POST http://localhost:4000/api/biometrics-config \
 }
 ```
 
-Fases:
+Fases (indican la condición activa ahora mismo; los nombres se conservan por compatibilidad):
 
-- `waiting_calm`
-- `calm_detected`
-- `unlocked`
+- `waiting_calm` — sin condición activa
+- `calm_detected` — condición de calma activa
+- `unlocked` — condición de pico activa
 
 ### Mensajes de fase para el dispositivo
 

@@ -8197,9 +8197,9 @@ const DmPanel = () => {
       biometricsDevices[0] ||
       null;
     const phaseLabel = (phase = '') => {
-      if (phase === 'calm_detected') return 'CALMA FIJADA';
-      if (phase === 'unlocked') return 'SECRETO DESBLOQUEADO';
-      return 'ESPERANDO CALMA';
+      if (phase === 'calm_detected') return 'CALMA';
+      if (phase === 'unlocked') return 'PICO DETECTADO';
+      return 'SIN CONDICIÓN';
     };
     // Hero-banner state key: waiting -> calm -> unlocked
     const phaseState = (phase = '') => {
@@ -8208,9 +8208,9 @@ const DmPanel = () => {
       return 'waiting';
     };
     const phaseHint = (phase = '') => {
-      if (phase === 'unlocked') return 'Flag biométrica emitida · alerta elevada.';
-      if (phase === 'calm_detected') return 'Calma fijada. Esperando el pico de pulso.';
-      return 'Esperando lecturas bajas y estables para fijar la calma.';
+      if (phase === 'unlocked') return 'Condición de pico activa · mensaje y secreto enviados al reloj.';
+      if (phase === 'calm_detected') return 'Condición de calma activa · mensaje enviado al reloj.';
+      return 'El pulso no cumple ni la condición de calma ni la de pico.';
     };
     const formatTimestamp = (value) => {
       const ts = Number(value) || 0;
@@ -8284,7 +8284,7 @@ const DmPanel = () => {
             <div className="biometrics-messages-form">
               <div className="dm-panel__panel-title">Detección</div>
               <p className="dm-panel__hint">
-                Umbrales del patrón calma → pico. Muestras consecutivas: {config.consecutiveSamples || 3} · media móvil: {config.movingAverageSamples || 3}.
+                Condiciones independientes: la que se cumpla envía su mensaje. Muestras consecutivas: {config.consecutiveSamples || 3} · media móvil: {config.movingAverageSamples || 3} · la ventana limita el histórico de la media.
               </p>
               <div className="biometrics-config-grid">
                 <label>

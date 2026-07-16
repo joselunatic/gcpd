@@ -1092,17 +1092,16 @@ function broadcastBiometricsStatus(deviceState, extra = {}) {
 }
 
 function buildBiometricsPhaseUpdate(deviceState, config = getBiometricsConfig()) {
+  // Condiciones independientes: el progreso refleja la racha más avanzada.
+  const streak = Math.max(deviceState.calmCount, deviceState.spikeCount);
   const progress = config.consecutiveSamples > 0
-    ? Math.max(0, Math.min(100, Math.round((deviceState.calmCount / config.consecutiveSamples) * 100)))
-    : 0;
-  const remainingMs = deviceState.phase === 'calm_detected'
-    ? Math.max(0, deviceState.calmAt + config.timeWindowSeconds * 1000 - Date.now())
+    ? Math.max(0, Math.min(100, Math.round((streak / config.consecutiveSamples) * 100)))
     : 0;
   return {
     type: 'phase_update',
     phase: deviceState.phase,
     target: deviceState.phase === 'calm_detected' ? config.spikeBpmThreshold : config.calmBpmThreshold,
-    windowSeconds: Math.ceil(remainingMs / 1000),
+    windowSeconds: 0,
     progress,
   };
 }
@@ -1183,39 +1182,38 @@ function processBiometricsSample(deviceId, payload = {}) {
     phase: state.phase,
   });
 
-  if (state.unlocked) {
-    broadcastBiometricsStatus(state);
-    return { deviceEvent: buildBiometricsPhaseUpdate(state, config) };
-  }
-
+  // Condiciones INDEPENDIENTES de calma y pico: la que se cumpla dispara su
+  // mensaje, sin exigir haber pasado antes por la otra. La ventana temporal
+  // solo delimita cuántas muestras entran en la media móvil. Se aplica una
+  // histéresis de 5 BPM para no rebotar entre estados en el borde del umbral.
   if (state.lastAverageBpm <= config.calmBpmThreshold) {
     state.calmCount += 1;
-  } else {
+  } else if (state.lastAverageBpm > config.calmBpmThreshold + 5) {
     state.calmCount = 0;
   }
-
-  const justEnteredCalm = state.phase === 'waiting_calm' && state.calmCount >= config.consecutiveSamples;
-  if (justEnteredCalm) {
-    setBiometricsPhase(state, 'calm_detected', 'calm_threshold_reached');
-    state.calmAt = sample.timestamp;
+  if (detectionBpm >= config.spikeBpmThreshold) {
+    state.spikeCount += 1;
+  } else if (detectionBpm < config.spikeBpmThreshold - 5) {
     state.spikeCount = 0;
   }
 
-  if (state.phase === 'calm_detected') {
-    if (sample.timestamp - state.calmAt > config.timeWindowSeconds * 1000) {
-      setBiometricsPhase(state, 'waiting_calm', 'time_window_expired');
-      state.calmAt = 0;
-      state.calmCount = 0;
-      state.spikeCount = 0;
-    } else if (detectionBpm >= config.spikeBpmThreshold) {
-      state.spikeCount += 1;
-    } else if (detectionBpm < config.spikeBpmThreshold - 5) {
-      state.spikeCount = 0;
-    }
+  // Salida de la condición activa cuando su racha se rompe.
+  if (state.phase === 'calm_detected' && state.calmCount === 0) {
+    setBiometricsPhase(state, 'waiting_calm', 'calm_condition_lost');
+  }
+  if (state.phase === 'unlocked' && state.spikeCount === 0 && state.lastAverageBpm < config.spikeBpmThreshold) {
+    setBiometricsPhase(state, 'waiting_calm', 'spike_condition_lost');
   }
 
+  // Entrada en calma: mensaje de calma al reloj (una vez por entrada).
+  const justEnteredCalm = state.phase !== 'calm_detected' && state.calmCount >= config.consecutiveSamples;
+  if (justEnteredCalm) {
+    setBiometricsPhase(state, 'calm_detected', 'calm_threshold_reached');
+  }
+
+  // Entrada en pico: mensaje de pico + secreto (una vez por entrada).
   if (
-    state.phase === 'calm_detected' &&
+    state.phase !== 'unlocked' &&
     state.spikeCount >= config.consecutiveSamples &&
     state.lastAverageBpm >= config.spikeBpmThreshold
   ) {
@@ -1251,6 +1249,7 @@ function processBiometricsSample(deviceId, payload = {}) {
     };
   }
 
+  state.unlocked = state.phase === 'unlocked';
   broadcastBiometricsStatus(state);
   const phaseUpdate = buildBiometricsPhaseUpdate(state, config);
   if (justEnteredCalm) phaseUpdate.message = config.calmMessage;
