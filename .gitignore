@@ -13,6 +13,10 @@ dist-ssr
 *.local
 server/batconsole.db
 
+# Local runtime data dir (GCPD_DATA_DIR default) — DB, uploads, generated assets.
+# Never commit this; a stray commit here would clobber campaign state on pull.
+/var/
+
 # API Keys
 .env
 /deploy/systemd/gcpd.env
