@@ -1127,6 +1127,7 @@ const DmPanel = () => {
     spikeMessage: '',
   });
   const [biometricsMessagesSaving, setBiometricsMessagesSaving] = useState(false);
+  const [biometricsNow, setBiometricsNow] = useState(() => Date.now());
   const evidencePreviewRef = useRef(null);
   const evidenceViewerRef = useRef(null);
   const evidenceMeshRef = useRef(null);
@@ -3503,6 +3504,7 @@ const DmPanel = () => {
       device: String(source.device || '').trim(),
       player: String(source.player || '').trim(),
       phase: String(source.phase || 'waiting_calm').trim(),
+      connected: source.connected === true,
       unlocked: source.unlocked === true || String(source.phase || '').trim() === 'unlocked',
       calmAt: Number(source.calmAt) || 0,
       calmCount: Number(source.calmCount) || 0,
@@ -4633,6 +4635,14 @@ const DmPanel = () => {
     loadBiometricsConfig();
   }, [authorized, activeView, loadBiometricsConfig]);
 
+  // Tick para recalcular la frescura del enlace de cada reloj (EN VIVO / SIN SEÑAL).
+  useEffect(() => {
+    if (!authorized || activeView !== 'biolink') return undefined;
+    setBiometricsNow(Date.now());
+    const timer = setInterval(() => setBiometricsNow(Date.now()), 5000);
+    return () => clearInterval(timer);
+  }, [authorized, activeView]);
+
   useEffect(() => {
     setLiveMapBackgroundDraft(
       liveMapState.backgroundLoaded && liveMapState.backgroundImagePath
@@ -4761,6 +4771,7 @@ const DmPanel = () => {
           device: payload.device,
           player: payload.player,
           phase: 'unlocked',
+          connected: true,
           unlocked: true,
           lastBpm: payload.bpm,
           lastRawBpm: payload.rawBpm,
@@ -8208,10 +8219,19 @@ const DmPanel = () => {
       return 'waiting';
     };
     const phaseHint = (phase = '') => {
-      if (phase === 'unlocked') return 'Condición de pico activa · mensaje y secreto enviados al reloj.';
+      if (phase === 'unlocked') return 'Condición de pico activa · mensaje enviado al reloj.';
       if (phase === 'calm_detected') return 'Condición de calma activa · mensaje enviado al reloj.';
       return 'El pulso no cumple ni la condición de calma ni la de pico.';
     };
+    // Estado vivo del enlace: WS abierto + muestras recientes = watchapp abierta.
+    // Un socket puede quedar colgado tras cerrar la app; la frescura desambigua.
+    const linkState = (device) => {
+      if (!device?.connected) return 'offline';
+      const age = biometricsNow - (Number(device.updatedAt) || 0);
+      return age < 12000 ? 'live' : 'stale';
+    };
+    const LINK_LABEL = { live: 'EN VIVO', stale: 'SIN SEÑAL', offline: 'OFFLINE' };
+    const LINK_TONE = { live: 'online', stale: 'warning', offline: 'offline' };
     const formatTimestamp = (value) => {
       const ts = Number(value) || 0;
       if (!ts) return 'SIN DATOS';
@@ -8399,6 +8419,9 @@ const DmPanel = () => {
                     <span>{device.device}</span>
                     <span>{renderBpm(device.lastBpm)} · AVG {renderBpm(device.lastAverageBpm)}</span>
                     <span>{phaseLabel(device.phase)}</span>
+                    <span className={`biometrics-status-pill biometrics-status-pill--${LINK_TONE[linkState(device)]}`}>
+                      {LINK_LABEL[linkState(device)]}
+                    </span>
                   </button>
                 ))
               ) : (
@@ -8424,9 +8447,14 @@ const DmPanel = () => {
                         <strong>{selectedDevice.player || selectedDevice.device}</strong>
                         <p>{selectedDevice.device}</p>
                       </div>
-                      <span className="biometrics-detail__updated">
-                        {formatTimestamp(selectedDevice.updatedAt)}
-                      </span>
+                      <div className="biometrics-detail__link">
+                        <span className={`biometrics-status-pill biometrics-status-pill--${LINK_TONE[linkState(selectedDevice)]}`}>
+                          {LINK_LABEL[linkState(selectedDevice)]}
+                        </span>
+                        <span className="biometrics-detail__updated">
+                          {formatTimestamp(selectedDevice.updatedAt)}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Hero: la fase es lo que importa de un vistazo */}

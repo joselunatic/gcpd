@@ -1037,6 +1037,7 @@ function getBiometricsDeviceState(deviceId) {
       calmCount: 0,
       spikeCount: 0,
       unlocked: false,
+      connected: false,
       lastBpm: 0,
       lastRawBpm: 0,
       lastFilteredBpm: 0,
@@ -1075,6 +1076,7 @@ function broadcastBiometricsStatus(deviceState, extra = {}) {
     device: deviceState.device,
     player: deviceState.player || '',
     phase: deviceState.phase,
+    connected: Boolean(deviceState.connected),
     bpm: deviceState.lastBpm,
     rawBpm: deviceState.lastRawBpm,
     filteredBpm: deviceState.lastFilteredBpm,
@@ -3950,8 +3952,11 @@ biometricsWss.on('connection', (ws, request, url) => {
   } else {
     ws.biometricsDevice = device;
     biometricsDeviceSockets.add(ws);
+    const deviceState = getBiometricsDeviceState(device);
+    deviceState.connected = true;
     logBiometrics('device_connected', { device });
     wsSend(ws, { type: 'hello', channel: 'biometrics', device, config: getBiometricsConfig() });
+    broadcastBiometricsStatus(deviceState);
   }
 
   ws.on('message', (raw) => {
@@ -4034,6 +4039,16 @@ biometricsWss.on('connection', (ws, request, url) => {
     biometricsDmSockets.delete(ws);
     biometricsDeviceSockets.delete(ws);
     if (!isDm) {
+      // Puede haber más de un socket para el mismo device id; solo se marca
+      // desconectado cuando no queda ninguno.
+      const stillConnected = Array.from(biometricsDeviceSockets).some(
+        (socket) => socket.biometricsDevice === device
+      );
+      const deviceState = biometricsDevices.get(device);
+      if (deviceState) {
+        deviceState.connected = stillConnected;
+        broadcastBiometricsStatus(deviceState);
+      }
       logBiometrics('device_disconnected', { device });
     }
   });

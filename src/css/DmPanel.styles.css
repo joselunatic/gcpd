@@ -3425,6 +3425,18 @@
   white-space: nowrap;
 }
 
+.biometrics-detail__link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+}
+
+.dm-panel .biometrics-device-button .biometrics-status-pill {
+  justify-self: start;
+  margin-top: 0.15rem;
+}
+
 /* ── Hero phase banner ─────────────────────────────────── */
 .biometrics-hero {
   padding: var(--bem-space-4, 0.9rem) var(--bem-space-5, 1.1rem);
